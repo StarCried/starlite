@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "name": "inochi2d-web synthetic fixture",
+    "version": "1.0",
+    "rigger": null,
+    "artist": null,
+    "copyright": "2026 StarCried",
+    "licenseURL": null,
+    "contact": null,
+    "reference": null,
+    "preservePixels": false
+  },
+  "physics": {
+    "pixelsPerMeter": 1000,
+    "gravity": 9.81
+  },
+  "param": [
+    { "uuid": 1, "name": "HeadX", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 2, "name": "HeadY", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 3, "name": "HeadZ", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 4, "name": "BodyX", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 5, "name": "BodyY", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 6, "name": "EyeOpenL", "is_vec2": false, "min": [0, 0], "max": [1, 0], "defaults": [1, 0], "axis_points": [[0, 1], [0]], "bindings": [] },
+    { "uuid": 7, "name": "EyeOpenR", "is_vec2": false, "min": [0, 0], "max": [1, 0], "defaults": [1, 0], "axis_points": [[0, 1], [0]], "bindings": [] },
+    { "uuid": 8, "name": "EyeX", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 9, "name": "EyeY", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 10, "name": "BrowL", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 11, "name": "BrowR", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 12, "name": "MouthOpen", "is_vec2": false, "min": [0, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[0, 1], [0]], "bindings": [] },
+    { "uuid": 13, "name": "MouthForm", "is_vec2": false, "min": [-1, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[-1, 0, 1], [0]], "bindings": [] },
+    { "uuid": 14, "name": "Breath", "is_vec2": false, "min": [0, 0], "max": [1, 0], "defaults": [0, 0], "axis_points": [[0, 1], [0]], "bindings": [] }
+  ],
+  "nodes": {
+    "uuid": 0,
+    "name": "Root",
+    "enabled": true,
+    "zsort": 0,
+    "transform": {
+      "trans": [0, 0, 0],
+      "rot": [0, 0, 0],
+      "scale": [1, 1]
+    },
+    "lockToRoot": false,
+    "type": "Node",
+    "children": []
+  }
+}

@@ -1,0 +1,14 @@
+/target/
+/node_modules/
+**/node_modules/
+**/dist/
+**/coverage/
+/packages/inochi2d-web/src/generated/
+**/playwright-report/
+**/test-results/
+/examples/hexo/db.json
+/examples/hexo/public/
+/examples/hexo/source/models/*.inp
+/examples/vanilla/public/models/*.inp
+*.log
+.DS_Store

@@ -1,0 +1,20 @@
+title: inochi2d-web Hexo example
+url: http://127.0.0.1:4174
+root: /
+language: en
+theme: minimal
+per_page: 0
+
+inochi2d_widget:
+  enable: true
+  model: models/puppet.inp
+  fallback: images/fallback.svg
+  display:
+    width: 260
+    height: 360
+  render:
+    fps: 30
+    maxDevicePixelRatio: 1.25
+  mobile:
+    show: false
+    breakpoint: 768

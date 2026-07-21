@@ -1,0 +1,30 @@
+{
+  "name": "inochi2d-web",
+  "version": "0.1.0-alpha.1",
+  "description": "Framework-free Inochi2D WebGL2 widget runtime",
+  "type": "module",
+  "license": "BSD-2-Clause",
+  "sideEffects": [
+    "./dist/widget.css"
+  ],
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./widget.css": "./dist/widget.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

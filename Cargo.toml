@@ -1,0 +1,17 @@
+[workspace]
+members = ["crates/inox2d-web-wasm"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0-alpha.1"
+edition = "2021"
+license = "BSD-2-Clause"
+repository = "https://github.com/StarCried/inochi2d-web"
+rust-version = "1.85"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+panic = "abort"
+strip = true

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 360" role="img" aria-labelledby="title desc">
+  <title id="title">Inochi2D fallback</title>
+  <desc id="desc">A neutral placeholder shown when the puppet cannot load.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#40384f"/>
+      <stop offset="1" stop-color="#24202c"/>
+    </linearGradient>
+  </defs>
+  <rect width="260" height="360" rx="28" fill="url(#background)"/>
+  <circle cx="130" cy="126" r="62" fill="#d4cce0" opacity=".92"/>
+  <path d="M52 330c8-79 40-119 78-119s70 40 78 119" fill="#a99bbd"/>
+  <circle cx="108" cy="124" r="7" fill="#37303f"/>
+  <circle cx="152" cy="124" r="7" fill="#37303f"/>
+  <path d="M112 153c11 8 25 8 36 0" fill="none" stroke="#37303f" stroke-width="5" stroke-linecap="round"/>
+  <text x="130" y="344" fill="#f1edf5" font-family="system-ui,sans-serif" font-size="12" text-anchor="middle">STATIC FALLBACK</text>
+</svg>

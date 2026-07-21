@@ -1,0 +1,16 @@
+{
+  "name": "@inochi2d-web/vanilla-example",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../tools/generate-synthetic-fixtures.mjs && vite build",
+    "dev": "node ../../tools/generate-synthetic-fixtures.mjs && vite --host 127.0.0.1 --port 4173",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:browser": "node ../../tools/generate-synthetic-fixtures.mjs && npm run build --workspace @inochi2d-web/hexo-example && playwright test"
+  },
+  "dependencies": {
+    "inochi2d-web": "0.1.0-alpha.1"
+  }
+}

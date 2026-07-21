@@ -1,0 +1,41 @@
+.inochi2d-widget {
+  --inochi2d-width: 260px;
+  --inochi2d-height: 360px;
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(72px, calc(env(safe-area-inset-bottom) + 56px));
+  z-index: 30;
+  width: var(--inochi2d-width);
+  height: var(--inochi2d-height);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 96px);
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint style;
+}
+
+.inochi2d-widget__canvas,
+.inochi2d-widget__fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  touch-action: none;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.inochi2d-widget__canvas {
+  background: transparent;
+}
+
+.inochi2d-widget[data-inochi2d-status="disabled"],
+.inochi2d-widget[data-inochi2d-status="destroyed"] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inochi2d-widget__canvas {
+    pointer-events: none;
+  }
+}

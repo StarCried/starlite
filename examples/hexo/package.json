@@ -1,0 +1,15 @@
+{
+  "name": "@inochi2d-web/hexo-example",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "scripts": {
+    "build": "node ../../tools/generate-synthetic-fixtures.mjs && node tools/build.mjs && node tools/verify-generated.mjs",
+    "serve": "vite preview --outDir public --host 127.0.0.1 --port 4174 --strictPort"
+  },
+  "dependencies": {
+    "hexo": "7.3.0",
+    "hexo-inox2d-widget": "0.1.0-alpha.1",
+    "hexo-renderer-ejs": "2.0.0",
+    "hexo-renderer-marked": "7.0.1"
+  }
+}
