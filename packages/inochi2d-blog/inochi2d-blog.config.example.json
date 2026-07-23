@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "blogRoot": "../my-hexo-blog",
+  "model": "../models/public-puppet.inp",
+  "fallback": "../models/public-puppet.png",
+  "publication": {
+    "confirm": true,
+    "allowRedistribution": true,
+    "sourceSha256": "REPLACE_WITH_THE_64_CHARACTER_SHA256_FROM_INSPECT",
+    "attribution": "Replace when the model license requires attribution"
+  },
+  "hexoConfig": "_config.yml",
+  "previewPort": 4192,
+  "previewPath": "/",
+  "widget": {
+    "display": {
+      "width": 260,
+      "height": 360
+    },
+    "render": {
+      "fps": 30,
+      "maxDevicePixelRatio": 1.25,
+      "initialScale": 0.15
+    },
+    "mobile": {
+      "show": false,
+      "breakpoint": 768
+    },
+    "interactions": {
+      "pointer": true,
+      "click": true,
+      "drag": true
+    }
+  }
+}

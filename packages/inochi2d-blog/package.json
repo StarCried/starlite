@@ -1,0 +1,35 @@
+{
+  "name": "inochi2d-blog",
+  "version": "0.1.0-alpha.1",
+  "description": "Fail-closed local Inochi2D model-to-Hexo deployment orchestrator",
+  "type": "module",
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StarCried/inochi2d-web.git",
+    "directory": "packages/inochi2d-blog"
+  },
+  "homepage": "https://github.com/StarCried/inochi2d-web#readme",
+  "bugs": "https://github.com/StarCried/inochi2d-web/issues",
+  "bin": {
+    "inochi2d-blog": "./bin/inochi2d-blog.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "LICENSE",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md",
+    "THIRD_PARTY_LICENSES.txt",
+    "inochi2d-blog.config.example.json",
+    "vendor"
+  ],
+  "scripts": {
+    "lint": "node --check bin/inochi2d-blog.mjs && node --check src/cli.mjs",
+    "typecheck": "node --check bin/inochi2d-blog.mjs && node --check src/cli.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

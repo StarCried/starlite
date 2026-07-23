@@ -1,28 +1,44 @@
-import { collectRuntimeAssets } from "./assets";
+import { collectModelAssets, collectRuntimeAssets } from "./assets";
 import { createBootstrapSource } from "./bootstrap";
 import { normalizeRoot, readEnabledConfig } from "./config";
-import type { HexoLike, RuntimeAssetBundle } from "./types";
+import type { HexoLike, ModelAssetBundle, RuntimeAssetBundle } from "./types";
 
 declare const hexo: HexoLike | undefined;
 
 export function registerHexoWidget(instance: HexoLike): void {
   let cachedBundle: RuntimeAssetBundle | undefined;
+  let cachedModelBundle: ModelAssetBundle | undefined;
   const bundle = (): RuntimeAssetBundle => (cachedBundle ??= collectRuntimeAssets());
+  const enabled = () => {
+    const input = instance.config.inochi2d_widget;
+    const bundleLocation = typeof input?.bundle === "string" ? input.bundle.trim() : "";
+    const modelBundle =
+      input?.enable && bundleLocation
+        ? (cachedModelBundle ??= collectModelAssets(bundleLocation, instance.base_dir))
+        : undefined;
+    return readEnabledConfig(instance, modelBundle);
+  };
 
   instance.extend.generator.register("inochi2d-widget-assets", () => {
-    if (!readEnabledConfig(instance)) {
+    if (!enabled()) {
       return undefined;
     }
     const current = bundle();
-    return current.assets.map((asset) => ({
+    const runtimeRoutes = current.assets.map((asset) => ({
       path: `${current.routePrefix}/${asset.relativePath}`,
       data: asset.contents,
     }));
+    const modelBundle = cachedModelBundle;
+    const modelRoutes = modelBundle?.assets.map((asset) => ({
+      path: `${modelBundle.routePrefix}/${asset.relativePath}`,
+      data: asset.contents,
+    }));
+    return [...runtimeRoutes, ...(modelRoutes ?? [])];
   });
 
   instance.extend.injector.register("body_end", () => {
-    const enabled = readEnabledConfig(instance);
-    if (!enabled) {
+    const currentConfig = enabled();
+    if (!currentConfig) {
       return undefined;
     }
     const current = bundle();
@@ -30,9 +46,9 @@ export function registerHexoWidget(instance: HexoLike): void {
     const assetBase = `${root}${current.routePrefix}`;
     const bootstrap = createBootstrapSource({
       entryUrl: `${assetBase}/index.js`,
-      config: enabled.widget,
-      breakpoint: enabled.breakpoint,
-      showOnMobile: enabled.showOnMobile,
+      config: currentConfig.widget,
+      breakpoint: currentConfig.breakpoint,
+      showOnMobile: currentConfig.showOnMobile,
     });
 
     return [

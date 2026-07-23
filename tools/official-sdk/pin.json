@@ -1,0 +1,10 @@
+{
+  "sdkCommit": "f4b4917a59419e64f2704ac7b806e2bf09bca752",
+  "sdkSourceUrl": "https://codeload.github.com/Inochi2D/inochi2d/tar.gz/f4b4917a59419e64f2704ac7b806e2bf09bca752",
+  "sdkSourceSha256": "314f6d6e77682a0638fd424d512f883dc0c0bb2113a4e202db894eae05bd16e7",
+  "toolchainTag": "v0.9.0-testing",
+  "toolchainUrl": "https://github.com/Inochi2D/sdk-toolchain/releases/download/v0.9.0-testing/ldc2-wasm32-wasi.tar.gz",
+  "toolchainSha256": "5adc0c991f68f5313f215e638c3470b857796ad57bd2344b28cddf707d3784c3",
+  "rawWasmSha256": "3222a28876bf70710ff6341f908e0f9fcda2fbb27285ba0ecb7a5cac6decb37c",
+  "optimizedWasmSha256": "3eea52c132fca214320186781a7a5706c878b429ffb63cf5672aa0f7efc86408"
+}

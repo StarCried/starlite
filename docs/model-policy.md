@@ -1,16 +1,20 @@
 # Public model policy
 
-The full StarCried model remains a private Windows-side asset and must not enter
-this repository, upstream contributions, automated tests, package archives, or
-deployment artifacts.
+The full StarCried character project remains private on Windows. It must not
+enter this repository, package archives, upstream contributions, CI artifacts,
+or a public blog deployment.
 
-A future public blog puppet must be a separate Creator export with explicit
-publication approval. It should use PNG or TGA textures, avoid BC7, MeshGroup,
-built-in animation, and composite-as-mask, target a 2048 atlas (never exceeding
-4096 per texture), and remain under 8 MiB. The intended parameter contract is:
+A blog puppet must be a separate Creator export with explicit publication
+approval. The alpha profile accepts PNG/TGA, limits each texture dimension to
+4096, and requires the prepared `.inp` to remain at or below 8 MiB. BC7,
+MeshGroup, built-in automation/animation, unsupported node/blend types, and a
+Composite used as a mask are blocking errors.
 
-`HeadX`, `HeadY`, `HeadZ`, `BodyX`, `BodyY`, `EyeOpenL`, `EyeOpenR`, `EyeX`,
-`EyeY`, `BrowL`, `BrowR`, `MouthOpen`, `MouthForm`, and `Breath`.
+`inochi2d-blog` does not infer rights. The operator must review the exact source
+hash and set both publication booleans. A model declaring redistribution as
+prohibited is always blocked; required attribution must be provided.
 
-Third-party models may be used only for local manual testing after their source,
-license, and attribution have been recorded. They remain ignored by Git.
+Third-party puppets are local-only test inputs and remain ignored by Git. Record
+their origin, exact source hash, license, and attribution in
+`docs/validation.md`. Automated and packaged artifacts may contain only
+synthetic artwork-free fixtures.

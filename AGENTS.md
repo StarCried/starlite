@@ -1,30 +1,59 @@
-# Inochi2D Web Project Instructions
+# Inochi2D Web project instructions
 
-## Scope and Architecture
+## Repository boundaries
 
-- `crates/inox2d-web-wasm` is the narrow Rust/wasm-bindgen bridge. It owns parsing, model state, rendering, physics stepping, camera updates, and explicit release of Rust-side state.
-- `packages/inochi2d-web` is the framework-free browser controller. It owns network access, lifecycle, motion synthesis, interaction mixing, DPR/FPS policy, and fallback presentation.
-- `packages/hexo-inox2d-widget` is the Hexo 7 adapter. It owns configuration normalization, hashed asset routes, injection, and PJAX-safe singleton bootstrapping.
-- `examples` may depend on packages, but packages must never depend on examples.
+- `crates/inochi2d-pipeline` owns untrusted `.inp/.inx` inspection,
+  compatibility and rights reports, lossless texture optimization, manifests,
+  and transactional output.
+- `tools/build-official-sdk.mjs` owns the reproducible official D-SDK download,
+  source compatibility patches, minimal browser export surface, Binaryen
+  optimization, and pinned output hashes.
+- `packages/inochi2d-web` owns model fetch, official WASM calls, WebGL2 command
+  rendering, lifecycle, motion synthesis, interaction, DPR/FPS policy, and
+  fallback presentation.
+- `packages/hexo-inox2d-widget` owns Hexo 7 configuration, manifest verification,
+  hashed asset routes, injection, and PJAX-safe singleton bootstrapping.
+- `packages/inochi2d-blog` owns fail-closed orchestration. No code path may call
+  `hexo deploy` before rights, identity, preparation, generation, and browser
+  gates have all passed.
+- Examples may depend on packages; packages must not depend on examples.
 
-## Public and Private Assets
+## Public and private assets
 
-- Never add StarCried source art, Creator projects, private `.inp` files, credentials, or blog content.
-- Automated fixtures must be synthetic and redistributable. Third-party puppets are manual-test inputs only and require an attribution record.
-- Generated wasm-bindgen files and package build output are reproducible artifacts and stay untracked.
+- Never add StarCried source art, Creator projects, private puppets, credentials,
+  deployment tokens, or real blog content.
+- Committed fixtures must be synthetic, artwork-free, and redistributable.
+- Third-party puppets are ignored local test inputs only, with license and
+  attribution recorded in `docs/validation.md`.
+- Package checks must reject `.inp` and `.inx` files.
 
-## Compatibility Contract
+## Compatibility contract
 
 - Version 0.1 targets current desktop Chrome and Edge with WebGL2.
-- Mobile defaults to hidden. The Hexo bootstrap must return before importing JavaScript or fetching WASM/model data.
-- Do not add WebGL1, camera tracking, microphone/lip-sync, MeshGroup, BC7, or built-in animation support without an approved scope change.
+- Mobile defaults to hidden and must return before runtime import or model/WASM
+  fetch.
+- Do not add WebGL1, BC7, MeshGroup, built-in animations, voice/camera input, or
+  Firefox/Safari support without an approved scope change.
+- Keep official SDK source, toolchain, raw WASM, optimized WASM, LLD, and
+  Binaryen versions synchronized with `tools/official-sdk/pin.json` and
+  `docs/upstream.md`.
 
-## Validation
+## Change and validation rules
 
-- Run narrow package or crate checks first, then the root validation scripts.
-- Tests must cover failed model fetch/parse, lifecycle pause/resume, reduced motion, context loss, and idempotent PJAX mounting.
-- Keep the Git-pinned Inox2D revision documented in `docs/upstream.md` and update it with the Cargo dependency.
+- Use small changes and test the narrow package first.
+- Treat `.inp/.inx` input, native manifests, generated paths, and browser draw
+  buffers as untrusted.
+- Any malformed, non-finite, incompatible, unauthorized, or hash-mismatched
+  state must fail closed; never continue to deployment.
+- Run `npm run validate`, the public-model browser gate when available,
+  `npm run test:browser`, package dry runs, and `git diff --check` before release.
+- Keep documentation, config examples, tests, lockfiles, and package contents
+  synchronized with behavior changes.
 
-## External Actions
+## External actions
 
-- Local commits and branches are allowed. Creating remotes, opening issues or pull requests, publishing npm packages, and deploying a blog require separate user approval.
+Local branches, builds, and tests are allowed. Pushing a remote, opening an
+issue or pull request, publishing npm packages, copying a public puppet into a
+deployment, and running a real blog deploy each require separate user approval.
+Do not submit AI-generated source to an upstream repository whose contribution
+policy prohibits it.

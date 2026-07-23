@@ -1,0 +1,990 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::io::Cursor;
+
+use image::{ImageFormat, ImageReader, Limits};
+use serde_json::{Map, Value};
+
+use crate::container::InpDocument;
+use crate::model::{
+    CompatibilityReport, ContentIdentity, InspectionReport, Issue, IssueSeverity, MetadataReport,
+    NodeSummary, ParameterProfile, PublicationReport, TextureFormat, TextureInspection,
+    MANIFEST_SCHEMA_VERSION,
+};
+use crate::{sha256_hex, PipelineError, Result};
+
+const MAX_TEXTURE_DIMENSION: u32 = 4096;
+const MAX_TEXTURE_DECODE_ALLOC: u64 = 128 * 1024 * 1024;
+const MODEL_SIZE_BUDGET: u64 = 8 * 1024 * 1024;
+const MAX_PARAMETER_COUNT: usize = 4096;
+const MAX_BINDING_COUNT: usize = 65_536;
+const MAX_NODE_COUNT: usize = 4096;
+const MAX_NODE_DEPTH: usize = 32;
+const SUPPORTED_BLEND_MODE_IDS: &[u64] = &[0, 1, 2, 5, 6, 7, 8, 15, 16, 17, 18];
+const SUPPORTED_BLEND_MODE_NAMES: &[&str] = &[
+    "Normal",
+    "Multiply",
+    "Screen",
+    "Lighten",
+    "ColorDodge",
+    "LinearDodge",
+    "AddGlow",
+    "Inverse",
+    "DestinationIn",
+    "ClipToLower",
+    "SliceFromLower",
+];
+
+#[derive(Clone, Debug)]
+struct NodeRecord {
+    uuid: Option<u64>,
+    name: Option<String>,
+    node_type: Option<String>,
+    masks: Vec<u64>,
+}
+
+pub fn inspect(source_bytes: &[u8], document: &InpDocument) -> Result<InspectionReport> {
+    let mut compatibility_issues = Vec::new();
+    let textures = inspect_textures(document, &mut compatibility_issues)?;
+    if source_bytes.len() as u64 > MODEL_SIZE_BUDGET {
+        compatibility_issues.push(issue(
+            "source_model_over_size_budget",
+            IssueSeverity::Warning,
+            format!(
+                "source model is {} bytes; the web target is at most {MODEL_SIZE_BUDGET} bytes",
+                source_bytes.len()
+            ),
+            None,
+        ));
+    }
+
+    let payload = document.payload_json.as_object().ok_or_else(|| {
+        PipelineError::InvalidContainer("the JSON payload root must be an object".to_owned())
+    })?;
+    let metadata = inspect_metadata(payload, &mut compatibility_issues);
+    let parameters = inspect_parameters(payload, &mut compatibility_issues);
+    let nodes = inspect_nodes(payload, document.textures.len(), &mut compatibility_issues);
+
+    if payload.get("automation").is_some_and(has_content) {
+        compatibility_issues.push(issue(
+            "built_in_automation_unsupported",
+            IssueSeverity::Error,
+            "built-in automation/animation data is outside the first browser runtime scope",
+            None,
+        ));
+    }
+
+    let publication = inspect_publication(&metadata);
+    let supported = !compatibility_issues
+        .iter()
+        .any(|item| item.severity == IssueSeverity::Error);
+
+    Ok(InspectionReport {
+        schema_version: MANIFEST_SCHEMA_VERSION,
+        source: ContentIdentity {
+            sha256: sha256_hex(source_bytes),
+            bytes: source_bytes.len() as u64,
+        },
+        payload_bytes: document.payload.len() as u64,
+        vendor_count: document.vendor_count,
+        metadata,
+        parameters,
+        nodes,
+        textures,
+        compatibility: CompatibilityReport {
+            supported,
+            issues: compatibility_issues,
+        },
+        publication,
+    })
+}
+
+fn inspect_textures(
+    document: &InpDocument,
+    issues: &mut Vec<Issue>,
+) -> Result<Vec<TextureInspection>> {
+    document
+        .textures
+        .iter()
+        .enumerate()
+        .map(|(index, texture)| {
+            if texture.format == TextureFormat::Bc7 {
+                issues.push(issue(
+                    "bc7_texture_unsupported",
+                    IssueSeverity::Error,
+                    format!("texture {index} uses BC7, which the browser runtime cannot decode"),
+                    None,
+                ));
+                return Ok(TextureInspection {
+                    index,
+                    format: texture.format,
+                    width: None,
+                    height: None,
+                    bytes: texture.data.len() as u64,
+                });
+            }
+
+            let format = image_format(texture.format);
+            let mut reader = ImageReader::with_format(Cursor::new(&texture.data), format);
+            let mut limits = Limits::default();
+            limits.max_image_width = Some(MAX_TEXTURE_DIMENSION);
+            limits.max_image_height = Some(MAX_TEXTURE_DIMENSION);
+            limits.max_alloc = Some(MAX_TEXTURE_DECODE_ALLOC);
+            reader.limits(limits);
+            let decoded = reader
+                .decode()
+                .map_err(|source| PipelineError::TextureDecode {
+                    index,
+                    format: texture.format.label(),
+                    source,
+                })?;
+            let (width, height) = (decoded.width(), decoded.height());
+            if width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION {
+                issues.push(issue(
+                    "texture_dimension_unsupported",
+                    IssueSeverity::Error,
+                    format!(
+						"texture {index} is {width}x{height}; each dimension must be at most {MAX_TEXTURE_DIMENSION}"
+					),
+                    None,
+                ));
+            }
+
+            Ok(TextureInspection {
+                index,
+                format: texture.format,
+                width: Some(width),
+                height: Some(height),
+                bytes: texture.data.len() as u64,
+            })
+        })
+        .collect()
+}
+
+fn inspect_metadata(payload: &Map<String, Value>, issues: &mut Vec<Issue>) -> MetadataReport {
+    let Some(meta) = payload.get("meta").and_then(Value::as_object) else {
+        issues.push(issue(
+            "metadata_missing",
+            IssueSeverity::Error,
+            "payload.meta must be an object",
+            None,
+        ));
+        return empty_metadata();
+    };
+
+    MetadataReport {
+        name: optional_string(meta, "name"),
+        version: optional_string(meta, "version"),
+        rigger: optional_string(meta, "rigger"),
+        artist: optional_string(meta, "artist"),
+        copyright: optional_string(meta, "copyright"),
+        license_url: optional_string(meta, "licenseURL"),
+        contact: optional_string(meta, "contact"),
+        reference: optional_string(meta, "reference"),
+        rights: meta.get("rights").filter(|value| !value.is_null()).cloned(),
+    }
+}
+
+fn inspect_parameters(
+    payload: &Map<String, Value>,
+    issues: &mut Vec<Issue>,
+) -> Vec<ParameterProfile> {
+    let Some(parameters) = payload.get("param").and_then(Value::as_array) else {
+        issues.push(issue(
+            "parameters_missing",
+            IssueSeverity::Error,
+            "payload.param must be an array",
+            None,
+        ));
+        return Vec::new();
+    };
+    if parameters.len() > MAX_PARAMETER_COUNT {
+        issues.push(issue(
+            "parameter_count_unsupported",
+            IssueSeverity::Error,
+            format!(
+                "model contains {} parameters; the limit is {MAX_PARAMETER_COUNT}",
+                parameters.len()
+            ),
+            None,
+        ));
+    }
+
+    let mut names = HashSet::new();
+    let mut binding_count = 0_usize;
+    parameters
+        .iter()
+        .take(MAX_PARAMETER_COUNT)
+        .enumerate()
+        .filter_map(|(index, value)| {
+            let Some(parameter) = value.as_object() else {
+                issues.push(issue(
+                    "parameter_schema_invalid",
+                    IssueSeverity::Error,
+                    format!("parameter {index} must be an object"),
+                    None,
+                ));
+                return None;
+            };
+
+            let Some(name) = parameter.get("name").and_then(Value::as_str) else {
+                issues.push(issue(
+                    "parameter_schema_invalid",
+                    IssueSeverity::Error,
+                    format!("parameter {index} has no string name"),
+                    None,
+                ));
+                return None;
+            };
+            let Some(is_vector) = parameter.get("is_vec2").and_then(Value::as_bool) else {
+                issues.push(issue(
+                    "parameter_schema_invalid",
+                    IssueSeverity::Error,
+                    format!("parameter {name:?} has no boolean is_vec2 value"),
+                    None,
+                ));
+                return None;
+            };
+            if !names.insert(name.to_owned()) {
+                issues.push(issue(
+                    "parameter_name_duplicate",
+                    IssueSeverity::Error,
+                    format!("parameter name {name:?} is duplicated"),
+                    None,
+                ));
+            }
+
+            let Some(min) = vec2(parameter.get("min")) else {
+                push_parameter_vec_issue(issues, name, "min");
+                return None;
+            };
+            let Some(max) = vec2(parameter.get("max")) else {
+                push_parameter_vec_issue(issues, name, "max");
+                return None;
+            };
+            let Some(defaults) = vec2(parameter.get("defaults")) else {
+                push_parameter_vec_issue(issues, name, "defaults");
+                return None;
+            };
+            validate_parameter_range(name, is_vector, min, max, defaults, issues);
+            validate_axis_points(name, is_vector, parameter.get("axis_points"), issues);
+            validate_bindings(name, parameter.get("bindings"), &mut binding_count, issues);
+
+            Some(ParameterProfile {
+                name: name.to_owned(),
+                is_vector,
+                min,
+                max,
+                defaults,
+            })
+        })
+        .collect()
+}
+
+fn validate_parameter_range(
+    name: &str,
+    is_vector: bool,
+    min: [f64; 2],
+    max: [f64; 2],
+    defaults: [f64; 2],
+    issues: &mut Vec<Issue>,
+) {
+    let dimensions = if is_vector { 2 } else { 1 };
+    for axis in 0..dimensions {
+        if !min[axis].is_finite()
+            || !max[axis].is_finite()
+            || !defaults[axis].is_finite()
+            || min[axis] >= max[axis]
+        {
+            issues.push(issue(
+                "parameter_range_invalid",
+                IssueSeverity::Error,
+                format!("parameter {name:?} axis {axis} must have finite min < max"),
+                None,
+            ));
+        } else if defaults[axis] < min[axis] || defaults[axis] > max[axis] {
+            issues.push(issue(
+                "parameter_default_out_of_range",
+                IssueSeverity::Error,
+                format!("parameter {name:?} axis {axis} default is outside min/max"),
+                None,
+            ));
+        }
+    }
+}
+
+fn validate_axis_points(
+    name: &str,
+    is_vector: bool,
+    value: Option<&Value>,
+    issues: &mut Vec<Issue>,
+) {
+    let Some(axes) = value.and_then(Value::as_array) else {
+        issues.push(issue(
+            "parameter_axis_points_invalid",
+            IssueSeverity::Error,
+            format!("parameter {name:?} must contain Creator axis_points"),
+            None,
+        ));
+        return;
+    };
+    let dimensions = if is_vector { 2 } else { 1 };
+    if axes.len() < dimensions {
+        issues.push(issue(
+            "parameter_axis_points_invalid",
+            IssueSeverity::Error,
+            format!("parameter {name:?} has fewer axis arrays than its dimensionality"),
+            None,
+        ));
+        return;
+    }
+    for (axis_index, axis) in axes.iter().take(dimensions).enumerate() {
+        let Some(points) = axis.as_array() else {
+            issues.push(issue(
+                "parameter_axis_points_invalid",
+                IssueSeverity::Error,
+                format!("parameter {name:?} axis {axis_index} is not an array"),
+                None,
+            ));
+            continue;
+        };
+        if points.len() < 2
+            || points
+                .iter()
+                .any(|point| point.as_f64().is_none_or(|number| !number.is_finite()))
+            || points.windows(2).any(|pair| {
+                pair[0].as_f64().expect("validated numeric point")
+                    >= pair[1].as_f64().expect("validated numeric point")
+            })
+        {
+            issues.push(issue(
+                "parameter_axis_points_invalid",
+                IssueSeverity::Error,
+                format!(
+                    "parameter {name:?} axis {axis_index} must contain at least two strictly increasing finite numbers"
+                ),
+                None,
+            ));
+        }
+    }
+}
+
+fn validate_bindings(
+    parameter_name: &str,
+    value: Option<&Value>,
+    total: &mut usize,
+    issues: &mut Vec<Issue>,
+) {
+    let Some(bindings) = value.and_then(Value::as_array) else {
+        issues.push(issue(
+            "parameter_bindings_invalid",
+            IssueSeverity::Error,
+            format!("parameter {parameter_name:?} bindings must be an array"),
+            None,
+        ));
+        return;
+    };
+    *total = total.saturating_add(bindings.len());
+    if *total > MAX_BINDING_COUNT
+        && !issues
+            .iter()
+            .any(|item| item.code == "parameter_binding_count_unsupported")
+    {
+        issues.push(issue(
+            "parameter_binding_count_unsupported",
+            IssueSeverity::Error,
+            format!("model contains more than {MAX_BINDING_COUNT} parameter bindings"),
+            None,
+        ));
+    }
+    for (index, binding) in bindings.iter().enumerate() {
+        let Some(binding) = binding.as_object() else {
+            issues.push(issue(
+                "parameter_binding_schema_invalid",
+                IssueSeverity::Error,
+                format!("parameter {parameter_name:?} binding {index} is not an object"),
+                None,
+            ));
+            continue;
+        };
+        if let Some(mode) = binding.get("interpolate_mode") {
+            let linear = mode.as_u64() == Some(1)
+                || mode
+                    .as_str()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("linear"));
+            if !linear {
+                issues.push(issue(
+                    "binding_interpolation_unsupported",
+                    IssueSeverity::Error,
+                    format!(
+                        "parameter {parameter_name:?} binding {index} does not use linear interpolation"
+                    ),
+                    None,
+                ));
+            }
+        }
+        let legacy = binding
+            .get("param_name")
+            .and_then(Value::as_str)
+            .is_some_and(|property| !property.trim().is_empty())
+            && binding.get("node").and_then(Value::as_u64).is_some();
+        let typed = binding
+            .get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|kind| kind == "property" || kind == "deform")
+            && binding.get("target").is_some();
+        if !legacy && !typed {
+            issues.push(issue(
+                "parameter_binding_schema_invalid",
+                IssueSeverity::Error,
+                format!(
+                    "parameter {parameter_name:?} binding {index} is neither a supported Creator binding nor a supported typed binding"
+                ),
+                None,
+            ));
+        }
+    }
+}
+
+fn inspect_nodes(
+    payload: &Map<String, Value>,
+    texture_count: usize,
+    issues: &mut Vec<Issue>,
+) -> NodeSummary {
+    let mut records = Vec::new();
+    let Some(root) = payload.get("nodes") else {
+        issues.push(issue(
+            "nodes_missing",
+            IssueSeverity::Error,
+            "payload.nodes is missing",
+            None,
+        ));
+        return NodeSummary {
+            count: 0,
+            types: BTreeMap::new(),
+        };
+    };
+    collect_nodes(root, texture_count, 0, &mut records, issues);
+
+    let by_uuid: HashMap<u64, &NodeRecord> = records
+        .iter()
+        .filter_map(|record| record.uuid.map(|uuid| (uuid, record)))
+        .collect();
+    for consumer in &records {
+        for source_uuid in &consumer.masks {
+            if let Some(source) = by_uuid.get(source_uuid) {
+                if source.node_type.as_deref() == Some("Composite") {
+                    issues.push(issue(
+                        "composite_as_mask_unsupported",
+                        IssueSeverity::Error,
+                        format!(
+                            "Composite node {} is used as a mask source",
+                            node_label(source)
+                        ),
+                        Some(node_label(consumer)),
+                    ));
+                }
+            } else {
+                issues.push(issue(
+                    "mask_source_missing",
+                    IssueSeverity::Error,
+                    format!("mask references missing node UUID {source_uuid}"),
+                    Some(node_label(consumer)),
+                ));
+            }
+        }
+    }
+
+    let mut types = BTreeMap::new();
+    for node_type in records
+        .iter()
+        .filter_map(|record| record.node_type.as_ref())
+    {
+        *types.entry(node_type.clone()).or_insert(0) += 1;
+    }
+    NodeSummary {
+        count: records.len(),
+        types,
+    }
+}
+
+fn collect_nodes(
+    value: &Value,
+    texture_count: usize,
+    depth: usize,
+    records: &mut Vec<NodeRecord>,
+    issues: &mut Vec<Issue>,
+) {
+    if depth > MAX_NODE_DEPTH {
+        issues.push(issue(
+            "node_depth_unsupported",
+            IssueSeverity::Error,
+            format!("node tree depth exceeds the limit of {MAX_NODE_DEPTH}"),
+            None,
+        ));
+        return;
+    }
+    if records.len() >= MAX_NODE_COUNT {
+        if !issues
+            .iter()
+            .any(|item| item.code == "node_count_unsupported")
+        {
+            issues.push(issue(
+                "node_count_unsupported",
+                IssueSeverity::Error,
+                format!("model contains more than {MAX_NODE_COUNT} nodes"),
+                None,
+            ));
+        }
+        return;
+    }
+    let Some(node) = value.as_object() else {
+        issues.push(issue(
+            "node_schema_invalid",
+            IssueSeverity::Error,
+            "a node entry is not an object",
+            None,
+        ));
+        return;
+    };
+    let record = NodeRecord {
+        uuid: node.get("uuid").and_then(Value::as_u64),
+        name: optional_string(node, "name"),
+        node_type: optional_string(node, "type"),
+        masks: node
+            .get("masks")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|mask| mask.get("source").and_then(Value::as_u64))
+            .collect(),
+    };
+    let label = node_label(&record);
+
+    match record.node_type.as_deref() {
+        Some("Node" | "Part" | "Composite" | "SimplePhysics") => {}
+        Some("MeshGroup") => issues.push(issue(
+            "mesh_group_unsupported",
+            IssueSeverity::Error,
+            "MeshGroup nodes are outside the first browser runtime scope",
+            Some(label.clone()),
+        )),
+        Some(other) => issues.push(issue(
+            "node_type_unsupported",
+            IssueSeverity::Error,
+            format!("node type {other:?} is not supported by the browser runtime"),
+            Some(label.clone()),
+        )),
+        None => issues.push(issue(
+            "node_schema_invalid",
+            IssueSeverity::Error,
+            "node has no string type",
+            Some(label.clone()),
+        )),
+    }
+
+    if record.uuid.is_none() {
+        issues.push(issue(
+            "node_schema_invalid",
+            IssueSeverity::Error,
+            "node has no unsigned integer UUID",
+            Some(label.clone()),
+        ));
+    }
+
+    if record.node_type.as_deref() == Some("Part") {
+        validate_part_textures(node, texture_count, &label, issues);
+    }
+    if matches!(record.node_type.as_deref(), Some("Part" | "Composite")) {
+        validate_blend_mode(node, &label, issues);
+    }
+    records.push(record);
+
+    if let Some(children) = node.get("children") {
+        if let Some(children) = children.as_array() {
+            for child in children {
+                collect_nodes(child, texture_count, depth + 1, records, issues);
+            }
+        } else {
+            issues.push(issue(
+                "node_schema_invalid",
+                IssueSeverity::Error,
+                "node.children must be an array",
+                Some(label),
+            ));
+        }
+    }
+}
+
+fn validate_blend_mode(node: &Map<String, Value>, label: &str, issues: &mut Vec<Issue>) {
+    let Some(value) = node.get("blend_mode") else {
+        return;
+    };
+    let supported = value
+        .as_u64()
+        .is_some_and(|mode| SUPPORTED_BLEND_MODE_IDS.contains(&mode))
+        || value
+            .as_str()
+            .is_some_and(|mode| SUPPORTED_BLEND_MODE_NAMES.contains(&mode));
+    if !supported {
+        issues.push(issue(
+            "blend_mode_unsupported",
+            IssueSeverity::Error,
+            format!("blend mode {value} is not implemented by the WebGL2 renderer"),
+            Some(label.to_owned()),
+        ));
+    }
+}
+
+fn validate_part_textures(
+    node: &Map<String, Value>,
+    texture_count: usize,
+    label: &str,
+    issues: &mut Vec<Issue>,
+) {
+    let Some(textures) = node.get("textures").and_then(Value::as_array) else {
+        issues.push(issue(
+            "part_texture_missing",
+            IssueSeverity::Error,
+            "Part node has no texture list",
+            Some(label.to_owned()),
+        ));
+        return;
+    };
+    if textures.is_empty() {
+        issues.push(issue(
+            "part_texture_missing",
+            IssueSeverity::Error,
+            "Part node has no albedo texture",
+            Some(label.to_owned()),
+        ));
+        return;
+    }
+
+    for (slot, value) in textures.iter().enumerate() {
+        let Some(index) = value.as_u64() else {
+            issues.push(issue(
+                "part_texture_index_invalid",
+                IssueSeverity::Error,
+                format!("texture slot {slot} is not an unsigned integer"),
+                Some(label.to_owned()),
+            ));
+            continue;
+        };
+        if slot > 0 && index == u32::MAX as u64 {
+            continue;
+        }
+        if index >= texture_count as u64 {
+            issues.push(issue(
+                "part_texture_index_invalid",
+                IssueSeverity::Error,
+                format!("texture slot {slot} references missing texture {index}"),
+                Some(label.to_owned()),
+            ));
+        }
+    }
+}
+
+fn inspect_publication(metadata: &MetadataReport) -> PublicationReport {
+    let mut issues = Vec::new();
+    if metadata
+        .license_url
+        .as_deref()
+        .is_none_or(|value| value.trim().is_empty())
+    {
+        issues.push(issue(
+            "license_url_missing",
+            IssueSeverity::Warning,
+            "the model does not declare a license URL",
+            None,
+        ));
+    }
+
+    match metadata.rights.as_ref().and_then(Value::as_object) {
+        Some(rights) => {
+            if rights.get("allowed_users").and_then(Value::as_str) != Some("Everyone") {
+                issues.push(issue(
+                    "allowed_users_require_review",
+                    IssueSeverity::Warning,
+                    "declared allowed_users is not Everyone",
+                    None,
+                ));
+            }
+            if rights.get("allow_redistribution").and_then(Value::as_str) == Some("Prohibited") {
+                issues.push(issue(
+                    "redistribution_declared_prohibited",
+                    IssueSeverity::Error,
+                    "model metadata declares redistribution as prohibited",
+                    None,
+                ));
+            }
+            if rights.get("require_attribution").and_then(Value::as_bool) == Some(true) {
+                issues.push(issue(
+                    "attribution_required",
+                    IssueSeverity::Warning,
+                    "model metadata requires attribution",
+                    None,
+                ));
+            }
+        }
+        None => issues.push(issue(
+            "usage_rights_missing",
+            IssueSeverity::Warning,
+            "the model does not declare machine-readable usage rights",
+            None,
+        )),
+    }
+
+    PublicationReport {
+        requires_confirmation: true,
+        issues,
+        declared_rights: metadata.rights.clone(),
+    }
+}
+
+fn empty_metadata() -> MetadataReport {
+    MetadataReport {
+        name: None,
+        version: None,
+        rigger: None,
+        artist: None,
+        copyright: None,
+        license_url: None,
+        contact: None,
+        reference: None,
+        rights: None,
+    }
+}
+
+fn image_format(format: TextureFormat) -> ImageFormat {
+    match format {
+        TextureFormat::Png => ImageFormat::Png,
+        TextureFormat::Tga => ImageFormat::Tga,
+        TextureFormat::Bc7 => unreachable!("BC7 is handled before decoding"),
+    }
+}
+
+fn vec2(value: Option<&Value>) -> Option<[f64; 2]> {
+    let values = value?.as_array()?;
+    if values.len() != 2 {
+        return None;
+    }
+    Some([values[0].as_f64()?, values[1].as_f64()?])
+}
+
+fn push_parameter_vec_issue(issues: &mut Vec<Issue>, name: &str, field: &str) {
+    issues.push(issue(
+        "parameter_schema_invalid",
+        IssueSeverity::Error,
+        format!("parameter {name:?} field {field} must contain exactly two numbers"),
+        None,
+    ));
+}
+
+fn optional_string(object: &Map<String, Value>, key: &str) -> Option<String> {
+    object.get(key).and_then(Value::as_str).map(str::to_owned)
+}
+
+fn has_content(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::Array(values) => !values.is_empty(),
+        Value::Object(values) => !values.is_empty(),
+        Value::String(value) => !value.is_empty(),
+        Value::Bool(value) => *value,
+        Value::Number(_) => true,
+    }
+}
+
+fn node_label(node: &NodeRecord) -> String {
+    match (&node.name, node.uuid) {
+        (Some(name), Some(uuid)) => format!("{name:?} ({uuid})"),
+        (Some(name), None) => format!("{name:?}"),
+        (None, Some(uuid)) => uuid.to_string(),
+        (None, None) => "<unknown>".to_owned(),
+    }
+}
+
+fn issue(
+    code: impl Into<String>,
+    severity: IssueSeverity,
+    message: impl Into<String>,
+    node: Option<String>,
+) -> Issue {
+    Issue {
+        code: code.into(),
+        severity,
+        message: message.into(),
+        node,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::container::TextureEntry;
+
+    fn document(payload: Value, textures: Vec<TextureEntry>) -> InpDocument {
+        let payload = serde_json::to_vec(&payload).unwrap();
+        InpDocument {
+            payload_json: serde_json::from_slice(&payload).unwrap(),
+            payload,
+            textures,
+            extended_section: Vec::new(),
+            vendor_count: 0,
+        }
+    }
+
+    fn payload_with_nodes(nodes: Value) -> Value {
+        serde_json::json!({
+            "meta": {"version": "1", "licenseURL": "https://example.test/license"},
+            "param": [],
+            "nodes": nodes
+        })
+    }
+
+    #[test]
+    fn rejects_mesh_group_nodes() {
+        let payload = payload_with_nodes(serde_json::json!({
+            "uuid": 1, "name": "root", "type": "MeshGroup", "children": []
+        }));
+        let document = document(payload, Vec::new());
+        let report = inspect(&[], &document).unwrap();
+        assert!(!report.compatibility.supported);
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "mesh_group_unsupported"));
+    }
+
+    #[test]
+    fn rejects_composite_used_as_mask() {
+        let payload = payload_with_nodes(serde_json::json!({
+            "uuid": 1,
+            "name": "root",
+            "type": "Node",
+            "children": [
+                {"uuid": 2, "name": "mask", "type": "Composite", "children": []},
+                {"uuid": 3, "name": "consumer", "type": "Node", "masks": [{"source": 2, "mode": "Mask"}], "children": []}
+            ]
+        }));
+        let document = document(payload, Vec::new());
+        let report = inspect(&[], &document).unwrap();
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "composite_as_mask_unsupported"));
+    }
+
+    #[test]
+    fn distinguishes_publication_review_from_runtime_compatibility() {
+        let payload = serde_json::json!({
+            "meta": {"version": "1", "licenseURL": null},
+            "param": [],
+            "nodes": {"uuid": 1, "name": "root", "type": "Node", "children": []}
+        });
+        let document = document(payload, Vec::new());
+        let report = inspect(&[], &document).unwrap();
+        assert!(report.compatibility.supported);
+        assert!(report.publication.requires_confirmation);
+        assert!(report
+            .publication
+            .issues
+            .iter()
+            .any(|item| item.code == "license_url_missing"));
+    }
+
+    #[test]
+    fn rejects_blend_modes_not_implemented_by_the_web_renderer() {
+        let payload = payload_with_nodes(serde_json::json!({
+            "uuid": 1,
+            "name": "unsupported overlay",
+            "type": "Composite",
+            "blend_mode": 3,
+            "children": []
+        }));
+        let document = document(payload, Vec::new());
+        let report = inspect(&[], &document).unwrap();
+        assert!(!report.compatibility.supported);
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "blend_mode_unsupported"));
+    }
+
+    #[test]
+    fn rejects_excessive_node_depth_without_recursing_unboundedly() {
+        let mut node =
+            serde_json::json!({"uuid": 200, "name": "leaf", "type": "Node", "children": []});
+        for uuid in (1..=MAX_NODE_DEPTH + 2).rev() {
+            node = serde_json::json!({
+                "uuid": uuid,
+                "name": "nested",
+                "type": "Node",
+                "children": [node]
+            });
+        }
+        let document = document(payload_with_nodes(node), Vec::new());
+        let report = inspect(&[], &document).unwrap();
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "node_depth_unsupported"));
+    }
+
+    #[test]
+    fn rejects_non_linear_binding_interpolation() {
+        let payload = serde_json::json!({
+            "meta": {"version": "1", "licenseURL": "https://example.test/license"},
+            "param": [{
+                "name": "HeadX",
+                "is_vec2": false,
+                "min": [-1, 0],
+                "max": [1, 1],
+                "defaults": [0, 0],
+                "axis_points": [[0, 0.5, 1], [0]],
+                "bindings": [{
+                    "param_name": "transform.r.z",
+                    "node": 1,
+                    "interpolate_mode": "Cubic",
+                    "values": [[0], [0], [0]]
+                }]
+            }],
+            "nodes": {"uuid": 1, "name": "root", "type": "Node", "children": []}
+        });
+        let report = inspect(&[], &document(payload, Vec::new())).unwrap();
+        assert!(!report.compatibility.supported);
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "binding_interpolation_unsupported"));
+    }
+
+    #[test]
+    fn rejects_malformed_parameter_axis_layout() {
+        let payload = serde_json::json!({
+            "meta": {"version": "1", "licenseURL": "https://example.test/license"},
+            "param": [{
+                "name": "HeadXY",
+                "is_vec2": true,
+                "min": [-1, -1],
+                "max": [1, 1],
+                "defaults": [0, 0],
+                "axis_points": [[0, 0.5, 0.5], [0, 1]],
+                "bindings": []
+            }],
+            "nodes": {"uuid": 1, "name": "root", "type": "Node", "children": []}
+        });
+        let report = inspect(&[], &document(payload, Vec::new())).unwrap();
+        assert!(!report.compatibility.supported);
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "parameter_axis_points_invalid"));
+    }
+}

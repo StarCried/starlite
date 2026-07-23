@@ -1,16 +1,20 @@
-import type { ParameterIds } from "./types.js";
+import type {
+  ResolvedParameterBindings,
+  ResolvedParameterTarget,
+} from "./types.js";
 
-type ScalarParameters = ReadonlyMap<string, number>;
+type ParameterValue = number | readonly [number, number];
+type MixedParameters = ReadonlyMap<string, ParameterValue>;
 
 interface MotionOptions {
-  ids: ParameterIds;
+  bindings: ResolvedParameterBindings;
   clickAmplitude: number;
   random: () => number;
 }
 
 /** Mixes neutral, idle, pointer, drag, and click values in priority order. */
 export class MotionMixer {
-  readonly #ids: ParameterIds;
+  readonly #bindings: ResolvedParameterBindings;
   readonly #clickAmplitude: number;
   readonly #random: () => number;
   #pointerX = 0;
@@ -21,7 +25,7 @@ export class MotionMixer {
   #nextBlinkAt = 0;
 
   constructor(options: MotionOptions) {
-    this.#ids = options.ids;
+    this.#bindings = options.bindings;
     this.#clickAmplitude = options.clickAmplitude;
     this.#random = options.random;
     this.#scheduleBlink(0);
@@ -44,40 +48,50 @@ export class MotionMixer {
     this.#clickStartedAt = timestampMs;
   }
 
-  sample(timestampMs: number, reducedMotion: boolean): ScalarParameters {
-    const values = new Map<string, number>();
+  sample(timestampMs: number, reducedMotion: boolean): MixedParameters {
+    const values = new Map<string, ParameterValue>();
 
     // Neutral values.
-    values.set(this.#ids.breath, 0);
-    values.set(this.#ids.eyeOpenLeft, 1);
-    values.set(this.#ids.eyeOpenRight, 1);
-    values.set(this.#ids.eyeX, 0);
-    values.set(this.#ids.eyeY, 0);
-    values.set(this.#ids.headX, 0);
-    values.set(this.#ids.headY, 0);
-    values.set(this.#ids.bodyX, 0);
-    values.set(this.#ids.click, 0);
+    this.#set(values, "breath", 0);
+    this.#set(values, "eyeOpenLeft", 1);
+    this.#set(values, "eyeOpenRight", 1);
+    this.#set(values, "eyeX", 0);
+    this.#set(values, "eyeY", 0);
+    this.#set(values, "headX", 0);
+    this.#set(values, "headY", 0);
+    this.#set(values, "bodyX", 0);
+    this.#set(values, "click", 0);
 
     if (reducedMotion) {
       return values;
     }
 
     // Idle motion.
-    values.set(this.#ids.breath, (Math.sin(timestampMs / 1400) + 1) / 2);
+    this.#set(values, "breath", (Math.sin(timestampMs / 1400) + 1) / 2);
     const eyeOpen = this.#sampleBlink(timestampMs);
-    values.set(this.#ids.eyeOpenLeft, eyeOpen);
-    values.set(this.#ids.eyeOpenRight, eyeOpen);
+    this.#set(values, "eyeOpenLeft", eyeOpen);
+    this.#set(values, "eyeOpenRight", eyeOpen);
 
     // Pointer following overrides neutral head and eye values.
-    values.set(this.#ids.eyeX, this.#pointerX);
-    values.set(this.#ids.eyeY, -this.#pointerY);
-    values.set(this.#ids.headX, this.#pointerX * 0.45);
-    values.set(this.#ids.headY, -this.#pointerY * 0.35);
+    this.#set(values, "eyeX", this.#pointerX);
+    this.#set(values, "eyeY", -this.#pointerY);
+    this.#set(values, "headX", this.#pointerX * 0.45);
+    this.#set(values, "headY", -this.#pointerY * 0.35);
 
     // Drag and click have the highest automatic priority.
-    values.set(this.#ids.bodyX, this.#dragBodyX);
-    values.set(this.#ids.click, this.#sampleClick(timestampMs));
+    this.#set(values, "bodyX", this.#dragBodyX);
+    this.#set(values, "click", this.#sampleClick(timestampMs));
     return values;
+  }
+
+  #set(
+    values: Map<string, ParameterValue>,
+    channel: keyof ResolvedParameterBindings,
+    input: number,
+  ): void {
+    for (const target of this.#bindings[channel]) {
+      setTargetValue(values, target, input * target.scale + target.offset);
+    }
   }
 
   #sampleBlink(timestampMs: number): number {
@@ -112,6 +126,21 @@ export class MotionMixer {
   #scheduleBlink(timestampMs: number): void {
     this.#nextBlinkAt = timestampMs + 2200 + this.#random() * 3800;
   }
+}
+
+function setTargetValue(
+  values: Map<string, ParameterValue>,
+  target: ResolvedParameterTarget,
+  value: number,
+): void {
+  if (!target.axis) {
+    values.set(target.id, value);
+    return;
+  }
+  const current = values.get(target.id);
+  const vector: [number, number] = Array.isArray(current) ? [current[0], current[1]] : [0, 0];
+  vector[target.axis === "x" ? 0 : 1] = value;
+  values.set(target.id, vector);
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

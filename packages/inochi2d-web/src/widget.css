@@ -12,10 +12,13 @@
   overflow: hidden;
   pointer-events: none;
   contain: layout paint style;
+  will-change: left, top;
 }
 
 .inochi2d-widget__canvas,
 .inochi2d-widget__fallback {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -23,6 +26,16 @@
   touch-action: none;
   pointer-events: auto;
   user-select: none;
+  cursor: grab;
+}
+
+.inochi2d-widget[data-inochi2d-dragging] .inochi2d-widget__canvas {
+  cursor: grabbing;
+}
+
+.inochi2d-widget__canvas[hidden],
+.inochi2d-widget__fallback[hidden] {
+  display: none;
 }
 
 .inochi2d-widget__canvas {

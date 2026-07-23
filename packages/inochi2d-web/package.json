@@ -4,11 +4,20 @@
   "description": "Framework-free Inochi2D WebGL2 widget runtime",
   "type": "module",
   "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StarCried/inochi2d-web.git",
+    "directory": "packages/inochi2d-web"
+  },
+  "homepage": "https://github.com/StarCried/inochi2d-web#readme",
+  "bugs": "https://github.com/StarCried/inochi2d-web/issues",
   "sideEffects": [
     "./dist/widget.css"
   ],
   "files": [
-    "dist"
+    "dist",
+    "THIRD_PARTY_NOTICES.md",
+    "THIRD_PARTY_LICENSES.txt"
   ],
   "exports": {
     ".": {

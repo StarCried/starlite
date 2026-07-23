@@ -1,0 +1,98 @@
+name: Release dry run
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            artifact: linux-x64
+            binary: target/release/inochi2d-pipeline
+          - os: windows-2025
+            artifact: win32-x64
+            binary: target/release/inochi2d-pipeline.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - run: cargo build --locked --release -p inochi2d-pipeline
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error
+          retention-days: 1
+
+  package:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - name: Install deterministic WASM build tools
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          test "$(gpg --show-keys --with-colons "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            | awk -F: '$1 == "fpr" { print $10; exit }')" \
+            = "6084F3CF814B57C1CF12EFD515CF4D18AF4F7421"
+          sudo gpg --dearmor \
+            --output /usr/share/keyrings/apt.llvm.org.gpg \
+            "$RUNNER_TEMP/llvm-snapshot.gpg.key"
+          echo "deb [signed-by=/usr/share/keyrings/apt.llvm.org.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm-20.list
+          sudo apt-get update
+          sudo apt-get install --yes lld-20
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/binaryen.tar.gz" \
+            https://github.com/WebAssembly/binaryen/releases/download/version_120/binaryen-version_120-x86_64-linux.tar.gz
+          echo "ddb097af51d1bdb17300d986b0de7d97422f1933dedb4c9eda3510e0bf4076cc  $RUNNER_TEMP/binaryen.tar.gz" \
+            | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/binaryen.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-version_120/bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-x64
+          path: native/linux-x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: win32-x64
+          path: native/win32-x64
+      - run: npm ci
+      - run: npm run build
+      - run: >-
+          npm run stage:native --
+          --linux-x64 native/linux-x64/inochi2d-pipeline
+          --win32-x64 native/win32-x64/inochi2d-pipeline.exe
+      - run: npm run pack:release-check
+      - name: Create package tarballs without publishing
+        run: |
+          mkdir -p release-packages
+          npm pack --workspace inochi2d-web --pack-destination release-packages
+          npm pack --workspace hexo-inox2d-widget --pack-destination release-packages
+          npm pack --workspace inochi2d-blog --pack-destination release-packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-release-dry-run
+          path: release-packages/*.tgz
+          if-no-files-found: error
+          retention-days: 7

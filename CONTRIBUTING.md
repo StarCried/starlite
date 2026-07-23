@@ -1,15 +1,23 @@
 # Contributing
 
+This is an unofficial, AI-assisted and human-reviewed project. Contributions
+must be understandable, reproducible, and compatible with the repository's
+BSD-2-Clause license.
+
 ## Before changing code
 
-1. Keep Rust model/rendering concerns separate from browser and Hexo concerns.
-2. Confirm that any test puppet is synthetic or explicitly redistributable.
-3. Discuss changes to the public API, compatibility targets, dependencies, or
-   deployment behavior before implementing them.
+1. Keep native preparation, official SDK compatibility, browser rendering,
+   Hexo integration, and deployment orchestration in their existing layers.
+2. Use only synthetic committed fixtures. Never attach a private or
+   non-redistributable puppet to a patch or issue.
+3. Discuss changes to public APIs, compatibility targets, production
+   dependencies, package layout, security gates, or deployment behavior first.
+4. Preserve fail-closed behavior: an uncertain result is an error, not
+   permission to publish or deploy.
 
 ## Validation
 
-Run the narrow test for the code being changed, then:
+Run the narrow test first, then:
 
 ```sh
 npm run validate
@@ -17,11 +25,15 @@ npm run test:browser
 git diff --check
 ```
 
-Real-browser checks on Windows Chrome and Edge remain required before a release.
-Record failures as either introduced by the change or already present upstream.
+When a redistributable local puppet is available, also set
+`INOCHI2D_TEST_MODEL_PATH` and run the browser tests. Windows Chrome and Edge on
+the real Hexo worktree remain a release gate.
 
 ## Upstream work
 
-Changes intended for Inox2D belong in the sibling `inox2d` checkout. Keep them
-small, avoid duplicating active pull requests, and obtain approval before opening
-an issue or pull request.
+The browser build consumes the official Inochi2D D SDK at the revision in
+`tools/official-sdk/pin.json`. Compatibility patches live here until an upstream
+API supports the same behavior. Before any upstream contact, inspect its current
+contribution policy, avoid duplicating active work, prepare a minimal factual
+reproducer, and obtain approval to post externally. Do not copy this project's
+AI-generated implementation into an upstream that does not accept it.

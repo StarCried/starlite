@@ -1,20 +1,35 @@
 # Upstream baseline
 
-- Repository: `https://github.com/Inochi2D/inox2d.git`
-- Revision: `df8413e6b0c525dbb880b4dca2bdf0a5d4b9aaba`
-- Local checkout: `/home/pc/StarCried/inox2d`
-- Rust target: `wasm32-unknown-unknown`
+## Official browser SDK
 
-At this revision, `cargo build -p render-webgl --target
-wasm32-unknown-unknown` succeeds. `trunk build --release` also succeeds after an
-ignored `examples/render-webgl/assets/` directory is created. The upstream
-README currently spells the directory as `render_webgl`, while the real path is
-`render-webgl`; the repository does not ship the required puppet.
+- Repository: `https://github.com/Inochi2D/inochi2d`
+- Commit: `f4b4917a59419e64f2704ac7b806e2bf09bca752`
+- Source archive SHA-256:
+  `314f6d6e77682a0638fd424d512f883dc0c0bb2113a4e202db894eae05bd16e7`
+- SDK toolchain: `v0.9.0-testing`
+- Toolchain archive SHA-256:
+  `5adc0c991f68f5313f215e638c3470b857796ad57bd2344b28cddf707d3784c3`
+- LLD: 20.x (locally 20.1.8)
+- Binaryen: version 120
+- Raw WASM SHA-256:
+  `3222a28876bf70710ff6341f908e0f9fcda2fbb27285ba0ecb7a5cac6decb37c`
+- Optimized WASM SHA-256:
+  `3eea52c132fca214320186781a7a5706c878b429ffb63cf5672aa0f7efc86408`
 
-Both `inox2d` and `inox2d-opengl` dependencies in the WASM crate must use this
-same Git revision. Update this file and the Cargo lockfile together.
+The machine-readable source of truth is `tools/official-sdk/pin.json`; D
+dependency versions are in `tools/official-sdk/dub.selections.json`.
 
-On Ubuntu 26.04, install the distribution `binaryen` package. wasm-pack is
-configured with `-Oz --all-features` because current Rust emits bulk-memory and
-saturating float-to-int instructions that Binaryen otherwise rejects during
-validation.
+The build applies local compatibility patches for legacy Creator parameter
+bindings, deformation/property storage, stable draw allocations, finite binding
+diagnostics, and a minimal browser export surface. These patches are project
+implementation, not claims about official browser support.
+
+## Historical Rust investigation
+
+A separate historical Inox2D checkout may remain useful for comparison, but it
+is not the browser backend in this alpha. No Cargo dependency on Inox2D or
+`inox2d-opengl` remains.
+
+Before upstream contact, compare current issues and contribution policy. Prepare
+a minimal factual reproducer rather than copying this AI-assisted implementation,
+and obtain explicit approval before posting an issue or pull request.

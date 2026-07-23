@@ -1,0 +1,14 @@
+{
+  "fileVersion": 1,
+  "versions": {
+    "gamut": "3.5.0",
+    "intel-intrinsics": "1.14.8",
+    "miniz": "0.0.4",
+    "nulib": "0.4.7",
+    "numath": "0.5.0",
+    "numem": "1.6.11",
+    "nurt": "0.2.3",
+    "nusilly": "1.0.0",
+    "silly": "1.1.1"
+  }
+}

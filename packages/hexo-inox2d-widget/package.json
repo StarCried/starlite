@@ -5,6 +5,13 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StarCried/inochi2d-web.git",
+    "directory": "packages/hexo-inox2d-widget"
+  },
+  "homepage": "https://github.com/StarCried/inochi2d-web#readme",
+  "bugs": "https://github.com/StarCried/inochi2d-web/issues",
   "files": [
     "dist"
   ],

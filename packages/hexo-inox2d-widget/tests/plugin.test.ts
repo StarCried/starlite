@@ -1,6 +1,11 @@
+import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
-import { collectRuntimeAssets } from "../src/assets";
+import { collectModelAssets, collectRuntimeAssets } from "../src/assets";
 import { createBootstrapSource } from "../src/bootstrap";
 import { registerHexoWidget } from "../src/index";
 import type { HexoLike } from "../src/types";
@@ -10,11 +15,15 @@ interface Registrations {
   injector?: () => string | undefined;
 }
 
-function fakeHexo(config: HexoLike["config"]): { hexo: HexoLike; registrations: Registrations } {
+function fakeHexo(
+  config: HexoLike["config"],
+  baseDirectory = process.cwd(),
+): { hexo: HexoLike; registrations: Registrations } {
   const registrations: Registrations = {};
   return {
     registrations,
     hexo: {
+      base_dir: baseDirectory,
       config,
       extend: {
         generator: {
@@ -33,6 +42,48 @@ function fakeHexo(config: HexoLike["config"]): { hexo: HexoLike; registrations: 
   };
 }
 
+function withPipelineBundle(
+  callback: (directory: string, modelFile: string, fallbackFile: string) => void,
+): void {
+  const directory = mkdtempSync(join(tmpdir(), "inochi2d-widget-bundle-"));
+  try {
+    const model = Buffer.from("synthetic-model");
+    const fallback = Buffer.from("synthetic-fallback");
+    const modelHash = createHash("sha256").update(model).digest("hex");
+    const fallbackHash = createHash("sha256").update(fallback).digest("hex");
+    const modelFile = `model.${modelHash.slice(0, 12)}.inp`;
+    const fallbackFile = `fallback.${fallbackHash.slice(0, 12)}.png`;
+    writeFileSync(join(directory, modelFile), model);
+    writeFileSync(join(directory, fallbackFile), fallback);
+    writeFileSync(
+      join(directory, "manifest.json"),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        model: {
+          file: modelFile,
+          sha256: modelHash,
+          bytes: model.byteLength,
+          sourceSha256: modelHash,
+          sourceBytes: model.byteLength,
+        },
+        fallback: { file: fallbackFile, sha256: fallbackHash, bytes: fallback.byteLength },
+        compatibility: { supported: true },
+        publication: { requiresConfirmation: true, issues: [] },
+        parameters: [
+          { name: "Breath", isVector: false },
+          { name: "Head:: Yaw-Pitch", isVector: true },
+          { name: "Body:: Yaw-Pitch", isVector: true },
+          { name: "Eye:: Left:: Blink", isVector: false },
+          { name: "Eye:: Right:: Blink", isVector: false },
+        ],
+      })}\n`,
+    );
+    callback(directory, modelFile, fallbackFile);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 describe("Hexo adapter", () => {
   it("emits stable content-hashed runtime routes", () => {
     const first = collectRuntimeAssets();
@@ -40,7 +91,7 @@ describe("Hexo adapter", () => {
 
     expect(first.hash).toMatch(/^[a-f0-9]{12}$/u);
     expect(second.hash).toBe(first.hash);
-    expect(first.assets.some((asset) => asset.relativePath === "generated/runtime_bg.wasm")).toBe(true);
+    expect(first.assets.some((asset) => asset.relativePath === "generated/inochi2d.wasm")).toBe(true);
   });
 
   it("generates no routes or markup when disabled", () => {
@@ -65,10 +116,101 @@ describe("Hexo adapter", () => {
     const routes = registrations.generator?.();
     const html = registrations.injector?.();
 
-    expect(routes?.some((route) => route.path.endsWith("/generated/runtime_bg.wasm"))).toBe(true);
+    expect(routes?.some((route) => route.path.endsWith("/generated/inochi2d.wasm"))).toBe(true);
     expect(html).toContain('/blog/inochi2d-widget/');
     expect(html).toContain('/blog/models/puppet.inp');
     expect(html).toContain('data-inochi2d-widget-host');
+  });
+
+  it("verifies and publishes a pipeline bundle with generated model URLs", () => {
+    withPipelineBundle((directory, modelFile, fallbackFile) => {
+      const { hexo, registrations } = fakeHexo(
+        {
+          root: "/blog/",
+          inochi2d_widget: {
+            enable: true,
+            bundle: ".",
+            publication: {
+              confirm: true,
+              allowRedistribution: true,
+              sourceSha256: createHash("sha256")
+                .update("synthetic-model")
+                .digest("hex"),
+            },
+          },
+        },
+        directory,
+      );
+      registerHexoWidget(hexo);
+
+      const routes = registrations.generator?.();
+      const html = registrations.injector?.();
+      const modelRoute = routes?.find((route) => route.path.endsWith(`/${modelFile}`));
+
+      expect(modelRoute?.data.toString()).toBe("synthetic-model");
+      expect(routes?.some((route) => route.path.endsWith(`/${fallbackFile}`))).toBe(true);
+      expect(routes?.some((route) => route.path.endsWith("/manifest.json"))).toBe(true);
+      expect(html).toContain(`/blog/inochi2d-model/`);
+      expect(html).toContain(`/${modelFile}`);
+      expect(html).toContain(`/${fallbackFile}`);
+      expect(html).toContain("Head:: Yaw-Pitch");
+      expect(html).toContain('"axis":"x"');
+      expect(html).toContain('"scale":-1');
+    });
+  });
+
+  it("requires an explicit publication confirmation for pipeline bundles", () => {
+    withPipelineBundle((directory) => {
+      const { hexo, registrations } = fakeHexo(
+        {
+          inochi2d_widget: {
+            enable: true,
+            bundle: ".",
+          },
+        },
+        directory,
+      );
+      registerHexoWidget(hexo);
+
+      expect(registrations.generator?.()).toBeUndefined();
+      expect(registrations.injector?.()).toBeUndefined();
+      expect(hexo.log.warn).toHaveBeenCalledWith(
+        expect.stringContaining("publication.confirm"),
+      );
+    });
+  });
+
+  it("refuses a bundle when the reviewed source hash does not match", () => {
+    withPipelineBundle((directory) => {
+      const { hexo, registrations } = fakeHexo(
+        {
+          inochi2d_widget: {
+            enable: true,
+            bundle: ".",
+            publication: {
+              confirm: true,
+              allowRedistribution: true,
+              sourceSha256: "f".repeat(64),
+            },
+          },
+        },
+        directory,
+      );
+      registerHexoWidget(hexo);
+
+      expect(registrations.generator?.()).toBeUndefined();
+      expect(registrations.injector?.()).toBeUndefined();
+      expect(hexo.log.warn).toHaveBeenCalledWith(
+        expect.stringContaining("sourceSha256"),
+      );
+    });
+  });
+
+  it("rejects a pipeline bundle whose artifact hash does not match", () => {
+    withPipelineBundle((directory, modelFile) => {
+      writeFileSync(join(directory, modelFile), "tampered");
+      expect(() => collectModelAssets(".", directory)).toThrow(/size mismatch|SHA-256 mismatch/u);
+    });
   });
 
   it("places the mobile guard before the dynamic import", () => {

@@ -1,0 +1,21 @@
+[package]
+name = "inochi2d-pipeline"
+description = "Deterministic local preparation pipeline for Inochi2D web puppets"
+version.workspace = true
+edition.workspace = true
+license-file = "../../LICENSE"
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "inochi2d-pipeline"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5.48", features = ["derive"] }
+image = { version = "=0.25.9", default-features = false, features = ["png", "tga"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+sha2 = "0.10.9"
+thiserror = "2.0.17"

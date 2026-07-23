@@ -12,7 +12,7 @@ if (!match) {
 const assetDirectory = resolve(publicDirectory, "inochi2d-widget", match[1]);
 await access(resolve(assetDirectory, "index.js"));
 await access(resolve(assetDirectory, "widget.css"));
-await access(resolve(assetDirectory, "generated/runtime_bg.wasm"));
+await access(resolve(assetDirectory, "generated/inochi2d.wasm"));
 
 const siblings = await readdir(resolve(publicDirectory, "inochi2d-widget"));
 if (siblings.length !== 1) {

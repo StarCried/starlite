@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/inox2d-web-wasm"]
+members = ["crates/inochi2d-pipeline"]
 resolver = "2"
 
 [workspace.package]
@@ -12,6 +12,4 @@ rust-version = "1.85"
 [profile.release]
 codegen-units = 1
 lto = true
-opt-level = "z"
-panic = "abort"
 strip = true

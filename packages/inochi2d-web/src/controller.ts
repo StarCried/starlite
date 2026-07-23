@@ -10,6 +10,7 @@ import type {
 } from "./types.js";
 
 type ManualValue = number | readonly [number, number];
+const FRAME_SCHEDULING_EPSILON_MS = 0.25;
 
 export async function mountWithDependencies(
   element: HTMLElement,
@@ -65,17 +66,22 @@ class ActiveController implements WidgetController {
   readonly #unsupportedParameters = new Set<string>();
   readonly #removeListeners: Array<() => void> = [];
   #runtime: Inochi2dWasmRuntime | undefined;
+  #mountAbortController: AbortController | undefined;
+  #mountTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
   #resizeObserver: ResizeObserver | undefined;
   #frameHandle: number | undefined;
-  #lastRenderedAt = -Infinity;
+  #nextRenderAt: number | undefined;
   #status: WidgetStatus = "loading";
   #pausedByUser = false;
   #pausedByVisibility = false;
-  #cameraX = 0;
-  #cameraY = 0;
-  #cameraDirty = false;
   #dragOrigin:
-    | { pointerId: number; pointerX: number; pointerY: number; cameraX: number; cameraY: number }
+    | {
+        pointerId: number;
+        pointerX: number;
+        pointerY: number;
+        elementLeft: number;
+        elementTop: number;
+      }
     | undefined;
 
   constructor(element: HTMLElement, config: ResolvedWidgetConfig, dependencies: WidgetDependencies) {
@@ -85,7 +91,7 @@ class ActiveController implements WidgetController {
     this.#canvas = document.createElement("canvas");
     this.#fallback = document.createElement("img");
     this.#motion = new MotionMixer({
-      ids: config.parameters,
+      bindings: config.parameters,
       clickAmplitude: config.interactions.clickAmplitude,
       random: dependencies.random,
     });
@@ -102,16 +108,30 @@ class ActiveController implements WidgetController {
       return;
     }
 
+    const abortController = new AbortController();
+    this.#mountAbortController = abortController;
+    this.#mountTimeoutHandle = setTimeout(() => {
+      abortController.abort(
+        new Error(`widget loading exceeded ${this.#config.network.requestTimeoutMs} ms`),
+      );
+    }, this.#config.network.requestTimeoutMs);
+
     try {
       const runtime = await this.#dependencies.createRuntime(this.#canvas, {
         initialScale: this.#config.render.initialScale,
-      });
+      }, abortController.signal);
       if (this.#status === "destroyed") {
         destroyRuntime(runtime);
         return;
       }
       this.#runtime = runtime;
-      const bytes = await this.#dependencies.fetchModel(this.#config.model);
+      const bytes = await this.#dependencies.fetchModel(this.#config.model, {
+        signal: abortController.signal,
+        maximumBytes: this.#config.network.modelMaxBytes,
+      });
+      if (abortController.signal.aborted) {
+        return;
+      }
       runtime.loadModel(bytes);
       this.#resize();
       this.#bindLifecycle();
@@ -124,13 +144,19 @@ class ActiveController implements WidgetController {
         this.#scheduleFrame();
       }
     } catch (error) {
-      this.#showFallback(errorMessage(error));
+      this.#showFallback(
+        errorMessage(abortController.signal.aborted ? abortController.signal.reason : error),
+      );
+    } finally {
+      this.#clearMountDeadline();
     }
   }
 
   pause(): void {
     this.#pausedByUser = true;
     this.#stopFrame();
+    this.#mountAbortController?.abort(new Error("widget was destroyed during loading"));
+    this.#clearMountDeadline();
     if (this.#status === "running") {
       this.#setStatus("paused");
     }
@@ -152,11 +178,12 @@ class ActiveController implements WidgetController {
   }
 
   resetCamera(): void {
-    this.#cameraX = 0;
-    this.#cameraY = 0;
     this.#motion.releaseDrag();
     this.#runtime?.setCameraTransform(0, 0, this.#config.render.initialScale);
-    this.#cameraDirty = false;
+    this.#element.style.removeProperty("left");
+    this.#element.style.removeProperty("top");
+    this.#element.style.removeProperty("right");
+    this.#element.style.removeProperty("bottom");
   }
 
   destroy(): void {
@@ -206,10 +233,10 @@ class ActiveController implements WidgetController {
     });
 
     if (this.#config.interactions.pointer || this.#config.interactions.drag) {
-      this.#listen(this.#canvas, "pointermove", (event) => this.#handlePointerMove(event as PointerEvent));
+      this.#listen(window, "pointermove", (event) => this.#handlePointerMove(event as PointerEvent));
     }
     if (this.#config.interactions.pointer) {
-      this.#listen(this.#canvas, "pointerleave", () => this.#motion.setPointer(0, 0));
+      this.#listen(window, "blur", () => this.#motion.setPointer(0, 0));
     }
     if (this.#config.interactions.click) {
       this.#listen(this.#canvas, "click", () => this.#motion.triggerClick(performance.now()));
@@ -220,6 +247,7 @@ class ActiveController implements WidgetController {
       this.#listen(this.#canvas, "pointercancel", (event) => this.#endDrag(event as PointerEvent));
     }
     this.#listen(this.#canvas, "dblclick", () => this.resetCamera());
+    this.#listen(window, "resize", () => this.#constrainPosition());
 
     this.#resizeObserver = this.#dependencies.createResizeObserver(() => this.#resize());
     this.#resizeObserver?.observe(this.#element);
@@ -233,41 +261,79 @@ class ActiveController implements WidgetController {
   #handlePointerMove(event: PointerEvent): void {
     const bounds = this.#canvas.getBoundingClientRect();
     if (this.#config.interactions.pointer && bounds.width > 0 && bounds.height > 0) {
+      const viewportWidth = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
+      const viewportHeight = Math.max(1, document.documentElement.clientHeight || window.innerHeight);
       this.#motion.setPointer(
-        ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-        ((event.clientY - bounds.top) / bounds.height) * 2 - 1,
+        (event.clientX - (bounds.left + bounds.width / 2)) / (viewportWidth * 0.4),
+        (event.clientY - (bounds.top + bounds.height / 2)) / (viewportHeight * 0.4),
       );
     }
     if (this.#dragOrigin && event.pointerId === this.#dragOrigin.pointerId) {
       const deltaX = event.clientX - this.#dragOrigin.pointerX;
       const deltaY = event.clientY - this.#dragOrigin.pointerY;
-      this.#cameraX =
-        this.#dragOrigin.cameraX + deltaX * this.#config.interactions.dragModelUnitsPerPixel;
-      this.#cameraY =
-        this.#dragOrigin.cameraY + deltaY * this.#config.interactions.dragModelUnitsPerPixel;
+      const viewportWidth = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
+      const viewportHeight = Math.max(1, document.documentElement.clientHeight || window.innerHeight);
+      const left = clamp(
+        this.#dragOrigin.elementLeft + deltaX,
+        0,
+        Math.max(0, viewportWidth - bounds.width),
+      );
+      const top = clamp(
+        this.#dragOrigin.elementTop + deltaY,
+        0,
+        Math.max(0, viewportHeight - bounds.height),
+      );
+      this.#setElementPosition(left, top);
       this.#motion.setDragBody(deltaX / Math.max(1, bounds.width * 0.35));
-      this.#cameraDirty = true;
     }
   }
 
   #beginDrag(event: PointerEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    const bounds = this.#element.getBoundingClientRect();
+    this.#setElementPosition(bounds.left, bounds.top);
     this.#canvas.setPointerCapture?.(event.pointerId);
+    this.#element.dataset.inochi2dDragging = "";
     this.#dragOrigin = {
       pointerId: event.pointerId,
       pointerX: event.clientX,
       pointerY: event.clientY,
-      cameraX: this.#cameraX,
-      cameraY: this.#cameraY,
+      elementLeft: bounds.left,
+      elementTop: bounds.top,
     };
   }
 
   #endDrag(event: PointerEvent): void {
-    if (!this.#dragOrigin) {
+    if (!this.#dragOrigin || event.pointerId !== this.#dragOrigin.pointerId) {
       return;
     }
     this.#canvas.releasePointerCapture?.(event.pointerId);
     this.#dragOrigin = undefined;
+    delete this.#element.dataset.inochi2dDragging;
     this.#motion.releaseDrag();
+  }
+
+  #setElementPosition(left: number, top: number): void {
+    this.#element.style.left = `${Math.round(left)}px`;
+    this.#element.style.top = `${Math.round(top)}px`;
+    this.#element.style.right = "auto";
+    this.#element.style.bottom = "auto";
+  }
+
+  #constrainPosition(): void {
+    if (!this.#element.style.left || !this.#element.style.top) {
+      return;
+    }
+    const bounds = this.#element.getBoundingClientRect();
+    const viewportWidth = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
+    const viewportHeight = Math.max(1, document.documentElement.clientHeight || window.innerHeight);
+    this.#setElementPosition(
+      clamp(bounds.left, 0, Math.max(0, viewportWidth - bounds.width)),
+      clamp(bounds.top, 0, Math.max(0, viewportHeight - bounds.height)),
+    );
   }
 
   #resize(): void {
@@ -288,9 +354,22 @@ class ActiveController implements WidgetController {
     this.#frameHandle = this.#dependencies.requestFrame((timestamp) => {
       this.#frameHandle = undefined;
       const interval = 1000 / this.#config.render.fps;
-      if (timestamp - this.#lastRenderedAt >= interval) {
+      // Choose the refresh nearest to the theoretical deadline. Staying just
+      // below half a frame prevents an exact tie from rendering too early.
+      const tolerance = Math.max(
+        FRAME_SCHEDULING_EPSILON_MS,
+        interval / 2 - FRAME_SCHEDULING_EPSILON_MS,
+      );
+      this.#nextRenderAt ??= timestamp;
+      if (timestamp + tolerance >= this.#nextRenderAt) {
         this.#render(timestamp, false);
-        this.#lastRenderedAt = timestamp;
+        const elapsedIntervals = Math.max(
+          1,
+          Math.floor(
+            (timestamp - this.#nextRenderAt + tolerance) / interval,
+          ) + 1,
+        );
+        this.#nextRenderAt += elapsedIntervals * interval;
       }
       this.#scheduleFrame();
     });
@@ -308,14 +387,6 @@ class ActiveController implements WidgetController {
       return;
     }
     try {
-      if (this.#cameraDirty) {
-        this.#runtime.setCameraTransform(
-          this.#cameraX,
-          this.#cameraY,
-          this.#config.render.initialScale,
-        );
-        this.#cameraDirty = false;
-      }
       const parameters = this.#motion.sample(timestamp, reducedMotion);
       for (const [id, value] of parameters) {
         this.#setRuntimeParameter(id, value);
@@ -372,6 +443,14 @@ class ActiveController implements WidgetController {
       destroyRuntime(runtime);
     }
   }
+
+  #clearMountDeadline(): void {
+    if (this.#mountTimeoutHandle !== undefined) {
+      clearTimeout(this.#mountTimeoutHandle);
+      this.#mountTimeoutHandle = undefined;
+    }
+    this.#mountAbortController = undefined;
+  }
 }
 
 function destroyRuntime(runtime: Inochi2dWasmRuntime): void {
@@ -386,4 +465,8 @@ function destroyRuntime(runtime: Inochi2dWasmRuntime): void {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
 }

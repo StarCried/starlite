@@ -4,6 +4,9 @@
 **/dist/
 **/coverage/
 /packages/inochi2d-web/src/generated/
+/packages/inochi2d-blog/vendor/
+**/.inochi2d/
+**/_multiconfig.yml
 **/playwright-report/
 **/test-results/
 /examples/hexo/db.json

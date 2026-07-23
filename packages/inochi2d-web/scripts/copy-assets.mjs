@@ -10,6 +10,6 @@ await mkdir(resolve(packageRoot, "dist"), { recursive: true });
 await copyFile(resolve(packageRoot, "src/widget.css"), resolve(packageRoot, "dist/widget.css"));
 await rm(generatedDestination, { force: true, recursive: true });
 await mkdir(generatedDestination, { recursive: true });
-for (const filename of ["runtime.js", "runtime.d.ts", "runtime_bg.wasm", "runtime_bg.wasm.d.ts"]) {
+for (const filename of ["inochi2d.wasm"]) {
   await copyFile(resolve(generatedSource, filename), resolve(generatedDestination, filename));
 }

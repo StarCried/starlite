@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          components: clippy,rustfmt
+      - name: Install deterministic WASM build tools
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          test "$(gpg --show-keys --with-colons "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            | awk -F: '$1 == "fpr" { print $10; exit }')" \
+            = "6084F3CF814B57C1CF12EFD515CF4D18AF4F7421"
+          sudo gpg --dearmor \
+            --output /usr/share/keyrings/apt.llvm.org.gpg \
+            "$RUNNER_TEMP/llvm-snapshot.gpg.key"
+          echo "deb [signed-by=/usr/share/keyrings/apt.llvm.org.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm-20.list
+          sudo apt-get update
+          sudo apt-get install --yes lld-20
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/binaryen.tar.gz" \
+            https://github.com/WebAssembly/binaryen/releases/download/version_120/binaryen-version_120-x86_64-linux.tar.gz
+          echo "ddb097af51d1bdb17300d986b0de7d97422f1933dedb4c9eda3510e0bf4076cc  $RUNNER_TEMP/binaryen.tar.gz" \
+            | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/binaryen.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-version_120/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/inochi2d-web/official-sdk
+          key: official-sdk-${{ runner.os }}-${{ hashFiles('tools/official-sdk/pin.json', 'tools/official-sdk/**', 'tools/build-official-sdk.mjs') }}
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run validate
+      - run: npm run test:browser
+      - run: git diff --check

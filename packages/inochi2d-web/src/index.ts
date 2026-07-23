@@ -3,7 +3,12 @@ import { createDefaultDependencies } from "./dependencies.js";
 
 export type {
   Inochi2dWasmRuntime,
+  ParameterAxis,
+  ParameterBinding,
   ParameterIds,
+  ParameterTarget,
+  ResolvedParameterBindings,
+  ResolvedParameterTarget,
   ResolvedWidgetConfig,
   RuntimeFactory,
   WidgetConfig,

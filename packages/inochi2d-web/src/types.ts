@@ -19,23 +19,61 @@ export interface Inochi2dWasmRuntime {
 export type RuntimeFactory = (
   canvas: HTMLCanvasElement,
   options: { initialScale: number },
+  signal?: AbortSignal,
 ) => Promise<Inochi2dWasmRuntime>;
 
-export interface ParameterIds {
-  breath: string;
-  eyeOpenLeft: string;
-  eyeOpenRight: string;
-  eyeX: string;
-  eyeY: string;
-  headX: string;
-  headY: string;
-  bodyX: string;
-  click: string;
+export type ParameterAxis = "x" | "y";
+
+/** Maps one semantic motion channel to a puppet parameter. */
+export interface ParameterTarget {
+  id: string;
+  /** Selects an axis when the target is a two-dimensional parameter. */
+  axis?: ParameterAxis;
+  /** Applied before offset, allowing inversion and per-target calibration. */
+  scale?: number;
+  offset?: number;
 }
+
+export type ParameterBinding =
+  | string
+  | ParameterTarget
+  | readonly (string | ParameterTarget)[]
+  | null;
+
+/**
+ * Semantic motion channels. Strings retain the original one-to-one API;
+ * richer targets support vectors, inversion, and one-to-many bindings.
+ */
+export interface ParameterIds {
+  breath: ParameterBinding;
+  eyeOpenLeft: ParameterBinding;
+  eyeOpenRight: ParameterBinding;
+  eyeX: ParameterBinding;
+  eyeY: ParameterBinding;
+  headX: ParameterBinding;
+  headY: ParameterBinding;
+  bodyX: ParameterBinding;
+  click: ParameterBinding;
+}
+
+export interface ResolvedParameterTarget {
+  id: string;
+  axis?: ParameterAxis;
+  scale: number;
+  offset: number;
+}
+
+export type ResolvedParameterBindings = {
+  [Channel in keyof ParameterIds]: readonly ResolvedParameterTarget[];
+};
 
 export interface WidgetConfig {
   model: string;
   fallback: string;
+  network?: {
+    requestTimeoutMs?: number;
+    modelMaxBytes?: number;
+  };
   display?: {
     width?: number;
     height?: number;
@@ -62,6 +100,10 @@ export interface WidgetConfig {
 export interface ResolvedWidgetConfig {
   model: string;
   fallback: string;
+  network: {
+    requestTimeoutMs: number;
+    modelMaxBytes: number;
+  };
   display: {
     width: number;
     height: number;
@@ -75,7 +117,7 @@ export interface ResolvedWidgetConfig {
     show: boolean;
     breakpoint: number;
   };
-  parameters: ParameterIds;
+  parameters: ResolvedParameterBindings;
   interactions: {
     pointer: boolean;
     click: boolean;
@@ -95,7 +137,13 @@ export interface WidgetController {
 }
 
 export interface WidgetDependencies {
-  fetchModel(url: string): Promise<Uint8Array>;
+  fetchModel(
+    url: string,
+    options?: {
+      signal?: AbortSignal;
+      maximumBytes?: number;
+    },
+  ): Promise<Uint8Array>;
   createRuntime: RuntimeFactory;
   requestFrame(callback: FrameRequestCallback): number;
   cancelFrame(handle: number): void;

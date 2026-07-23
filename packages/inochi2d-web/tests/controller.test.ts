@@ -31,6 +31,15 @@ function dependencies(overrides: Partial<WidgetDependencies> = {}): WidgetDepend
   };
 }
 
+function pointerEvent(
+  type: string,
+  init: MouseEventInit & { pointerId: number },
+): PointerEvent {
+  const event = new MouseEvent(type, init);
+  Object.defineProperty(event, "pointerId", { value: init.pointerId });
+  return event as unknown as PointerEvent;
+}
+
 beforeEach(() => {
   document.body.replaceChildren();
 });
@@ -70,6 +79,66 @@ describe("mountWithDependencies", () => {
 
     controller.resume();
     expect(deps.requestFrame).toHaveBeenCalledOnce();
+  });
+
+  it("renders at 30 FPS on a 60 Hz animation-frame timeline", async () => {
+    const element = document.createElement("div");
+    const runtime = fakeRuntime();
+    const callbacks: FrameRequestCallback[] = [];
+    const deps = dependencies({
+      createRuntime: vi.fn(async () => runtime),
+      requestFrame: vi.fn((callback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+      }),
+    });
+    await mountWithDependencies(
+      element,
+      {
+        model: "/model.inp",
+        fallback: "/fallback.png",
+        render: { fps: 30 },
+      },
+      deps,
+    );
+
+    for (let frame = 0; frame < 180; frame += 1) {
+      const callback = callbacks.shift();
+      expect(callback).toBeDefined();
+      callback!(frame * (1_000 / 60));
+    }
+
+    expect(runtime.renderFrame).toHaveBeenCalledTimes(90);
+  });
+
+  it("keeps 30 FPS when display callbacks run only slightly above 30 Hz", async () => {
+    const element = document.createElement("div");
+    const runtime = fakeRuntime();
+    const callbacks: FrameRequestCallback[] = [];
+    const deps = dependencies({
+      createRuntime: vi.fn(async () => runtime),
+      requestFrame: vi.fn((callback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+      }),
+    });
+    await mountWithDependencies(
+      element,
+      {
+        model: "/model.inp",
+        fallback: "/fallback.png",
+        render: { fps: 30 },
+      },
+      deps,
+    );
+
+    for (let frame = 0; frame < 180; frame += 1) {
+      const callback = callbacks.shift();
+      expect(callback).toBeDefined();
+      callback!(frame * (1_000 / 32.5));
+    }
+
+    expect(runtime.renderFrame).toHaveBeenCalledTimes(166);
   });
 
   it("renders one neutral frame and starts no loop for reduced motion", async () => {
@@ -167,5 +236,65 @@ describe("mountWithDependencies", () => {
     expect(controller.status).toBe("destroyed");
     expect(runtime.destroy).toHaveBeenCalledOnce();
     expect(element.children).toHaveLength(0);
+  });
+
+  it("drags the whole widget in viewport pixels and double-click resets it", async () => {
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 1200,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 800,
+    });
+    const element = document.createElement("div");
+    const runtime = fakeRuntime();
+    const deps = dependencies({ createRuntime: vi.fn(async () => runtime) });
+    await mountWithDependencies(
+      element,
+      { model: "/model.inp", fallback: "/fallback.png" },
+      deps,
+    );
+    const canvas = element.querySelector("canvas");
+    expect(canvas).not.toBeNull();
+    const bounds = {
+      x: 900,
+      y: 400,
+      left: 900,
+      top: 400,
+      right: 1160,
+      bottom: 760,
+      width: 260,
+      height: 360,
+      toJSON: () => ({}),
+    };
+    vi.spyOn(element, "getBoundingClientRect").mockReturnValue(bounds);
+    vi.spyOn(canvas!, "getBoundingClientRect").mockReturnValue(bounds);
+
+    canvas!.dispatchEvent(
+      pointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        clientX: 1000,
+        clientY: 500,
+        pointerId: 1,
+      }),
+    );
+    window.dispatchEvent(
+      pointerEvent("pointermove", {
+        clientX: 700,
+        clientY: 300,
+        pointerId: 1,
+      }),
+    );
+
+    expect(element.style.left).toBe("600px");
+    expect(element.style.top).toBe("200px");
+    expect(runtime.setCameraTransform).not.toHaveBeenCalled();
+
+    canvas!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(element.style.left).toBe("");
+    expect(element.style.top).toBe("");
+    expect(runtime.setCameraTransform).toHaveBeenCalledWith(0, 0, 0.15);
   });
 });
