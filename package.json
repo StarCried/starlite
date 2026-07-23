@@ -27,7 +27,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:browser": "npm run test:browser --workspace @inochi2d-web/vanilla-example",
-    "validate": "npm run check:rust && npm run lint && npm run typecheck && npm run build && npm run check:runtime-budget && npm run check:licenses && npm run test && npm run pack:check"
+    "validate": "npm run check:rust && npm run build && npm run lint && npm run typecheck && npm run check:runtime-budget && npm run check:licenses && npm run test && npm run pack:check"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",
