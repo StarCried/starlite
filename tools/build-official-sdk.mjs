@@ -56,6 +56,18 @@ await stabilizeDrawAllocations(
   resolve(sourceRoot, "source/inochi2d/core/render/drawlist.d"),
 );
 await enableRuntimeBindings(sourceRoot);
+await fixCompositeColorDeserialization(
+  resolve(sourceRoot, "source/inochi2d/nodes/visual/composite.d"),
+);
+await fixParameter2dRangeDeserialization(
+  resolve(sourceRoot, "source/inochi2d/param/parameters/param2d.d"),
+);
+await fixParameter1dRangeDeserialization(
+  resolve(sourceRoot, "source/inochi2d/param/parameters/param1d.d"),
+);
+await fixSimplePhysicsOutputScaleDeserialization(
+  resolve(sourceRoot, "source/inochi2d/nodes/legacy/simplephysics.d"),
+);
 await restrictBrowserExports(
   resolve(sourceRoot, "source/inochi2d/cffi.d"),
   resolve(sourceRoot, "dub.sdl"),
@@ -244,6 +256,108 @@ async function stabilizeDrawAllocations(drawListPath) {
   await writeFile(drawListPath, source.replace(original, patched));
 }
 
+async function fixCompositeColorDeserialization(compositePath) {
+  const original =
+    '        object.tryGetRef(state, tint, "tint");\n' +
+    '        object.tryGetRef(state, screenTint, "screenTint");';
+  const patched =
+    '        // Match Part deserialization: DataNode writes vector elements through\n' +
+    '        // the backing array rather than replacing the vector value.\n' +
+    '        object.tryGetRef(state, tint.data, "tint");\n' +
+    '        object.tryGetRef(state, screenTint.data, "screenTint");';
+  const source = await readFile(compositePath, "utf8");
+  if (source.includes(patched)) {
+    return;
+  }
+  if (!source.includes(original)) {
+    throw new Error(
+      "official SDK composite color decoder changed; compatibility patch was not applied",
+    );
+  }
+  await writeFile(compositePath, source.replace(original, patched));
+}
+
+async function fixParameter2dRangeDeserialization(parameterPath) {
+  const original =
+    '        object.tryGetRef(state, min, "min");\n' +
+    '        object.tryGetRef(state, max, "max");\n' +
+    '        object.tryGetRef(state, defaults, "defaults");';
+  const patched =
+    '        // Fixed-size vectors deserialize through their backing arrays.\n' +
+    '        object.tryGetRef(state, min.data, "min");\n' +
+    '        object.tryGetRef(state, max.data, "max");\n' +
+    '        object.tryGetRef(state, defaults.data, "defaults");';
+  const source = await readFile(parameterPath, "utf8");
+  if (source.includes(patched)) {
+    return;
+  }
+  if (!source.includes(original)) {
+    throw new Error(
+      "official SDK 2D parameter range decoder changed; compatibility patch was not applied",
+    );
+  }
+  await writeFile(parameterPath, source.replace(original, patched));
+}
+
+async function fixParameter1dRangeDeserialization(parameterPath) {
+  const original =
+    '        object.tryGetRef(state, min, "min");\n' +
+    '        object.tryGetRef(state, max, "max");\n' +
+    '        object.tryGetRef(state, defaults, "defaults");';
+  const patched =
+    "        // Legacy 0.8 files store scalar ranges in the first element of\n" +
+    "        // two-element arrays shared with 2D parameters.\n" +
+    "        if (state.doUpgrade08) {\n" +
+    '            auto minimum = "min" in object;\n' +
+    "            if (minimum && (*minimum).isArray)\n" +
+    "                (*minimum).tryGetRef(state, min, 0);\n" +
+    "            else\n" +
+    '                object.tryGetRef(state, min, "min");\n' +
+    '            auto maximum = "max" in object;\n' +
+    "            if (maximum && (*maximum).isArray)\n" +
+    "                (*maximum).tryGetRef(state, max, 0);\n" +
+    "            else\n" +
+    '                object.tryGetRef(state, max, "max");\n' +
+    '            auto defaultValues = "defaults" in object;\n' +
+    "            if (defaultValues && (*defaultValues).isArray)\n" +
+    "                (*defaultValues).tryGetRef(state, defaults, 0);\n" +
+    "            else\n" +
+    '                object.tryGetRef(state, defaults, "defaults");\n' +
+    "        } else {\n" +
+    '            object.tryGetRef(state, min, "min");\n' +
+    '            object.tryGetRef(state, max, "max");\n' +
+    '            object.tryGetRef(state, defaults, "defaults");\n' +
+    "        }";
+  const source = await readFile(parameterPath, "utf8");
+  if (source.includes(patched)) {
+    return;
+  }
+  if (!source.includes(original)) {
+    throw new Error(
+      "official SDK 1D parameter range decoder changed; compatibility patch was not applied",
+    );
+  }
+  await writeFile(parameterPath, source.replace(original, patched));
+}
+
+async function fixSimplePhysicsOutputScaleDeserialization(physicsPath) {
+  const original =
+    '        object.tryGetRef(state, outputScale, "output_scale", vec2(1, 1));';
+  const patched =
+    '        // Fixed-size vectors deserialize through their backing arrays.\n' +
+    '        object.tryGetRef(state, outputScale.data, "output_scale");';
+  const source = await readFile(physicsPath, "utf8");
+  if (source.includes(patched)) {
+    return;
+  }
+  if (!source.includes(original)) {
+    throw new Error(
+      "official SDK simple-physics output scale decoder changed; compatibility patch was not applied",
+    );
+  }
+  await writeFile(physicsPath, source.replace(original, patched));
+}
+
 async function enableRuntimeBindings(sdkRoot) {
   const patchRoot = resolve(workspaceRoot, "tools/official-sdk/patches");
   const bindingsRoot = resolve(sdkRoot, "source/inochi2d/param/bindings");
@@ -312,15 +426,37 @@ async function enableRuntimeBindings(sdkRoot) {
   const deformationPath = resolve(sdkRoot, "source/inochi2d/core/math/deform.d");
   const deformationSource = await readFile(deformationPath, "utf8");
   const brokenIndex = "this.vertexOffsets[i / 2] = element.deserialize!vec2(state);";
-  const fixedIndex = "this.vertexOffsets[i] = element.deserialize!vec2(state);";
+  const indexedButUndecoded =
+    "this.vertexOffsets[i] = element.deserialize!vec2(state);";
+  const fixedIndex = `if (!element.isArray || element.length != 2) {
+                    state.error("deformation offset must contain exactly two numbers");
+                    continue;
+                }
+                vec2 decoded;
+                element.tryGetRef(state, decoded.x, 0);
+                element.tryGetRef(state, decoded.y, 1);
+                if (!decoded.isFinite) {
+                    state.error("deformation offset must contain finite numbers");
+                    continue;
+                }
+                this.vertexOffsets[i] = decoded;`;
   let patchedDeformationSource = deformationSource;
   if (!patchedDeformationSource.includes(fixedIndex)) {
-    if (!deformationSource.includes(brokenIndex)) {
+    if (patchedDeformationSource.includes(indexedButUndecoded)) {
+      patchedDeformationSource = patchedDeformationSource.replace(
+        indexedButUndecoded,
+        fixedIndex,
+      );
+    } else if (patchedDeformationSource.includes(brokenIndex)) {
+      patchedDeformationSource = patchedDeformationSource.replace(
+        brokenIndex,
+        fixedIndex,
+      );
+    } else {
       throw new Error(
         "official SDK deformation decoder changed; runtime-binding patch was not applied",
       );
     }
-    patchedDeformationSource = patchedDeformationSource.replace(brokenIndex, fixedIndex);
   }
   const brokenCopy = "this.vertexOffsets = vertexOffsets.nu_dup();";
   const fixedCopy = "this.vertexOffsets = other.vertexOffsets.nu_dup();";
@@ -489,6 +625,7 @@ uint in_parameter_get_invalid_binding_application_count(in_parameter_t* obj) {
 
 async function restrictBrowserExports(cffiPath, recipePath) {
   const allocatorExports = ["nu_malloc", "nu_realloc", "nu_free"];
+  const removedExports = ["in_texture_flip_vertically"];
   const cffiExports = [
     "in_puppet_load_from_memory",
     "in_puppet_free",
@@ -499,6 +636,8 @@ async function restrictBrowserExports(cffiPath, recipePath) {
     "in_puppet_get_texture_cache",
     "in_parameter_get_name",
     "in_parameter_get_dimensions",
+    "in_parameter_get_lower_bounds",
+    "in_parameter_get_upper_bounds",
     "in_parameter_get_binding_count",
     "in_parameter_get_bound_binding_count",
     "in_parameter_get_invalid_binding_application_count",
@@ -510,7 +649,6 @@ async function restrictBrowserExports(cffiPath, recipePath) {
     "in_texture_get_height",
     "in_texture_get_channels",
     "in_texture_get_pixels",
-    "in_texture_flip_vertically",
     "in_texture_premultiply",
     "in_drawlist_get_commands",
     "in_drawlist_get_vertex_data",
@@ -544,6 +682,13 @@ async function restrictBrowserExports(cffiPath, recipePath) {
     }
     cffiSource = cffiSource.replace(definition, "export $1");
   }
+  for (const symbol of removedExports) {
+    const exportedDefinition = new RegExp(
+      `^export ([^\\n]*\\b${symbol}\\s*\\()`,
+      "mu",
+    );
+    cffiSource = cffiSource.replace(exportedDefinition, "$1");
+  }
   await writeFile(cffiPath, cffiSource);
 
   const originalFlags = '    lflags "--entry=in_init" "--allow-undefined"';
@@ -564,6 +709,12 @@ async function restrictBrowserExports(cffiPath, recipePath) {
     "",
   );
   for (const symbol of browserExports) {
+    normalizedRecipe = normalizedRecipe.replaceAll(
+      `\n    lflags "--export=${symbol}"`,
+      "",
+    );
+  }
+  for (const symbol of removedExports) {
     normalizedRecipe = normalizedRecipe.replaceAll(
       `\n    lflags "--export=${symbol}"`,
       "",

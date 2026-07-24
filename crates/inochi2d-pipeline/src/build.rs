@@ -166,6 +166,7 @@ fn prepare(
         vendor_count: inspection.vendor_count,
         metadata: inspection.metadata,
         parameters: inspection.parameters,
+        animations: inspection.animations,
         nodes: inspection.nodes,
         textures: texture_artifacts,
         compatibility,

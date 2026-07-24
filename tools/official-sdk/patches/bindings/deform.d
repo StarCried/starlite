@@ -69,8 +69,10 @@ public:
     override
     void apply(vec2u index, vec2 norm) {
         auto deformable = cast(IDeformable)target;
-        if (!deformable)
+        if (!deformable) {
+            invalidApplications_++;
             return;
+        }
 
         const nextX = nu_min(cast(size_t)index.x + 1, values_.rows - 1);
         const nextY = nu_min(cast(size_t)index.y + 1, values_.columns - 1);

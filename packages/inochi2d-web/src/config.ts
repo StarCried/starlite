@@ -1,4 +1,6 @@
 import type {
+  AnimationClip,
+  AnimationInterpolation,
   ParameterBinding,
   ParameterIds,
   ResolvedParameterBindings,
@@ -16,10 +18,12 @@ const DEFAULT_PARAMETER_IDS: { [Channel in keyof ParameterIds]: string } = {
   headX: "HeadX",
   headY: "HeadY",
   bodyX: "BodyX",
-  click: "HeadZ",
 };
 
-const DEFAULTS: Omit<ResolvedWidgetConfig, "model" | "fallback" | "parameters"> = {
+const DEFAULTS: Omit<
+  ResolvedWidgetConfig,
+  "model" | "fallback" | "parameters" | "animations"
+> = {
   network: {
     requestTimeoutMs: 30_000,
     modelMaxBytes: 16 * 1024 * 1024,
@@ -39,9 +43,8 @@ const DEFAULTS: Omit<ResolvedWidgetConfig, "model" | "fallback" | "parameters"> 
   },
   interactions: {
     pointer: true,
-    click: true,
+    click: false,
     drag: true,
-    clickAmplitude: 0.35,
     dragModelUnitsPerPixel: 4,
   },
 };
@@ -53,6 +56,8 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
   if (config.fallback.trim().length === 0) {
     throw new Error("fallback URL must not be empty");
   }
+  const animations = resolveAnimations(config.animations);
+  const click = resolveClick(config.interactions?.click, animations);
 
   return {
     model: config.model,
@@ -100,18 +105,12 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
         "mobile.breakpoint",
       ),
     },
+    animations,
     parameters: resolveParameterBindings(config.parameters),
     interactions: {
       pointer: config.interactions?.pointer ?? DEFAULTS.interactions.pointer,
-      click: config.interactions?.click ?? DEFAULTS.interactions.click,
+      click,
       drag: config.interactions?.drag ?? DEFAULTS.interactions.drag,
-      clickAmplitude: bounded(
-        config.interactions?.clickAmplitude,
-        DEFAULTS.interactions.clickAmplitude,
-        0,
-        2,
-        "interactions.clickAmplitude",
-      ),
       dragModelUnitsPerPixel: bounded(
         config.interactions?.dragModelUnitsPerPixel,
         DEFAULTS.interactions.dragModelUnitsPerPixel,
@@ -121,6 +120,168 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
       ),
     },
   };
+}
+
+function resolveClick(
+  input: false | { animation?: string } | undefined,
+  animations: ReadonlyMap<string, AnimationClip>,
+): false | { animation: string } {
+  const resolved = input ?? DEFAULTS.interactions.click;
+  if (resolved === false) {
+    return false;
+  }
+  if (typeof resolved !== "object" || resolved === null || Array.isArray(resolved)) {
+    throw new Error("interactions.click must be false or an animation configuration");
+  }
+  const animation = resolved.animation?.trim();
+  if (!animation) {
+    throw new Error("interactions.click.animation must not be empty");
+  }
+  if (!animations.has(animation)) {
+    throw new Error(
+      `interactions.click.animation ${JSON.stringify(animation)} is not present in the validated model animations`,
+    );
+  }
+  return { animation };
+}
+
+function resolveAnimations(
+  input: readonly AnimationClip[] | undefined,
+): ReadonlyMap<string, AnimationClip> {
+  const clips = input ?? [];
+  if (clips.length > 64) {
+    throw new Error("animations must contain at most 64 clips");
+  }
+  const result = new Map<string, AnimationClip>();
+  for (const [clipIndex, clip] of clips.entries()) {
+    const field = `animations[${clipIndex}]`;
+    if (
+      typeof clip !== "object" ||
+      clip === null ||
+      typeof clip.name !== "string" ||
+      clip.name.trim().length === 0 ||
+      new TextEncoder().encode(clip.name).byteLength > 128
+    ) {
+      throw new Error(`${field}.name must contain 1..=128 UTF-8 bytes`);
+    }
+    if (result.has(clip.name)) {
+      throw new Error(`${field}.name is duplicated`);
+    }
+    finiteRange(clip.timestepMs, Number.MIN_VALUE, 1_000, `${field}.timestepMs`);
+    integerRange(clip.length, 1, 18_000, `${field}.length`);
+    integerRange(clip.leadIn, -1, clip.length, `${field}.leadIn`);
+    integerRange(clip.leadOut, -1, clip.length, `${field}.leadOut`);
+    if (clip.weight !== 1) {
+      throw new Error(`${field}.weight must be 1 for forced alpha playback`);
+    }
+    if (!Array.isArray(clip.lanes) || clip.lanes.length < 1 || clip.lanes.length > 128) {
+      throw new Error(`${field}.lanes must contain 1..=128 lanes`);
+    }
+
+    const targets = new Set<string>();
+    let keyframeCount = 0;
+    for (const [laneIndex, lane] of clip.lanes.entries()) {
+      const laneField = `${field}.lanes[${laneIndex}]`;
+      if (
+        typeof lane.parameter !== "string" ||
+        lane.parameter.trim().length === 0
+      ) {
+        throw new Error(`${laneField}.parameter must not be empty`);
+      }
+      if (lane.axis !== undefined && lane.axis !== "x" && lane.axis !== "y") {
+        throw new Error(`${laneField}.axis must be x or y`);
+      }
+      if (!isAnimationInterpolation(lane.interpolation)) {
+        throw new Error(`${laneField}.interpolation is unsupported`);
+      }
+      if (
+        !Array.isArray(lane.defaultValues) ||
+        lane.defaultValues.length !== 2
+      ) {
+        throw new Error(`${laneField}.defaultValues must contain two entries`);
+      }
+      for (const [axis, value] of lane.defaultValues.entries()) {
+        finiteRange(
+          value,
+          -Number.MAX_VALUE,
+          Number.MAX_VALUE,
+          `${laneField}.defaultValues[${axis}]`,
+        );
+      }
+      const target = `${lane.parameter}\0${lane.axis ?? ""}`;
+      if (targets.has(target)) {
+        throw new Error(`${laneField} duplicates another parameter target`);
+      }
+      targets.add(target);
+      if (
+        !Array.isArray(lane.keyframes) ||
+        lane.keyframes.length < 2
+      ) {
+        throw new Error(`${laneField}.keyframes must contain at least two entries`);
+      }
+      keyframeCount += lane.keyframes.length;
+      if (keyframeCount > 4_096) {
+        throw new Error(`${field} contains more than 4096 keyframes`);
+      }
+      let previousFrame = -1;
+      for (const [keyframeIndex, keyframe] of lane.keyframes.entries()) {
+        const keyframeField = `${laneField}.keyframes[${keyframeIndex}]`;
+        integerRange(keyframe.frame, 0, clip.length, `${keyframeField}.frame`);
+        if (keyframe.frame <= previousFrame) {
+          throw new Error(`${laneField}.keyframes must be strictly increasing`);
+        }
+        finiteRange(
+          keyframe.value,
+          -Number.MAX_VALUE,
+          Number.MAX_VALUE,
+          `${keyframeField}.value`,
+        );
+        finiteRange(
+          keyframe.tension,
+          -Number.MAX_VALUE,
+          Number.MAX_VALUE,
+          `${keyframeField}.tension`,
+        );
+        previousFrame = keyframe.frame;
+      }
+    }
+    result.set(clip.name, clip);
+  }
+  return result;
+}
+
+function isAnimationInterpolation(
+  input: unknown,
+): input is AnimationInterpolation {
+  return (
+    input === "nearest" ||
+    input === "stepped" ||
+    input === "linear" ||
+    input === "cubic"
+  );
+}
+
+function integerRange(
+  value: number,
+  minimum: number,
+  maximum: number,
+  field: string,
+): void {
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${field} must be a safe integer`);
+  }
+  finiteRange(value, minimum, maximum, field);
+}
+
+function finiteRange(
+  value: number,
+  minimum: number,
+  maximum: number,
+  field: string,
+): void {
+  if (!Number.isFinite(value) || value < minimum || value > maximum) {
+    throw new Error(`${field} must be between ${minimum} and ${maximum}`);
+  }
 }
 
 function resolveParameterBindings(

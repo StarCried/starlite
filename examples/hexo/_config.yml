@@ -18,3 +18,7 @@ inochi2d_widget:
   mobile:
     show: false
     breakpoint: 768
+  interactions:
+    pointer: true
+    click: false
+    drag: true

@@ -145,6 +145,7 @@ function validateOrchestrationConfig(input) {
   ) {
       throw new Error("publication.sourceSha256 must be the reviewed source SHA-256");
   }
+  requiredClickAnimation(input);
 }
 
 async function createInspectionContext(configPath, config) {
@@ -218,6 +219,11 @@ function validatePublication(context, inspection) {
   ) {
     throw new Error("model metadata requires a non-empty publication.attribution");
   }
+  requireAnimation(
+    inspection.animations,
+    requiredClickAnimation(context.config),
+    "source model",
+  );
 }
 
 async function prepare(context) {
@@ -250,15 +256,16 @@ async function prepare(context) {
       "quiet",
     );
 
-    const manifest = JSON.parse(
-      await readFile(resolve(stagingDirectory, "manifest.json"), "utf8"),
+    const manifestContents = await readFile(
+      resolve(stagingDirectory, "manifest.json"),
     );
+    const manifest = JSON.parse(manifestContents.toString("utf8"));
     validateBuiltManifest(context, inspection, manifest);
     const bundleRoot = resolve(context.stateRoot, "bundles");
     await mkdir(bundleRoot, { recursive: true });
     const bundleDirectory = resolve(
       bundleRoot,
-      `${manifest.model.sourceSha256.slice(0, 12)}-${manifest.model.sha256.slice(0, 12)}`,
+      immutableBundleName(manifest, manifestContents),
     );
     assertInside(context.stateRoot, bundleDirectory);
     try {
@@ -314,6 +321,28 @@ function validateBuiltManifest(context, inspection, manifest) {
   ) {
     throw new Error("built bundle no longer matches the publication attestation");
   }
+  requireAnimation(
+    manifest.animations,
+    requiredClickAnimation(context.config),
+    "built bundle",
+  );
+}
+
+function immutableBundleName(manifest, manifestContents) {
+  if (
+    !/^[a-f0-9]{64}$/iu.test(manifest?.model?.sourceSha256 ?? "") ||
+    !/^[a-f0-9]{64}$/iu.test(manifest?.model?.sha256 ?? "")
+  ) {
+    throw new Error("pipeline manifest has invalid model identities");
+  }
+  const manifestSha256 = createHash("sha256")
+    .update(manifestContents)
+    .digest("hex");
+  return [
+    manifest.model.sourceSha256.slice(0, 12),
+    manifest.model.sha256.slice(0, 12),
+    manifestSha256.slice(0, 12),
+  ].join("-");
 }
 
 async function writeGeneratedConfig(context, prepared) {
@@ -329,6 +358,7 @@ async function writeGeneratedConfig(context, prepared) {
   const relativeBundle = relative(context.blogRoot, prepared.bundleDirectory)
     .split(sep)
     .join("/");
+  const clickAnimation = requiredClickAnimation(context.config);
   const widget = {
     ...(isRecord(context.config.widget) ? context.config.widget : {}),
     enable: true,
@@ -339,6 +369,12 @@ async function writeGeneratedConfig(context, prepared) {
         ? context.config.widget.mobile
         : {}),
       show: false,
+    },
+    interactions: {
+      ...(isRecord(context.config.widget?.interactions)
+        ? context.config.widget.interactions
+        : {}),
+      click: clickAnimation ? { animation: clickAnimation } : false,
     },
   };
   const contents = `${JSON.stringify({ inochi2d_widget: widget }, null, 2)}\n`;
@@ -496,12 +532,27 @@ async function verifyBrowser(chromium, target, url) {
         throw new Error(`${target.label}: pointer movement produced no visible pose change`);
       }
 
-      await canvas.click({ position: { x: bounds.width / 2, y: bounds.height / 2 } });
-      await page.waitForTimeout(140);
+      const clickBounds = await canvas.boundingBox();
+      if (!clickBounds) throw new Error(`${target.label}: canvas disappeared before click`);
+      const clickX = clickBounds.x + clickBounds.width / 2;
+      const clickY = clickBounds.y + clickBounds.height / 2;
+      await page.mouse.move(clickX, clickY);
+      await page.waitForTimeout(400);
+      const clickBaseline = await canvas.screenshot({ animations: "disabled" });
+      await page.mouse.down();
+      await page.mouse.up();
+      await page.waitForTimeout(300);
       const clickPose = await canvas.screenshot({ animations: "disabled" });
-      const clickChange = await compareScreenshots(page, rightPose, clickPose);
+      const clickChange = await compareScreenshots(page, clickBaseline, clickPose);
       if (clickChange.changed === 0) {
         throw new Error(`${target.label}: click produced no visible pose change`);
+      }
+      const stationaryStyle = await widget.evaluate((element) => ({
+        left: element.style.left,
+        top: element.style.top,
+      }));
+      if (stationaryStyle.left || stationaryStyle.top) {
+        throw new Error(`${target.label}: stationary click detached the widget anchor`);
       }
 
       const dragStart = await widget.boundingBox();
@@ -933,7 +984,9 @@ function run(command, args, cwd, output = "inherit") {
           : "inherit",
     windowsHide: true,
   });
-  if (result.error) throw result.error;
+  if (result.error) {
+    throw commandStartError(command, result.error);
+  }
   if (result.status !== 0) {
     throw new Error(
       `${basename(command)} exited with status ${result.status}${
@@ -942,6 +995,20 @@ function run(command, args, cwd, output = "inherit") {
     );
   }
   return output === "capture" ? result.stdout : "";
+}
+
+function commandStartError(command, error) {
+  const executable = basename(command.replaceAll("\\", "/"));
+  const detail = error instanceof Error ? error.message : String(error);
+  const nativeHint = /^inochi2d-pipeline(?:\.exe)?$/iu.test(executable)
+    ? " The bundled native pipeline is an unsigned experimental alpha and may " +
+      "have been blocked by the operating system or endpoint security. Keep the " +
+      "block in place and set pipelineBinary to a trusted self-built executable, " +
+      "or stop; no subsequent Hexo generation or deploy step was run."
+    : "";
+  return new Error(`failed to start ${executable}: ${detail}.${nativeHint}`, {
+    cause: error,
+  });
 }
 
 function resolveFrom(base, path) {
@@ -968,6 +1035,40 @@ function isRecord(input) {
   return typeof input === "object" && input !== null && !Array.isArray(input);
 }
 
+function requiredClickAnimation(config) {
+  const click = config.widget?.interactions?.click;
+  if (click === false) return undefined;
+  if (click === undefined) return "Click";
+  if (
+    !isRecord(click) ||
+    typeof click.animation !== "string" ||
+    click.animation.trim().length === 0
+  ) {
+    throw new Error(
+      "config.widget.interactions.click must be false or contain a non-empty animation name",
+    );
+  }
+  return click.animation.trim();
+}
+
+function requireAnimation(animations, name, label) {
+  if (!name) return;
+  if (
+    !Array.isArray(animations) ||
+    !animations.some(
+      (animation) =>
+        isRecord(animation) &&
+        animation.name === name &&
+        Array.isArray(animation.lanes) &&
+        animation.lanes.length > 0,
+    )
+  ) {
+    throw new Error(
+      `${label} does not contain the required animation ${JSON.stringify(name)}`,
+    );
+  }
+}
+
 function printHelp() {
   console.log(`Usage: inochi2d-blog <inspect|prepare|verify|deploy> [options]
 
@@ -977,7 +1078,11 @@ Options:
   --help           Show this help
 
 The deploy command is fail-closed: authorization, hashes, preparation, Hexo
-generation, and desktop/mobile browser gates must all pass before Hexo deploy.`);
+generation, and desktop/mobile browser gates must all pass before Hexo deploy.
+
+The bundled native pipeline is an unsigned experimental alpha. npm installation
+does not execute it; only an explicit command does. A system block or start
+failure stops the command before subsequent Hexo generation or deployment.`);
 }
 
 export const testing = Object.freeze({
@@ -985,10 +1090,14 @@ export const testing = Object.freeze({
   validateOrchestrationConfig,
   validatePublication,
   validateBuiltManifest,
+  immutableBundleName,
+  requiredClickAnimation,
+  requireAnimation,
   assertInside,
   createStaticServer,
   listen,
   closeServer,
   verifyBrowser,
   summarizeFramePerformance,
+  commandStartError,
 });

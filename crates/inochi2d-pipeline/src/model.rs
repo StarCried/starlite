@@ -29,11 +29,60 @@ pub struct MetadataReport {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParameterProfile {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uuid: Option<u64>,
     pub name: String,
     pub is_vector: bool,
     pub min: [f64; 2],
     pub max: [f64; 2],
     pub defaults: [f64; 2],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AnimationAxis {
+    X,
+    Y,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AnimationInterpolation {
+    Nearest,
+    Stepped,
+    Linear,
+    Cubic,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimationKeyframe {
+    pub frame: u32,
+    pub value: f64,
+    pub tension: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimationLane {
+    pub parameter: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub axis: Option<AnimationAxis>,
+    pub default_values: [f64; 2],
+    pub interpolation: AnimationInterpolation,
+    pub keyframes: Vec<AnimationKeyframe>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimationClip {
+    pub name: String,
+    pub timestep_ms: f64,
+    pub length: u32,
+    pub lead_in: i32,
+    pub lead_out: i32,
+    pub weight: f64,
+    pub lanes: Vec<AnimationLane>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -134,6 +183,7 @@ pub struct InspectionReport {
     pub vendor_count: usize,
     pub metadata: MetadataReport,
     pub parameters: Vec<ParameterProfile>,
+    pub animations: Vec<AnimationClip>,
     pub nodes: NodeSummary,
     pub textures: Vec<TextureInspection>,
     pub compatibility: CompatibilityReport,
@@ -197,6 +247,7 @@ pub struct BuildManifest {
     pub vendor_count: usize,
     pub metadata: MetadataReport,
     pub parameters: Vec<ParameterProfile>,
+    pub animations: Vec<AnimationClip>,
     pub nodes: NodeSummary,
     pub textures: Vec<TextureArtifact>,
     pub compatibility: CompatibilityReport,

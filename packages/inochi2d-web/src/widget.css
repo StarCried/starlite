@@ -3,7 +3,7 @@
   --inochi2d-height: 360px;
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
-  bottom: max(72px, calc(env(safe-area-inset-bottom) + 56px));
+  bottom: max(80px, calc(env(safe-area-inset-bottom) + 64px));
   z-index: 30;
   width: var(--inochi2d-width);
   height: var(--inochi2d-height);

@@ -21,13 +21,43 @@ copyright and redistribution rights remain separate.
   Chrome/Edge validation, and optional `hexo deploy`.
 
 The alpha supports current desktop Chrome and Edge with WebGL2. It includes
-blink, breath, pointer following, click pulses, whole-page drag, double-click
-reset, fallback rendering, tab pause/resume, context-loss handling, and a static
-reduced-motion pose. Mobile is hidden before runtime import, so it fetches no
-widget JavaScript, WASM, or model.
+blink, breath, pointer following, model-authored named click animations,
+whole-page drag, double-click reset, fallback rendering, tab pause/resume,
+context-loss handling, and a static reduced-motion pose. Mobile is hidden
+before runtime import, so it fetches no widget JavaScript, WASM, or model.
 
-WebGL1, BC7, MeshGroup, built-in animations, microphone/lip-sync, camera
-tracking, and Firefox/Safari compatibility promises are outside this release.
+The runtime probes the configured breath target against the official draw list
+after loading. A model parameter that produces no visible output receives a
+subtle camera-scale breathing fallback; a working model binding remains in full
+control. Pointer press/release with less than six pixels of travel triggers the
+configured animation (default `Click` in the Hexo adapter), while larger travel
+is treated exclusively as a drag. There is no synthesized parameter-pulse
+fallback: a missing, malformed, or unsupported configured animation stops
+preparation or Hexo generation.
+
+WebGL1, BC7, MeshGroup, automation, additive or non-`Forced` animation lanes,
+Bezier interpolation, animation transition looping, microphone/lip-sync,
+camera tracking, and Firefox/Safari compatibility promises are outside this
+release.
+
+## Alpha channels and native executable
+
+`inochi2d-web` and `hexo-inox2d-widget` are the normal browser alpha. They run
+JavaScript, WebAssembly, and WebGL2 in the generated site and do not need a
+native executable.
+
+`inochi2d-blog` and its bundled `inochi2d-pipeline` are an **experimental,
+unsigned native alpha**. Installing the npm package does not run the executable:
+there is no install or postinstall lifecycle script. The native program starts
+only when the operator explicitly invokes `inspect`, `prepare`, `verify`, or
+`deploy`. A packaged binary is checked against its exact SHA-256 manifest before
+execution.
+
+Windows Smart App Control, antivirus, or other endpoint policy may warn about or
+block the unsigned binary. Do not weaken those controls for this project. If the
+binary cannot start, the command exits with an error before any subsequent Hexo
+generation or deployment. Users can instead build the pipeline from source and
+select that trusted local build with `pipelineBinary`.
 
 ## Automatic model-to-blog workflow
 
@@ -53,13 +83,13 @@ Only the explicit command below can invoke the blog's configured Hexo deployer:
 inochi2d-blog deploy --config inochi2d-blog.config.json
 ```
 
-The last command is fail-closed. Authorization, source identity, native
-compression, immutable bundle validation, Hexo clean/generate, desktop browser
-rendering, PJAX singleton, layout, and mobile no-fetch checks must all pass
-before `hexo deploy` starts. The browser gate measures 90 rendered frames at
-DPR 1.25 and requires at least 29.5 FPS with no more than 33 ms p95 render
-duration. Any error stops the workflow and restores the prior generated widget
-config.
+The last command is fail-closed. Authorization, source identity, the configured
+model animation, native compression, immutable bundle validation, Hexo
+clean/generate, desktop browser rendering, PJAX singleton, layout, and mobile
+no-fetch checks must all pass before `hexo deploy` starts. The browser gate
+measures 90 rendered frames at DPR 1.25 and requires at least 29.5 FPS with no
+more than 33 ms p95 render duration. Any error stops the workflow and restores
+the prior generated widget config.
 
 See [pipeline details](docs/pipeline.md), [configuration](docs/configuration.md),
 and the [release checklist](docs/validation.md).

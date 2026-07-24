@@ -1,5 +1,6 @@
+import { AnimationPlayer } from "./animation.js";
 import { resolveConfig } from "./config.js";
-import { MotionMixer } from "./motion.js";
+import { idleBreathValue, MotionMixer } from "./motion.js";
 import type {
   Inochi2dWasmRuntime,
   ResolvedWidgetConfig,
@@ -11,6 +12,12 @@ import type {
 
 type ManualValue = number | readonly [number, number];
 const FRAME_SCHEDULING_EPSILON_MS = 0.25;
+const DRAG_START_DISTANCE_SQUARED = 36;
+const FALLBACK_BREATH_SCALE_RANGE = 0.016;
+
+interface ParameterEffectInspector {
+  parameterHasVisibleEffect(id: string, axis?: "x" | "y"): boolean | undefined;
+}
 
 export async function mountWithDependencies(
   element: HTMLElement,
@@ -62,6 +69,7 @@ class ActiveController implements WidgetController {
   readonly #canvas: HTMLCanvasElement;
   readonly #fallback: HTMLImageElement;
   readonly #motion: MotionMixer;
+  readonly #animations: AnimationPlayer;
   readonly #manualParameters = new Map<string, ManualValue>();
   readonly #unsupportedParameters = new Set<string>();
   readonly #removeListeners: Array<() => void> = [];
@@ -74,6 +82,7 @@ class ActiveController implements WidgetController {
   #status: WidgetStatus = "loading";
   #pausedByUser = false;
   #pausedByVisibility = false;
+  #usesFallbackBreathing = false;
   #dragOrigin:
     | {
         pointerId: number;
@@ -81,10 +90,15 @@ class ActiveController implements WidgetController {
         pointerY: number;
         elementLeft: number;
         elementTop: number;
+        moved: boolean;
       }
     | undefined;
 
-  constructor(element: HTMLElement, config: ResolvedWidgetConfig, dependencies: WidgetDependencies) {
+  constructor(
+    element: HTMLElement,
+    config: ResolvedWidgetConfig,
+    dependencies: WidgetDependencies,
+  ) {
     this.#element = element;
     this.#config = config;
     this.#dependencies = dependencies;
@@ -92,9 +106,9 @@ class ActiveController implements WidgetController {
     this.#fallback = document.createElement("img");
     this.#motion = new MotionMixer({
       bindings: config.parameters,
-      clickAmplitude: config.interactions.clickAmplitude,
       random: dependencies.random,
     });
+    this.#animations = new AnimationPlayer(config.animations);
   }
 
   get status(): WidgetStatus {
@@ -112,14 +126,20 @@ class ActiveController implements WidgetController {
     this.#mountAbortController = abortController;
     this.#mountTimeoutHandle = setTimeout(() => {
       abortController.abort(
-        new Error(`widget loading exceeded ${this.#config.network.requestTimeoutMs} ms`),
+        new Error(
+          `widget loading exceeded ${this.#config.network.requestTimeoutMs} ms`,
+        ),
       );
     }, this.#config.network.requestTimeoutMs);
 
     try {
-      const runtime = await this.#dependencies.createRuntime(this.#canvas, {
-        initialScale: this.#config.render.initialScale,
-      }, abortController.signal);
+      const runtime = await this.#dependencies.createRuntime(
+        this.#canvas,
+        {
+          initialScale: this.#config.render.initialScale,
+        },
+        abortController.signal,
+      );
       if (this.#status === "destroyed") {
         destroyRuntime(runtime);
         return;
@@ -133,6 +153,7 @@ class ActiveController implements WidgetController {
         return;
       }
       runtime.loadModel(bytes);
+      this.#configureBreathing(runtime);
       this.#resize();
       this.#bindLifecycle();
 
@@ -145,7 +166,11 @@ class ActiveController implements WidgetController {
       }
     } catch (error) {
       this.#showFallback(
-        errorMessage(abortController.signal.aborted ? abortController.signal.reason : error),
+        errorMessage(
+          abortController.signal.aborted
+            ? abortController.signal.reason
+            : error,
+        ),
       );
     } finally {
       this.#clearMountDeadline();
@@ -155,7 +180,9 @@ class ActiveController implements WidgetController {
   pause(): void {
     this.#pausedByUser = true;
     this.#stopFrame();
-    this.#mountAbortController?.abort(new Error("widget was destroyed during loading"));
+    this.#mountAbortController?.abort(
+      new Error("widget was destroyed during loading"),
+    );
     this.#clearMountDeadline();
     if (this.#status === "running") {
       this.#setStatus("paused");
@@ -167,7 +194,11 @@ class ActiveController implements WidgetController {
       return;
     }
     this.#pausedByUser = false;
-    if (!this.#pausedByVisibility && !this.#dependencies.prefersReducedMotion() && this.#runtime) {
+    if (
+      !this.#pausedByVisibility &&
+      !this.#dependencies.prefersReducedMotion() &&
+      this.#runtime
+    ) {
       this.#setStatus("running");
       this.#scheduleFrame();
     }
@@ -202,8 +233,14 @@ class ActiveController implements WidgetController {
 
   #prepareDom(): void {
     this.#element.classList.add("inochi2d-widget");
-    this.#element.style.setProperty("--inochi2d-width", `${this.#config.display.width}px`);
-    this.#element.style.setProperty("--inochi2d-height", `${this.#config.display.height}px`);
+    this.#element.style.setProperty(
+      "--inochi2d-width",
+      `${this.#config.display.width}px`,
+    );
+    this.#element.style.setProperty(
+      "--inochi2d-height",
+      `${this.#config.display.height}px`,
+    );
     this.#element.setAttribute("aria-label", "Inochi2D character widget");
     this.#canvas.className = "inochi2d-widget__canvas";
     this.#canvas.setAttribute("aria-hidden", "true");
@@ -233,46 +270,86 @@ class ActiveController implements WidgetController {
     });
 
     if (this.#config.interactions.pointer || this.#config.interactions.drag) {
-      this.#listen(window, "pointermove", (event) => this.#handlePointerMove(event as PointerEvent));
+      this.#listen(window, "pointermove", (event) =>
+        this.#handlePointerMove(event as PointerEvent),
+      );
     }
     if (this.#config.interactions.pointer) {
       this.#listen(window, "blur", () => this.#motion.setPointer(0, 0));
     }
-    if (this.#config.interactions.click) {
-      this.#listen(this.#canvas, "click", () => this.#motion.triggerClick(performance.now()));
+    if (this.#config.interactions.click && !this.#config.interactions.drag) {
+      this.#listen(this.#canvas, "click", () => this.#triggerClick());
     }
     if (this.#config.interactions.drag) {
-      this.#listen(this.#canvas, "pointerdown", (event) => this.#beginDrag(event as PointerEvent));
-      this.#listen(this.#canvas, "pointerup", (event) => this.#endDrag(event as PointerEvent));
-      this.#listen(this.#canvas, "pointercancel", (event) => this.#endDrag(event as PointerEvent));
+      this.#listen(this.#canvas, "pointerdown", (event) =>
+        this.#beginDrag(event as PointerEvent),
+      );
+      this.#listen(this.#canvas, "pointerup", (event) =>
+        this.#endDrag(event as PointerEvent, false),
+      );
+      this.#listen(this.#canvas, "pointercancel", (event) =>
+        this.#endDrag(event as PointerEvent, true),
+      );
     }
     this.#listen(this.#canvas, "dblclick", () => this.resetCamera());
     this.#listen(window, "resize", () => this.#constrainPosition());
 
-    this.#resizeObserver = this.#dependencies.createResizeObserver(() => this.#resize());
+    this.#resizeObserver = this.#dependencies.createResizeObserver(() =>
+      this.#resize(),
+    );
     this.#resizeObserver?.observe(this.#element);
   }
 
   #listen(target: EventTarget, type: string, listener: EventListener): void {
     target.addEventListener(type, listener);
-    this.#removeListeners.push(() => target.removeEventListener(type, listener));
+    this.#removeListeners.push(() =>
+      target.removeEventListener(type, listener),
+    );
   }
 
   #handlePointerMove(event: PointerEvent): void {
     const bounds = this.#canvas.getBoundingClientRect();
-    if (this.#config.interactions.pointer && bounds.width > 0 && bounds.height > 0) {
-      const viewportWidth = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
-      const viewportHeight = Math.max(1, document.documentElement.clientHeight || window.innerHeight);
+    if (
+      this.#config.interactions.pointer &&
+      bounds.width > 0 &&
+      bounds.height > 0
+    ) {
+      const viewportWidth = Math.max(
+        1,
+        document.documentElement.clientWidth || window.innerWidth,
+      );
+      const viewportHeight = Math.max(
+        1,
+        document.documentElement.clientHeight || window.innerHeight,
+      );
       this.#motion.setPointer(
-        (event.clientX - (bounds.left + bounds.width / 2)) / (viewportWidth * 0.4),
-        (event.clientY - (bounds.top + bounds.height / 2)) / (viewportHeight * 0.4),
+        (event.clientX - (bounds.left + bounds.width / 2)) /
+          (viewportWidth * 0.4),
+        (event.clientY - (bounds.top + bounds.height / 2)) /
+          (viewportHeight * 0.4),
       );
     }
     if (this.#dragOrigin && event.pointerId === this.#dragOrigin.pointerId) {
       const deltaX = event.clientX - this.#dragOrigin.pointerX;
       const deltaY = event.clientY - this.#dragOrigin.pointerY;
-      const viewportWidth = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
-      const viewportHeight = Math.max(1, document.documentElement.clientHeight || window.innerHeight);
+      if (
+        !this.#dragOrigin.moved &&
+        deltaX * deltaX + deltaY * deltaY < DRAG_START_DISTANCE_SQUARED
+      ) {
+        return;
+      }
+      if (!this.#dragOrigin.moved) {
+        this.#dragOrigin.moved = true;
+        this.#element.dataset.inochi2dDragging = "";
+      }
+      const viewportWidth = Math.max(
+        1,
+        document.documentElement.clientWidth || window.innerWidth,
+      );
+      const viewportHeight = Math.max(
+        1,
+        document.documentElement.clientHeight || window.innerHeight,
+      );
       const left = clamp(
         this.#dragOrigin.elementLeft + deltaX,
         0,
@@ -294,26 +371,37 @@ class ActiveController implements WidgetController {
     }
     event.preventDefault();
     const bounds = this.#element.getBoundingClientRect();
-    this.#setElementPosition(bounds.left, bounds.top);
     this.#canvas.setPointerCapture?.(event.pointerId);
-    this.#element.dataset.inochi2dDragging = "";
     this.#dragOrigin = {
       pointerId: event.pointerId,
       pointerX: event.clientX,
       pointerY: event.clientY,
       elementLeft: bounds.left,
       elementTop: bounds.top,
+      moved: false,
     };
   }
 
-  #endDrag(event: PointerEvent): void {
+  #endDrag(event: PointerEvent, canceled: boolean): void {
     if (!this.#dragOrigin || event.pointerId !== this.#dragOrigin.pointerId) {
       return;
     }
+    const triggerClick =
+      !canceled && !this.#dragOrigin.moved && this.#config.interactions.click;
     this.#canvas.releasePointerCapture?.(event.pointerId);
     this.#dragOrigin = undefined;
     delete this.#element.dataset.inochi2dDragging;
     this.#motion.releaseDrag();
+    if (triggerClick) {
+      this.#triggerClick();
+    }
+  }
+
+  #triggerClick(): void {
+    const click = this.#config.interactions.click;
+    if (click) {
+      this.#animations.trigger(click.animation, performance.now());
+    }
   }
 
   #setElementPosition(left: number, top: number): void {
@@ -328,8 +416,14 @@ class ActiveController implements WidgetController {
       return;
     }
     const bounds = this.#element.getBoundingClientRect();
-    const viewportWidth = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
-    const viewportHeight = Math.max(1, document.documentElement.clientHeight || window.innerHeight);
+    const viewportWidth = Math.max(
+      1,
+      document.documentElement.clientWidth || window.innerWidth,
+    );
+    const viewportHeight = Math.max(
+      1,
+      document.documentElement.clientHeight || window.innerHeight,
+    );
     this.#setElementPosition(
       clamp(bounds.left, 0, Math.max(0, viewportWidth - bounds.width)),
       clamp(bounds.top, 0, Math.max(0, viewportHeight - bounds.height)),
@@ -343,7 +437,10 @@ class ActiveController implements WidgetController {
     const bounds = this.#element.getBoundingClientRect();
     const width = bounds.width || this.#config.display.width;
     const height = bounds.height || this.#config.display.height;
-    const dpr = Math.min(this.#dependencies.devicePixelRatio(), this.#config.render.maxDevicePixelRatio);
+    const dpr = Math.min(
+      this.#dependencies.devicePixelRatio(),
+      this.#config.render.maxDevicePixelRatio,
+    );
     this.#runtime.resize(width, height, dpr);
   }
 
@@ -365,9 +462,8 @@ class ActiveController implements WidgetController {
         this.#render(timestamp, false);
         const elapsedIntervals = Math.max(
           1,
-          Math.floor(
-            (timestamp - this.#nextRenderAt + tolerance) / interval,
-          ) + 1,
+          Math.floor((timestamp - this.#nextRenderAt + tolerance) / interval) +
+            1,
         );
         this.#nextRenderAt += elapsedIntervals * interval;
       }
@@ -387,7 +483,19 @@ class ActiveController implements WidgetController {
       return;
     }
     try {
-      const parameters = this.#motion.sample(timestamp, reducedMotion);
+      if (this.#usesFallbackBreathing) {
+        const multiplier = reducedMotion
+          ? 1
+          : 1 +
+            (idleBreathValue(timestamp) - 0.5) * FALLBACK_BREATH_SCALE_RANGE;
+        this.#runtime.setCameraTransform(
+          0,
+          0,
+          this.#config.render.initialScale * multiplier,
+        );
+      }
+      const parameters = new Map(this.#motion.sample(timestamp, reducedMotion));
+      this.#animations.apply(parameters, timestamp, reducedMotion);
       for (const [id, value] of parameters) {
         this.#setRuntimeParameter(id, value);
       }
@@ -398,6 +506,26 @@ class ActiveController implements WidgetController {
     } catch (error) {
       this.#showFallback(errorMessage(error));
     }
+  }
+
+  #configureBreathing(runtime: Inochi2dWasmRuntime): void {
+    const targets = this.#config.parameters.breath;
+    if (targets.length === 0) {
+      this.#element.dataset.inochi2dBreathing = "disabled";
+      return;
+    }
+    if (!isParameterEffectInspector(runtime)) {
+      this.#element.dataset.inochi2dBreathing = "model";
+      return;
+    }
+    const hasVisibleTarget = targets.some(
+      (target) =>
+        runtime.parameterHasVisibleEffect(target.id, target.axis) === true,
+    );
+    this.#usesFallbackBreathing = !hasVisibleTarget;
+    this.#element.dataset.inochi2dBreathing = hasVisibleTarget
+      ? "model"
+      : "fallback";
   }
 
   #setRuntimeParameter(id: string, value: ManualValue): void {
@@ -461,6 +589,15 @@ function destroyRuntime(runtime: Inochi2dWasmRuntime): void {
     // poisoned. The widget must still reach a deterministic fallback or
     // destroyed state without surfacing a second, unrelated exception.
   }
+}
+
+function isParameterEffectInspector(
+  runtime: Inochi2dWasmRuntime,
+): runtime is Inochi2dWasmRuntime & ParameterEffectInspector {
+  return (
+    "parameterHasVisibleEffect" in runtime &&
+    typeof runtime.parameterHasVisibleEffect === "function"
+  );
 }
 
 function errorMessage(error: unknown): string {

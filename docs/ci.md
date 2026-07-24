@@ -9,7 +9,9 @@ installation, root validation, browser tests, and `git diff --check`.
 `.github/workflows/release-dry-run.yml` is manual. It builds the native pipeline
 on Ubuntu and Windows, stages both binaries with a SHA-256 manifest, builds the
 official WASM and npm packages, checks package contents, and creates npm
-tarballs as short-lived artifacts.
+tarballs as short-lived artifacts. The native artifacts are deliberately
+unsigned in this alpha; the manifest proves byte integrity, not publisher
+identity.
 
 Neither workflow has package-write or deployment credentials. There is no
 `npm publish`, GitHub release, site upload, or `hexo deploy` step.

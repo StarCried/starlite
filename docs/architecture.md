@@ -40,14 +40,26 @@ WASM/model bytes. It mixes values in this order:
 1. neutral pose;
 2. breath and blink;
 3. pointer-driven eyes and head;
-4. click and drag feedback;
-5. explicit values supplied through `setParameter`.
+4. drag feedback;
+5. the active model-authored animation;
+6. explicit values supplied through `setParameter`.
 
 `requestAnimationFrame` is throttled to the configured FPS. The loop pauses on
 visibility loss, reduced motion draws one neutral frame, and WebGL/model/network
 failures switch to a lazily loaded static fallback. Dragging moves the widget
 across the viewport rather than clipping motion inside the canvas; double-click
 restores its configured corner.
+
+After model loading, the official runtime temporarily samples each configured
+breath target at its lower and upper bound, compares vertices, indices, draw
+commands, and render variables, then restores the original value. If every
+target is draw-inert, the controller applies a small camera-scale breathing
+cycle instead. Gesture travel under six pixels is a click; crossing that
+threshold promotes the gesture to a whole-widget drag and suppresses the click.
+The browser player consumes only animation lanes that the native pipeline has
+resolved from Creator parameter UUIDs and validated for bounds, ordering,
+interpolation, merge mode, and finite values. It never reparses the model
+container in JavaScript and never synthesizes a missing click pose.
 
 ## Native preparation
 
@@ -59,8 +71,9 @@ extended vendor bytes, then re-parses the emitted container.
 
 Output is written to a new sibling staging directory and atomically renamed.
 Existing output is never replaced. The manifest contains content hashes, sizes,
-parameters, compatibility, publication warnings, and optimization statistics;
-it contains no timestamp or machine-local source path.
+parameters, normalized model animations, compatibility, publication warnings,
+and optimization statistics; it contains no timestamp or machine-local source
+path.
 
 ## Hexo and deployment
 

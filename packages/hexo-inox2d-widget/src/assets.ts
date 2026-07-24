@@ -3,7 +3,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type { ModelAssetBundle, RuntimeAsset, RuntimeAssetBundle } from "./types";
-import type { ParameterIds, ParameterTarget } from "inochi2d-web" with { "resolution-mode": "import" };
+import type {
+  AnimationClip,
+  ParameterIds,
+  ParameterTarget,
+} from "inochi2d-web" with { "resolution-mode": "import" };
 
 const PUBLISHABLE_EXTENSIONS = new Set([".css", ".js", ".wasm"]);
 
@@ -59,6 +63,7 @@ interface PipelineManifest {
     issues: PipelineIssue[];
   };
   parameters?: PipelineParameter[];
+  animations?: AnimationClip[];
 }
 
 interface PipelineIssue {
@@ -122,6 +127,7 @@ export function collectModelAssets(
     ...(manifest.parameters
       ? { suggestedParameters: inferParameterBindings(manifest.parameters) }
       : {}),
+    animations: manifest.animations ?? [],
     assets,
   };
 }
@@ -159,6 +165,20 @@ function parsePipelineManifest(contents: Buffer, path: string): PipelineManifest
   ) {
     throw new Error(`Inochi2D pipeline manifest has invalid parameters: ${path}`);
   }
+  if (
+    input.animations !== undefined &&
+    (!Array.isArray(input.animations) || !input.animations.every(isAnimationClip))
+  ) {
+    throw new Error(`Inochi2D pipeline manifest has invalid animations: ${path}`);
+  }
+  if (input.animations !== undefined) {
+    const animationNames = new Set(
+      (input.animations as AnimationClip[]).map((animation) => animation.name),
+    );
+    if (animationNames.size !== input.animations.length) {
+      throw new Error(`Inochi2D pipeline manifest has duplicate animations: ${path}`);
+    }
+  }
   return input as unknown as PipelineManifest;
 }
 
@@ -194,14 +214,11 @@ function inferParameterBindings(parameters: readonly PipelineParameter[]): Parti
   const breath = find("Breath");
   const headYawPitch = find("Head:: Yaw-Pitch", "HeadYawPitch");
   const bodyYawPitch = find("Body:: Yaw-Pitch", "BodyYawPitch");
-  const headRoll = find("Head:: Roll", "HeadRoll", "HeadZ");
   const bodyRoll = find("Body:: Roll", "BodyRoll", "BodyX", "Body:: X:: Move");
   const leftBlink = find("Eye:: Left:: Blink", "EyeBlinkL", "EyeOpenL");
   const rightBlink = find("Eye:: Right:: Blink", "EyeBlinkR", "EyeOpenR");
   const leftEyeMove = find("Eye:: Left:: Move", "EyeXLeft");
   const rightEyeMove = find("Eye:: Right:: Move", "EyeXRight");
-  const leftArm = find("Arm:: Left:: Move");
-  const rightArm = find("Arm:: Right:: Move");
   const result: Partial<ParameterIds> = {};
 
   if (breath) result.breath = breath.name;
@@ -229,13 +246,88 @@ function inferParameterBindings(parameters: readonly PipelineParameter[]): Parti
     ];
   }
   if (bodyRoll) result.bodyX = bodyRoll.name;
-  const clickTargets: ParameterTarget[] = [
-    ...(headRoll ? [{ id: headRoll.name, scale: 0.8 }] : []),
-    ...(leftArm ? [{ id: leftArm.name, scale: 2 }] : []),
-    ...(rightArm ? [{ id: rightArm.name, scale: 2 }] : []),
-  ];
-  if (clickTargets.length > 0) result.click = clickTargets;
   return result;
+}
+
+function isAnimationClip(input: unknown): input is AnimationClip {
+  if (
+    !isRecord(input) ||
+    typeof input.name !== "string" ||
+    input.name.trim().length === 0 ||
+    Buffer.byteLength(input.name, "utf8") > 128 ||
+    !finite(input.timestepMs) ||
+    Number(input.timestepMs) <= 0 ||
+    Number(input.timestepMs) > 1_000 ||
+    !safeIntegerInRange(input.length, 1, 18_000) ||
+    !safeIntegerInRange(input.leadIn, -1, Number(input.length)) ||
+    !safeIntegerInRange(input.leadOut, -1, Number(input.length)) ||
+    input.weight !== 1 ||
+    !Array.isArray(input.lanes) ||
+    input.lanes.length < 1 ||
+    input.lanes.length > 128
+  ) {
+    return false;
+  }
+  const targets = new Set<string>();
+  let keyframeCount = 0;
+  return input.lanes.every((lane) => {
+    if (
+      !isRecord(lane) ||
+      typeof lane.parameter !== "string" ||
+      lane.parameter.trim().length === 0 ||
+      (lane.axis !== undefined && lane.axis !== "x" && lane.axis !== "y") ||
+      !Array.isArray(lane.defaultValues) ||
+      lane.defaultValues.length !== 2 ||
+      !lane.defaultValues.every(finite) ||
+      !["nearest", "stepped", "linear", "cubic"].includes(
+        String(lane.interpolation),
+      ) ||
+      !Array.isArray(lane.keyframes) ||
+      lane.keyframes.length < 2
+    ) {
+      return false;
+    }
+    const target = `${lane.parameter}\0${lane.axis ?? ""}`;
+    if (targets.has(target)) {
+      return false;
+    }
+    targets.add(target);
+    keyframeCount += lane.keyframes.length;
+    if (keyframeCount > 4_096) {
+      return false;
+    }
+    let previousFrame = -1;
+    return lane.keyframes.every((keyframe) => {
+      if (
+        !isRecord(keyframe) ||
+        !safeIntegerInRange(keyframe.frame, 0, Number(input.length)) ||
+        Number(keyframe.frame) <= previousFrame ||
+        !finite(keyframe.value) ||
+        !finite(keyframe.tension)
+      ) {
+        return false;
+      }
+      previousFrame = Number(keyframe.frame);
+      return true;
+    });
+  });
+}
+
+function safeIntegerInRange(
+  input: unknown,
+  minimum: number,
+  maximum: number,
+): boolean {
+  return (
+    typeof input === "number" &&
+    Number.isSafeInteger(input) &&
+    input >= minimum &&
+    input <= maximum
+  );
+}
+
+function finite(input: unknown): input is number {
+  return typeof input === "number" && Number.isFinite(input);
 }
 
 function isPipelineParameter(input: unknown): input is PipelineParameter {

@@ -32,8 +32,11 @@
 - Version 0.1 targets current desktop Chrome and Edge with WebGL2.
 - Mobile defaults to hidden and must return before runtime import or model/WASM
   fetch.
-- Do not add WebGL1, BC7, MeshGroup, built-in animations, voice/camera input, or
-  Firefox/Safari support without an approved scope change.
+- Model-authored, non-additive `Forced` animation lanes may be normalized by the
+  pipeline and played by exact name. Do not add WebGL1, BC7, MeshGroup,
+  automation, additive/Bezier/transition-looping animation behavior,
+  voice/camera input, or Firefox/Safari support without an approved scope
+  change.
 - Keep official SDK source, toolchain, raw WASM, optimized WASM, LLD, and
   Binaryen versions synchronized with `tools/official-sdk/pin.json` and
   `docs/upstream.md`.

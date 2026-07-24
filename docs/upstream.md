@@ -12,16 +12,18 @@
 - LLD: 20.x (locally 20.1.8)
 - Binaryen: version 120
 - Raw WASM SHA-256:
-  `3222a28876bf70710ff6341f908e0f9fcda2fbb27285ba0ecb7a5cac6decb37c`
+  `d906480b9c3abfac960b507fed034cc745490b90ed45198a453ba36055e29e4a`
 - Optimized WASM SHA-256:
-  `3eea52c132fca214320186781a7a5706c878b429ffb63cf5672aa0f7efc86408`
+  `c5ce69973cfe5169a4787627420da3ed721d1571b6ae753f29a64c1abd25f903`
 
 The machine-readable source of truth is `tools/official-sdk/pin.json`; D
 dependency versions are in `tools/official-sdk/dub.selections.json`.
 
 The build applies local compatibility patches for legacy Creator parameter
-bindings, deformation/property storage, stable draw allocations, finite binding
-diagnostics, and a minimal browser export surface. These patches are project
+bindings and ranges, fixed-vector composite/physics fields,
+deformation/property storage, stable draw allocations, finite binding
+diagnostics, and a minimal browser export surface. Browser texture upload keeps
+the official SDK's decoded orientation. These patches are project
 implementation, not claims about official browser support.
 
 ## Historical Rust investigation

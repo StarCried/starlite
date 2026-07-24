@@ -1,7 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { mountWithDependencies } from "../src/controller.js";
-import type { Inochi2dWasmRuntime, WidgetDependencies } from "../src/types.js";
+import type {
+  AnimationClip,
+  Inochi2dWasmRuntime,
+  WidgetDependencies,
+} from "../src/types.js";
+
+const clickAnimation: AnimationClip = {
+  name: "Click",
+  timestepMs: 100,
+  length: 10,
+  leadIn: 0,
+  leadOut: 8,
+  weight: 1,
+  lanes: [
+    {
+      parameter: "Arm:: Right:: Move",
+      defaultValues: [0, 0],
+      interpolation: "linear",
+      keyframes: [
+        { frame: 0, value: 0, tension: 0 },
+        { frame: 3, value: 1, tension: 0 },
+        { frame: 10, value: 0, tension: 0 },
+      ],
+    },
+  ],
+};
 
 function fakeRuntime(): Inochi2dWasmRuntime {
   return {
@@ -15,7 +40,17 @@ function fakeRuntime(): Inochi2dWasmRuntime {
   };
 }
 
-function dependencies(overrides: Partial<WidgetDependencies> = {}): WidgetDependencies {
+function inspectableRuntime(
+  counts: Readonly<Record<string, number | undefined>>,
+): Inochi2dWasmRuntime {
+  return Object.assign(fakeRuntime(), {
+    parameterHasVisibleEffect: vi.fn((id: string) => counts[id] === 1),
+  });
+}
+
+function dependencies(
+  overrides: Partial<WidgetDependencies> = {},
+): WidgetDependencies {
   return {
     fetchModel: vi.fn(async () => new Uint8Array([1, 2, 3])),
     createRuntime: vi.fn(async () => fakeRuntime()),
@@ -141,9 +176,36 @@ describe("mountWithDependencies", () => {
     expect(runtime.renderFrame).toHaveBeenCalledTimes(166);
   });
 
+  it("uses a camera breathing fallback when the configured model parameter is unbound", async () => {
+    const element = document.createElement("div");
+    const runtime = inspectableRuntime({ Breath: 0 });
+    const callbacks: FrameRequestCallback[] = [];
+    const deps = dependencies({
+      createRuntime: vi.fn(async () => runtime),
+      requestFrame: vi.fn((callback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+      }),
+    });
+    await mountWithDependencies(
+      element,
+      { model: "/model.inp", fallback: "/fallback.png" },
+      deps,
+    );
+
+    expect(element.dataset.inochi2dBreathing).toBe("fallback");
+    callbacks.shift()!(0);
+    callbacks.shift()!((700 * Math.PI) / 2);
+    expect(runtime.setCameraTransform).toHaveBeenLastCalledWith(
+      0,
+      0,
+      0.15 * 1.008,
+    );
+  });
+
   it("renders one neutral frame and starts no loop for reduced motion", async () => {
     const element = document.createElement("div");
-    const runtime = fakeRuntime();
+    const runtime = inspectableRuntime({ Breath: 0 });
     const deps = dependencies({
       createRuntime: vi.fn(async () => runtime),
       prefersReducedMotion: vi.fn(() => true),
@@ -156,6 +218,8 @@ describe("mountWithDependencies", () => {
     );
 
     expect(controller.status).toBe("paused");
+    expect(element.dataset.inochi2dBreathing).toBe("fallback");
+    expect(runtime.setCameraTransform).toHaveBeenCalledWith(0, 0, 0.15);
     expect(runtime.renderFrame).toHaveBeenCalledOnce();
     expect(deps.requestFrame).not.toHaveBeenCalled();
   });
@@ -176,7 +240,9 @@ describe("mountWithDependencies", () => {
 
     expect(controller.status).toBe("fallback");
     expect(element.dataset.inochi2dError).toBe("HTTP 404");
-    expect(element.querySelector("img")?.getAttribute("src")).toBe("/fallback.png");
+    expect(element.querySelector("img")?.getAttribute("src")).toBe(
+      "/fallback.png",
+    );
   });
 
   it("still reaches fallback when a trapped runtime also fails to destroy", async () => {
@@ -296,5 +362,143 @@ describe("mountWithDependencies", () => {
     expect(element.style.left).toBe("");
     expect(element.style.top).toBe("");
     expect(runtime.setCameraTransform).toHaveBeenCalledWith(0, 0, 0.15);
+  });
+
+  it("treats a stationary drag gesture as a click without detaching the widget", async () => {
+    const element = document.createElement("div");
+    const runtime = fakeRuntime();
+    const callbacks: FrameRequestCallback[] = [];
+    const deps = dependencies({
+      createRuntime: vi.fn(async () => runtime),
+      requestFrame: vi.fn((callback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+      }),
+    });
+    vi.spyOn(performance, "now").mockReturnValue(100);
+    await mountWithDependencies(
+      element,
+      {
+        model: "/model.inp",
+        fallback: "/fallback.png",
+        animations: [clickAnimation],
+        interactions: { click: { animation: "Click" }, drag: true },
+      },
+      deps,
+    );
+    const canvas = element.querySelector("canvas");
+    expect(canvas).not.toBeNull();
+    vi.spyOn(element, "getBoundingClientRect").mockReturnValue({
+      x: 900,
+      y: 400,
+      left: 900,
+      top: 400,
+      right: 1160,
+      bottom: 760,
+      width: 260,
+      height: 360,
+      toJSON: () => ({}),
+    });
+
+    canvas!.dispatchEvent(
+      pointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        clientX: 1_000,
+        clientY: 500,
+        pointerId: 2,
+      }),
+    );
+    canvas!.dispatchEvent(
+      pointerEvent("pointerup", {
+        bubbles: true,
+        button: 0,
+        clientX: 1_000,
+        clientY: 500,
+        pointerId: 2,
+      }),
+    );
+    callbacks.shift()!(400);
+
+    expect(element.style.left).toBe("");
+    expect(element.style.top).toBe("");
+    expect(runtime.setParameterScalar).toHaveBeenCalledWith(
+      "Arm:: Right:: Move",
+      1,
+    );
+  });
+
+  it("promotes pointer travel to a drag and suppresses the click animation", async () => {
+    const element = document.createElement("div");
+    const runtime = fakeRuntime();
+    const callbacks: FrameRequestCallback[] = [];
+    const deps = dependencies({
+      createRuntime: vi.fn(async () => runtime),
+      requestFrame: vi.fn((callback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+      }),
+    });
+    vi.spyOn(performance, "now").mockReturnValue(100);
+    await mountWithDependencies(
+      element,
+      {
+        model: "/model.inp",
+        fallback: "/fallback.png",
+        animations: [clickAnimation],
+        interactions: { click: { animation: "Click" }, drag: true },
+      },
+      deps,
+    );
+    const canvas = element.querySelector("canvas")!;
+    const bounds = {
+      x: 900,
+      y: 400,
+      left: 900,
+      top: 400,
+      right: 1160,
+      bottom: 760,
+      width: 260,
+      height: 360,
+      toJSON: () => ({}),
+    };
+    vi.spyOn(element, "getBoundingClientRect").mockReturnValue(bounds);
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue(bounds);
+
+    canvas.dispatchEvent(
+      pointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        clientX: 1_000,
+        clientY: 500,
+        pointerId: 3,
+      }),
+    );
+    window.dispatchEvent(
+      pointerEvent("pointermove", {
+        clientX: 1_020,
+        clientY: 500,
+        pointerId: 3,
+      }),
+    );
+    canvas.dispatchEvent(
+      pointerEvent("pointerup", {
+        bubbles: true,
+        button: 0,
+        clientX: 1_020,
+        clientY: 500,
+        pointerId: 3,
+      }),
+    );
+    callbacks.shift()!(400);
+
+    expect(element.style.left).toBe("920px");
+    const armValues = vi
+      .mocked(runtime.setParameterScalar)
+      .mock.calls.filter(([id]) => id === "Arm:: Right:: Move")
+      .map(([, value]) => value);
+    expect(armValues).toEqual([]);
   });
 });

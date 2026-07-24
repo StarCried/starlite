@@ -22,11 +22,6 @@ const akaProfile: Pick<WidgetConfig, "parameters" | "render"> = {
       { id: "Body:: Yaw-Pitch", axis: "y", scale: 0.2 },
     ],
     bodyX: "Body:: Roll",
-    click: [
-      { id: "Head:: Roll", scale: 0.8 },
-      { id: "Arm:: Left:: Move", scale: 2 },
-      { id: "Arm:: Right:: Move", scale: 2 },
-    ],
   },
 };
 const host = document.querySelector<HTMLElement>("[data-inochi2d-widget-host]");
@@ -52,11 +47,37 @@ if (globalThis.matchMedia(`(max-width: ${breakpoint - 1}px)`).matches) {
         : mode === "cross-origin"
           ? "http://127.0.0.1:4175/puppet.inp"
           : "/models/puppet.inp";
+  const animations =
+    profile === "aka"
+      ? await fetch("/models/manifest.json")
+          .then(async (response) => {
+            if (!response.ok) {
+              throw new Error(
+                `prepared model manifest returned HTTP ${response.status}`,
+              );
+            }
+            return response.json() as Promise<{
+              animations?: WidgetConfig["animations"];
+            }>;
+          })
+          .then((manifest) => {
+            if (!manifest.animations) {
+              throw new Error("prepared model manifest has no animations");
+            }
+            return manifest.animations;
+          })
+      : undefined;
   await mountInochi2DWidget(host, {
     model,
     fallback: "/fallback.svg",
     mobile: { show: false, breakpoint },
-    ...(profile === "aka" ? akaProfile : {}),
+    ...(profile === "aka"
+      ? {
+          ...akaProfile,
+          animations: animations!,
+          interactions: { click: { animation: "Click" } },
+        }
+      : { interactions: { click: false } }),
   });
   document.body.dataset.widgetBootstrap = "mounted";
 }

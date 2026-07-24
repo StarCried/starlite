@@ -28,7 +28,9 @@
     },
     "interactions": {
       "pointer": true,
-      "click": true,
+      "click": {
+        "animation": "Click"
+      },
       "drag": true
     }
   }

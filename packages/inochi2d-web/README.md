@@ -38,9 +38,10 @@ servers must allow CORS. Use the companion native pipeline and
 ## Alpha contract
 
 The alpha targets desktop Chrome and Edge. Mobile is hidden before any runtime,
-WASM, or model fetch. WebGL1, BC7, MeshGroup, built-in animations,
-microphone/camera input, and Firefox/Safari compatibility promises are outside
-this release.
+WASM, or model fetch. Pipeline-validated, model-authored `Forced` animation
+lanes can be played by exact name. WebGL1, BC7, MeshGroup, model automation,
+additive/Bezier/transition-looping animation behavior, microphone/camera input,
+and Firefox/Safari compatibility promises are outside this release.
 
 This package is AI-assisted, human-reviewed, BSD-2-Clause licensed, and not
 affiliated with the Inochi2D project. It contains no puppet.

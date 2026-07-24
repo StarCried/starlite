@@ -24,6 +24,38 @@ export type RuntimeFactory = (
 
 export type ParameterAxis = "x" | "y";
 
+export type AnimationInterpolation =
+  | "nearest"
+  | "stepped"
+  | "linear"
+  | "cubic";
+
+export interface AnimationKeyframe {
+  frame: number;
+  value: number;
+  tension: number;
+}
+
+export interface AnimationLane {
+  parameter: string;
+  axis?: ParameterAxis;
+  /** Full model parameter default, preserving the untouched vector axis. */
+  defaultValues: readonly [number, number];
+  interpolation: AnimationInterpolation;
+  keyframes: readonly AnimationKeyframe[];
+}
+
+/** Browser-ready animation data extracted from a Creator model by the pipeline. */
+export interface AnimationClip {
+  name: string;
+  timestepMs: number;
+  length: number;
+  leadIn: number;
+  leadOut: number;
+  weight: number;
+  lanes: readonly AnimationLane[];
+}
+
 /** Maps one semantic motion channel to a puppet parameter. */
 export interface ParameterTarget {
   id: string;
@@ -53,7 +85,6 @@ export interface ParameterIds {
   headX: ParameterBinding;
   headY: ParameterBinding;
   bodyX: ParameterBinding;
-  click: ParameterBinding;
 }
 
 export interface ResolvedParameterTarget {
@@ -87,12 +118,18 @@ export interface WidgetConfig {
     show?: boolean;
     breakpoint?: number;
   };
+  /** Validated clips emitted by inochi2d-pipeline; do not hand-author in production. */
+  animations?: readonly AnimationClip[];
   parameters?: Partial<ParameterIds>;
   interactions?: {
     pointer?: boolean;
-    click?: boolean;
+    click?:
+      | false
+      | {
+          /** Exact, case-sensitive animation name embedded in the model. */
+          animation?: string;
+        };
     drag?: boolean;
-    clickAmplitude?: number;
     dragModelUnitsPerPixel?: number;
   };
 }
@@ -117,12 +154,12 @@ export interface ResolvedWidgetConfig {
     show: boolean;
     breakpoint: number;
   };
+  animations: ReadonlyMap<string, AnimationClip>;
   parameters: ResolvedParameterBindings;
   interactions: {
     pointer: boolean;
-    click: boolean;
+    click: false | { animation: string };
     drag: boolean;
-    clickAmplitude: number;
     dragModelUnitsPerPixel: number;
   };
 }

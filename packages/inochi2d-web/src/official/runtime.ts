@@ -62,6 +62,16 @@ export class OfficialInochi2dRuntime implements Inochi2dWasmRuntime {
     this.#sdk.setParameter(this.#parameter(id), [x, y]);
   }
 
+  /** Internal capability used to avoid treating an ineffective parameter as visible motion. */
+  parameterHasVisibleEffect(id: string, axis?: "x" | "y"): boolean | undefined {
+    const puppet = this.#puppet;
+    const parameter = puppet?.parameters.get(id);
+    if (!puppet || !parameter) {
+      return undefined;
+    }
+    return this.#sdk.parameterHasDrawEffect(puppet, parameter, axis);
+  }
+
   setCameraTransform(x: number, y: number, scale: number): void {
     this.#renderer.setCameraTransform(x, y, scale);
   }

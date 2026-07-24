@@ -15,7 +15,7 @@ For a bundle already produced by `inochi2d-blog` or `inochi2d-pipeline`, add:
 ```yaml
 inochi2d_widget:
   enable: true
-  bundle: .inochi2d/bundles/sourcehash-modelhash
+  bundle: .inochi2d/bundles/sourcehash-modelhash-manifesthash
   publication:
     confirm: true
     allowRedistribution: true

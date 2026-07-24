@@ -3,6 +3,14 @@
 Fail-closed, local orchestration from a Creator-exported `.inp` or `.inx` to an
 immutable Hexo bundle and optional deployment.
 
+> **Experimental unsigned native alpha:** this package bundles
+> `inochi2d-pipeline` for Windows/Linux x64 without a code-signing certificate.
+> Installation never executes it; only an explicit CLI command does so, after
+> its SHA-256 manifest is verified. Keep any operating-system or endpoint
+> security block in place. A blocked executable stops the workflow before Hexo
+> generation or deployment; use `pipelineBinary` to select a trusted self-built
+> copy if needed.
+
 Install it in the Hexo blog together with the adapter and browser validator:
 
 ```sh

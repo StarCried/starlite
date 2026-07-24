@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { chmod, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  copyFile,
+  mkdir,
+  readFile,
+  rename,
+  writeFile,
+} from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,11 +54,14 @@ for (const target of targets) {
   });
 }
 
+const manifestPath = resolve(vendorRoot, "manifest.json");
+const temporaryManifestPath = `${manifestPath}.tmp-${process.pid}`;
 await writeFile(
-  resolve(vendorRoot, "manifest.json"),
+  temporaryManifestPath,
   `${JSON.stringify({ schemaVersion: 1, artifacts }, null, 2)}\n`,
   { flag: "wx" },
 );
+await rename(temporaryManifestPath, manifestPath);
 
 function parseArguments(argv) {
   const result = new Map();

@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { testing } from "../src/cli.mjs";
+import { main, testing } from "../src/cli.mjs";
 
 const SOURCE_HASH = "a".repeat(64);
+const CLICK_ANIMATION = {
+  name: "Click",
+  lanes: [{ parameter: "Arm:: Right:: Move" }],
+};
 
 function context(overrides = {}) {
   return {
@@ -26,6 +30,7 @@ function inspection(overrides = {}) {
     source: { sha256: SOURCE_HASH },
     compatibility: { supported: true, issues: [] },
     publication: { issues: [] },
+    animations: [CLICK_ANIMATION],
     ...overrides,
   };
 }
@@ -40,6 +45,7 @@ function manifest(overrides = {}) {
     fallback: { sha256: "c".repeat(64) },
     compatibility: { supported: true },
     publication: { issues: [] },
+    animations: [CLICK_ANIMATION],
     ...overrides,
   };
 }
@@ -52,6 +58,59 @@ test("deploy is never implied by verify or dry-run", () => {
     help: false,
   });
   assert.equal(testing.parseArguments(["deploy", "--dry-run"]).dryRun, true);
+});
+
+test("a blocked unsigned native executable produces a fail-closed action message", () => {
+  const error = testing.commandStartError(
+    "C:\\package\\inochi2d-pipeline.exe",
+    Object.assign(new Error("operation was blocked"), { code: "EPERM" }),
+  );
+  assert.match(error.message, /unsigned experimental alpha/u);
+  assert.match(error.message, /pipelineBinary/u);
+  assert.match(error.message, /no subsequent Hexo generation or deploy step was run/u);
+});
+
+test("a blocked native executable writes no generated Hexo configuration", async () => {
+  const root = await mkdtemp(join(tmpdir(), "inochi2d-blog-blocked-native-"));
+  const blogRoot = join(root, "blog");
+  const modelPath = join(root, "model.inp");
+  const fallbackPath = join(root, "fallback.png");
+  const pipelinePath = join(root, "inochi2d-pipeline.exe");
+  const configPath = join(root, "inochi2d-blog.config.json");
+  try {
+    await mkdir(blogRoot);
+    await Promise.all([
+      writeFile(modelPath, "model"),
+      writeFile(fallbackPath, "fallback"),
+      writeFile(pipelinePath, "", { mode: 0o644 }),
+    ]);
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        blogRoot,
+        model: modelPath,
+        fallback: fallbackPath,
+        pipelineBinary: pipelinePath,
+        publication: {
+          confirm: true,
+          allowRedistribution: true,
+          sourceSha256: SOURCE_HASH,
+        },
+      }),
+    );
+
+    await assert.rejects(
+      main(["prepare", "--config", configPath]),
+      /unsigned experimental alpha/u,
+    );
+    await assert.rejects(
+      access(join(blogRoot, ".inochi2d", ".inochi2d.generated.yml")),
+      { code: "ENOENT" },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("deployment configuration is mandatory only after read-only inspection", () => {
@@ -71,6 +130,22 @@ test("deployment configuration is mandatory only after read-only inspection", ()
         sourceSha256: SOURCE_HASH,
       },
     }),
+  );
+  assert.throws(
+    () =>
+      testing.validateOrchestrationConfig({
+        schemaVersion: 1,
+        blogRoot: "blog",
+        model: "puppet.inp",
+        fallback: "fallback.png",
+        publication: {
+          confirm: true,
+          allowRedistribution: true,
+          sourceSha256: SOURCE_HASH,
+        },
+        widget: { interactions: { click: true } },
+      }),
+    /must be false or contain/u,
   );
 });
 
@@ -108,6 +183,34 @@ test("publication validation rejects runtime and rights blockers", () => {
   );
 });
 
+test("publication validation requires the configured model animation", () => {
+  assert.throws(
+    () =>
+      testing.validatePublication(
+        context(),
+        inspection({ animations: [] }),
+      ),
+    /source model.*Click/u,
+  );
+  assert.doesNotThrow(() =>
+    testing.validatePublication(
+      context({
+        config: {
+          publication: {
+            confirm: true,
+            allowRedistribution: true,
+            sourceSha256: SOURCE_HASH,
+          },
+          widget: { interactions: { click: { animation: "Wave" } } },
+        },
+      }),
+      inspection({
+        animations: [{ name: "Wave", lanes: [{ parameter: "Arm" }] }],
+      }),
+    ),
+  );
+});
+
 test("built manifest must retain the reviewed source and model budget", () => {
   assert.throws(
     () =>
@@ -139,6 +242,35 @@ test("built manifest must retain the reviewed source and model budget", () => {
       ),
     /prepared model exceeds/u,
   );
+  assert.throws(
+    () =>
+      testing.validateBuiltManifest(
+        context(),
+        inspection(),
+        manifest({ animations: [] }),
+      ),
+    /built bundle.*Click/u,
+  );
+});
+
+test("immutable bundle identity changes when normalized manifest content changes", () => {
+  const manifest = {
+    model: {
+      sourceSha256: "a".repeat(64),
+      sha256: "b".repeat(64),
+    },
+  };
+  const first = testing.immutableBundleName(
+    manifest,
+    Buffer.from('{"animations":[]}'),
+  );
+  const second = testing.immutableBundleName(
+    manifest,
+    Buffer.from('{"animations":[{"name":"Click"}]}'),
+  );
+
+  assert.match(first, /^a{12}-b{12}-[a-f0-9]{12}$/u);
+  assert.notEqual(first, second);
 });
 
 test("generated paths cannot escape the blog state directory", () => {

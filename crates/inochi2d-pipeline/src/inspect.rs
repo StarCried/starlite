@@ -6,6 +6,7 @@ use serde_json::{Map, Value};
 
 use crate::container::InpDocument;
 use crate::model::{
+    AnimationAxis, AnimationClip, AnimationInterpolation, AnimationKeyframe, AnimationLane,
     CompatibilityReport, ContentIdentity, InspectionReport, Issue, IssueSeverity, MetadataReport,
     NodeSummary, ParameterProfile, PublicationReport, TextureFormat, TextureInspection,
     MANIFEST_SCHEMA_VERSION,
@@ -19,6 +20,12 @@ const MAX_PARAMETER_COUNT: usize = 4096;
 const MAX_BINDING_COUNT: usize = 65_536;
 const MAX_NODE_COUNT: usize = 4096;
 const MAX_NODE_DEPTH: usize = 32;
+const MAX_ANIMATION_COUNT: usize = 64;
+const MAX_ANIMATION_NAME_BYTES: usize = 128;
+const MAX_ANIMATION_LANES: usize = 128;
+const MAX_ANIMATION_KEYFRAMES: usize = 4096;
+const MAX_ANIMATION_LENGTH: u64 = 18_000;
+const MAX_ANIMATION_TIMESTEP_SECONDS: f64 = 1.0;
 const SUPPORTED_BLEND_MODE_IDS: &[u64] = &[0, 1, 2, 5, 6, 7, 8, 15, 16, 17, 18];
 const SUPPORTED_BLEND_MODE_NAMES: &[&str] = &[
     "Normal",
@@ -62,13 +69,14 @@ pub fn inspect(source_bytes: &[u8], document: &InpDocument) -> Result<Inspection
     })?;
     let metadata = inspect_metadata(payload, &mut compatibility_issues);
     let parameters = inspect_parameters(payload, &mut compatibility_issues);
+    let animations = inspect_animations(payload, &parameters, &mut compatibility_issues);
     let nodes = inspect_nodes(payload, document.textures.len(), &mut compatibility_issues);
 
     if payload.get("automation").is_some_and(has_content) {
         compatibility_issues.push(issue(
             "built_in_automation_unsupported",
             IssueSeverity::Error,
-            "built-in automation/animation data is outside the first browser runtime scope",
+            "built-in automation data is outside the first browser runtime scope",
             None,
         ));
     }
@@ -88,6 +96,7 @@ pub fn inspect(source_bytes: &[u8], document: &InpDocument) -> Result<Inspection
         vendor_count: document.vendor_count,
         metadata,
         parameters,
+        animations,
         nodes,
         textures,
         compatibility: CompatibilityReport {
@@ -270,6 +279,7 @@ fn inspect_parameters(
             validate_bindings(name, parameter.get("bindings"), &mut binding_count, issues);
 
             Some(ParameterProfile {
+                uuid: parameter.get("uuid").and_then(Value::as_u64),
                 name: name.to_owned(),
                 is_vector,
                 min,
@@ -278,6 +288,416 @@ fn inspect_parameters(
             })
         })
         .collect()
+}
+
+fn inspect_animations(
+    payload: &Map<String, Value>,
+    parameters: &[ParameterProfile],
+    issues: &mut Vec<Issue>,
+) -> Vec<AnimationClip> {
+    let Some(value) = payload.get("animations") else {
+        return Vec::new();
+    };
+    if value.is_null() {
+        return Vec::new();
+    }
+    let Some(animations) = value.as_object() else {
+        push_animation_issue(
+            issues,
+            "animation_schema_invalid",
+            "payload.animations must be an object or null",
+        );
+        return Vec::new();
+    };
+    if animations.len() > MAX_ANIMATION_COUNT {
+        push_animation_issue(
+            issues,
+            "animation_count_unsupported",
+            format!(
+                "model contains {} animations; the browser limit is {MAX_ANIMATION_COUNT}",
+                animations.len()
+            ),
+        );
+    }
+
+    let parameters_by_uuid = parameters
+        .iter()
+        .filter_map(|parameter| parameter.uuid.map(|uuid| (uuid, parameter)))
+        .collect::<HashMap<_, _>>();
+    let mut sorted = animations.iter().collect::<Vec<_>>();
+    sorted.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
+    sorted
+        .into_iter()
+        .take(MAX_ANIMATION_COUNT)
+        .filter_map(|(name, value)| inspect_animation(name, value, &parameters_by_uuid, issues))
+        .collect()
+}
+
+fn inspect_animation(
+    name: &str,
+    value: &Value,
+    parameters: &HashMap<u64, &ParameterProfile>,
+    issues: &mut Vec<Issue>,
+) -> Option<AnimationClip> {
+    let issue_count = issues.len();
+    if name.trim().is_empty() || name.len() > MAX_ANIMATION_NAME_BYTES {
+        push_animation_issue(
+            issues,
+            "animation_name_invalid",
+            format!("animation names must contain 1..={MAX_ANIMATION_NAME_BYTES} UTF-8 bytes"),
+        );
+        return None;
+    }
+    let Some(animation) = value.as_object() else {
+        push_animation_issue(
+            issues,
+            "animation_schema_invalid",
+            format!("animation {name:?} must be an object"),
+        );
+        return None;
+    };
+
+    let timestep = finite_number(animation, "timestep");
+    let length = unsigned_integer(animation, "length");
+    let lead_in = signed_integer(animation, "leadIn");
+    let lead_out = signed_integer(animation, "leadOut");
+    let weight = finite_number(animation, "animationWeight");
+    let additive = animation.get("additive").and_then(Value::as_bool);
+    if timestep.is_none()
+        || length.is_none()
+        || lead_in.is_none()
+        || lead_out.is_none()
+        || weight.is_none()
+        || additive.is_none()
+    {
+        push_animation_issue(
+            issues,
+            "animation_schema_invalid",
+            format!(
+                "animation {name:?} must contain timestep, additive, length, leadIn, leadOut, and animationWeight"
+            ),
+        );
+        return None;
+    }
+    let (timestep, length, lead_in, lead_out, weight, additive) = (
+        timestep.expect("checked"),
+        length.expect("checked"),
+        lead_in.expect("checked"),
+        lead_out.expect("checked"),
+        weight.expect("checked"),
+        additive.expect("checked"),
+    );
+    if !(0.0..=MAX_ANIMATION_TIMESTEP_SECONDS).contains(&timestep) || timestep == 0.0 {
+        push_animation_issue(
+            issues,
+            "animation_timestep_unsupported",
+            format!(
+                "animation {name:?} timestep must be greater than 0 and at most {MAX_ANIMATION_TIMESTEP_SECONDS} second"
+            ),
+        );
+    }
+    if length == 0 || length > MAX_ANIMATION_LENGTH {
+        push_animation_issue(
+            issues,
+            "animation_length_unsupported",
+            format!("animation {name:?} length must be within 1..={MAX_ANIMATION_LENGTH} frames"),
+        );
+    }
+    if !(-1..=length as i64).contains(&lead_in) || !(-1..=length as i64).contains(&lead_out) {
+        push_animation_issue(
+            issues,
+            "animation_timing_invalid",
+            format!("animation {name:?} leadIn and leadOut must be -1 or fall within its length"),
+        );
+    }
+    if weight != 1.0 {
+        push_animation_issue(
+            issues,
+            "animation_weight_unsupported",
+            format!("animation {name:?} animationWeight must be 1 for forced alpha playback"),
+        );
+    }
+    if additive {
+        push_animation_issue(
+            issues,
+            "additive_animation_unsupported",
+            format!("animation {name:?} is additive; alpha playback supports forced lanes only"),
+        );
+    }
+
+    let Some(raw_lanes) = animation.get("lanes").and_then(Value::as_array) else {
+        push_animation_issue(
+            issues,
+            "animation_schema_invalid",
+            format!("animation {name:?} lanes must be an array"),
+        );
+        return None;
+    };
+    if raw_lanes.is_empty() || raw_lanes.len() > MAX_ANIMATION_LANES {
+        push_animation_issue(
+            issues,
+            "animation_lane_count_unsupported",
+            format!("animation {name:?} must contain 1..={MAX_ANIMATION_LANES} lanes"),
+        );
+    }
+
+    let mut targets = HashSet::new();
+    let mut total_keyframes = 0_usize;
+    let lanes = raw_lanes
+        .iter()
+        .take(MAX_ANIMATION_LANES)
+        .enumerate()
+        .filter_map(|(index, lane)| {
+            inspect_animation_lane(
+                name,
+                index,
+                lane,
+                length,
+                parameters,
+                &mut targets,
+                &mut total_keyframes,
+                issues,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    if issues.len() != issue_count {
+        return None;
+    }
+    Some(AnimationClip {
+        name: name.to_owned(),
+        timestep_ms: timestep * 1000.0,
+        length: length as u32,
+        lead_in: lead_in as i32,
+        lead_out: lead_out as i32,
+        weight,
+        lanes,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn inspect_animation_lane(
+    animation_name: &str,
+    index: usize,
+    value: &Value,
+    animation_length: u64,
+    parameters: &HashMap<u64, &ParameterProfile>,
+    targets: &mut HashSet<(u64, Option<AnimationAxis>)>,
+    total_keyframes: &mut usize,
+    issues: &mut Vec<Issue>,
+) -> Option<AnimationLane> {
+    let Some(lane) = value.as_object() else {
+        push_animation_issue(
+            issues,
+            "animation_lane_schema_invalid",
+            format!("animation {animation_name:?} lane {index} must be an object"),
+        );
+        return None;
+    };
+    let Some(uuid) = lane.get("uuid").and_then(Value::as_u64) else {
+        push_animation_issue(
+            issues,
+            "animation_lane_schema_invalid",
+            format!("animation {animation_name:?} lane {index} has no unsigned uuid"),
+        );
+        return None;
+    };
+    let Some(parameter) = parameters.get(&uuid) else {
+        push_animation_issue(
+            issues,
+            "animation_parameter_unknown",
+            format!(
+                "animation {animation_name:?} lane {index} references unknown parameter UUID {uuid}"
+            ),
+        );
+        return None;
+    };
+    let Some(axis) = animation_axis(lane.get("target"), parameter.is_vector) else {
+        push_animation_issue(
+            issues,
+            "animation_lane_target_unsupported",
+            format!(
+                "animation {animation_name:?} lane {index} has an unsupported target for parameter {:?}",
+                parameter.name
+            ),
+        );
+        return None;
+    };
+    if !targets.insert((uuid, axis)) {
+        push_animation_issue(
+            issues,
+            "animation_lane_duplicate",
+            format!(
+                "animation {animation_name:?} contains duplicate lanes for parameter {:?}",
+                parameter.name
+            ),
+        );
+        return None;
+    }
+    if !forced_merge_mode(lane.get("merge_mode")) {
+        push_animation_issue(
+            issues,
+            "animation_merge_mode_unsupported",
+            format!("animation {animation_name:?} lane {index} must use the Forced merge mode"),
+        );
+        return None;
+    }
+    let Some(interpolation) = animation_interpolation(lane.get("interpolation")) else {
+        push_animation_issue(
+            issues,
+            "animation_interpolation_unsupported",
+            format!("animation {animation_name:?} lane {index} uses an unsupported interpolation"),
+        );
+        return None;
+    };
+    let Some(raw_keyframes) = lane.get("keyframes").and_then(Value::as_array) else {
+        push_animation_issue(
+            issues,
+            "animation_lane_schema_invalid",
+            format!("animation {animation_name:?} lane {index} keyframes must be an array"),
+        );
+        return None;
+    };
+    *total_keyframes = total_keyframes.saturating_add(raw_keyframes.len());
+    if raw_keyframes.len() < 2 || *total_keyframes > MAX_ANIMATION_KEYFRAMES {
+        push_animation_issue(
+            issues,
+            "animation_keyframe_count_unsupported",
+            format!(
+                "animation {animation_name:?} must have at least two keyframes per lane and at most {MAX_ANIMATION_KEYFRAMES} total"
+            ),
+        );
+        return None;
+    }
+
+    let mut previous_frame = None;
+    let mut keyframes = Vec::with_capacity(raw_keyframes.len());
+    for (keyframe_index, raw_keyframe) in raw_keyframes.iter().enumerate() {
+        let Some(keyframe) = raw_keyframe.as_object() else {
+            push_animation_issue(
+                issues,
+                "animation_keyframe_schema_invalid",
+                format!(
+                    "animation {animation_name:?} lane {index} keyframe {keyframe_index} must be an object"
+                ),
+            );
+            return None;
+        };
+        let Some(frame) = unsigned_integer(keyframe, "frame") else {
+            push_animation_issue(
+                issues,
+                "animation_keyframe_schema_invalid",
+                format!(
+                    "animation {animation_name:?} lane {index} keyframe {keyframe_index} has no unsigned frame"
+                ),
+            );
+            return None;
+        };
+        let Some(value) = finite_number(keyframe, "value") else {
+            push_animation_issue(
+                issues,
+                "animation_keyframe_schema_invalid",
+                format!(
+                    "animation {animation_name:?} lane {index} keyframe {keyframe_index} has no finite value"
+                ),
+            );
+            return None;
+        };
+        let Some(tension) = finite_number(keyframe, "tension") else {
+            push_animation_issue(
+                issues,
+                "animation_keyframe_schema_invalid",
+                format!(
+                    "animation {animation_name:?} lane {index} keyframe {keyframe_index} has no finite tension"
+                ),
+            );
+            return None;
+        };
+        if frame > animation_length || previous_frame.is_some_and(|previous| frame <= previous) {
+            push_animation_issue(
+                issues,
+                "animation_keyframe_order_invalid",
+                format!(
+                    "animation {animation_name:?} lane {index} keyframes must be strictly increasing and within the animation length"
+                ),
+            );
+            return None;
+        }
+        let axis_index = usize::from(axis == Some(AnimationAxis::Y));
+        if value < parameter.min[axis_index] || value > parameter.max[axis_index] {
+            push_animation_issue(
+                issues,
+                "animation_keyframe_value_invalid",
+                format!(
+                    "animation {animation_name:?} lane {index} keyframe value {value} is outside parameter {:?} range",
+                    parameter.name
+                ),
+            );
+            return None;
+        }
+        previous_frame = Some(frame);
+        keyframes.push(AnimationKeyframe {
+            frame: frame as u32,
+            value,
+            tension,
+        });
+    }
+    Some(AnimationLane {
+        parameter: parameter.name.clone(),
+        axis,
+        default_values: parameter.defaults,
+        interpolation,
+        keyframes,
+    })
+}
+
+fn animation_axis(value: Option<&Value>, is_vector: bool) -> Option<Option<AnimationAxis>> {
+    let target = value?.as_u64()?;
+    if is_vector {
+        match target {
+            0 => Some(Some(AnimationAxis::X)),
+            1 => Some(Some(AnimationAxis::Y)),
+            _ => None,
+        }
+    } else {
+        match target {
+            0 => Some(None),
+            _ => None,
+        }
+    }
+}
+
+fn forced_merge_mode(value: Option<&Value>) -> bool {
+    value.and_then(Value::as_str) == Some("Forced")
+}
+
+fn animation_interpolation(value: Option<&Value>) -> Option<AnimationInterpolation> {
+    match value.and_then(Value::as_str) {
+        Some("Nearest") => Some(AnimationInterpolation::Nearest),
+        Some("Stepped") => Some(AnimationInterpolation::Stepped),
+        Some("Linear") => Some(AnimationInterpolation::Linear),
+        Some("Cubic") => Some(AnimationInterpolation::Cubic),
+        _ => None,
+    }
+}
+
+fn finite_number(object: &Map<String, Value>, key: &str) -> Option<f64> {
+    object
+        .get(key)
+        .and_then(Value::as_f64)
+        .filter(|value| value.is_finite())
+}
+
+fn unsigned_integer(object: &Map<String, Value>, key: &str) -> Option<u64> {
+    object.get(key).and_then(Value::as_u64)
+}
+
+fn signed_integer(object: &Map<String, Value>, key: &str) -> Option<i64> {
+    object.get(key).and_then(Value::as_i64)
+}
+
+fn push_animation_issue(issues: &mut Vec<Issue>, code: &'static str, message: impl Into<String>) {
+    issues.push(issue(code, IssueSeverity::Error, message, None));
 }
 
 fn validate_parameter_range(
@@ -986,5 +1406,98 @@ mod tests {
             .issues
             .iter()
             .any(|item| item.code == "parameter_axis_points_invalid"));
+    }
+
+    #[test]
+    fn extracts_a_strict_creator_animation_for_browser_playback() {
+        let payload = serde_json::json!({
+            "meta": {"version": "1", "licenseURL": "https://example.test/license"},
+            "param": [{
+                "uuid": 42,
+                "name": "Arm:: Right:: Move",
+                "is_vec2": false,
+                "min": [0, 0],
+                "max": [1, 1],
+                "defaults": [0, 0],
+                "axis_points": [[0, 1], [0]],
+                "bindings": []
+            }],
+            "animations": {
+                "Click": {
+                    "timestep": 0.03333333333333333,
+                    "additive": false,
+                    "length": 30,
+                    "leadIn": -1,
+                    "leadOut": -1,
+                    "animationWeight": 1,
+                    "lanes": [{
+                        "interpolation": "Cubic",
+                        "uuid": 42,
+                        "target": 0,
+                        "keyframes": [
+                            {"value": 0, "frame": 0, "tension": 0.5},
+                            {"value": 1, "frame": 10, "tension": 0.5},
+                            {"value": 0, "frame": 30, "tension": 0.5}
+                        ],
+                        "merge_mode": "Forced"
+                    }]
+                }
+            },
+            "nodes": {"uuid": 1, "name": "root", "type": "Node", "children": []}
+        });
+        let report = inspect(&[], &document(payload, Vec::new())).unwrap();
+
+        assert!(report.compatibility.supported);
+        assert_eq!(report.animations.len(), 1);
+        assert_eq!(report.animations[0].name, "Click");
+        assert_eq!(report.animations[0].timestep_ms, 1000.0 / 30.0);
+        assert_eq!(report.animations[0].lead_in, -1);
+        assert_eq!(report.animations[0].lead_out, -1);
+        assert_eq!(
+            report.animations[0].lanes[0].parameter,
+            "Arm:: Right:: Move"
+        );
+        assert_eq!(
+            report.animations[0].lanes[0].interpolation,
+            AnimationInterpolation::Cubic
+        );
+    }
+
+    #[test]
+    fn rejects_animation_lanes_that_reference_unknown_parameters() {
+        let payload = serde_json::json!({
+            "meta": {"version": "1", "licenseURL": "https://example.test/license"},
+            "param": [],
+            "animations": {
+                "Click": {
+                    "timestep": 0.04,
+                    "additive": false,
+                    "length": 10,
+                    "leadIn": 0,
+                    "leadOut": 8,
+                    "animationWeight": 1,
+                    "lanes": [{
+                        "interpolation": "Linear",
+                        "uuid": 999,
+                        "target": 0,
+                        "keyframes": [
+                            {"value": 0, "frame": 0, "tension": 0},
+                            {"value": 1, "frame": 10, "tension": 0}
+                        ],
+                        "merge_mode": "Forced"
+                    }]
+                }
+            },
+            "nodes": {"uuid": 1, "name": "root", "type": "Node", "children": []}
+        });
+        let report = inspect(&[], &document(payload, Vec::new())).unwrap();
+
+        assert!(!report.compatibility.supported);
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "animation_parameter_unknown"));
+        assert!(report.animations.is_empty());
     }
 }

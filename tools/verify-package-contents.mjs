@@ -1,4 +1,19 @@
 import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
+
+const blogPackage = JSON.parse(
+  await readFile(
+    new URL("../packages/inochi2d-blog/package.json", import.meta.url),
+    "utf8",
+  ),
+);
+for (const lifecycle of ["preinstall", "install", "postinstall"]) {
+  if (blogPackage.scripts?.[lifecycle]) {
+    throw new Error(
+      `inochi2d-blog must not execute native code through npm ${lifecycle}`,
+    );
+  }
+}
 
 const expectations = new Map([
   [

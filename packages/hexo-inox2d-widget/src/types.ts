@@ -1,4 +1,7 @@
-import type { WidgetConfig } from "inochi2d-web" with { "resolution-mode": "import" };
+import type {
+  AnimationClip,
+  WidgetConfig,
+} from "inochi2d-web" with { "resolution-mode": "import" };
 
 export interface HexoWidgetConfig extends Omit<WidgetConfig, "fallback" | "model"> {
   enable?: boolean;
@@ -61,5 +64,7 @@ export interface ModelAssetBundle {
   sourceSha256: string;
   /** Parameter bindings inferred from the pipeline manifest. */
   suggestedParameters?: NonNullable<WidgetConfig["parameters"]>;
+  /** Strictly validated clips extracted from the same immutable model. */
+  animations: readonly AnimationClip[];
   assets: RuntimeAsset[];
 }

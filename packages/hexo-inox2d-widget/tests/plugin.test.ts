@@ -15,6 +15,27 @@ interface Registrations {
   injector?: () => string | undefined;
 }
 
+const pipelineClick = {
+  name: "Click",
+  timestepMs: 100,
+  length: 10,
+  leadIn: 0,
+  leadOut: 8,
+  weight: 1,
+  lanes: [
+    {
+      parameter: "Arm:: Right:: Move",
+      defaultValues: [0, 0],
+      interpolation: "linear",
+      keyframes: [
+        { frame: 0, value: 0, tension: 0 },
+        { frame: 5, value: 1, tension: 0 },
+        { frame: 10, value: 0, tension: 0 },
+      ],
+    },
+  ],
+};
+
 function fakeHexo(
   config: HexoLike["config"],
   baseDirectory = process.cwd(),
@@ -44,6 +65,7 @@ function fakeHexo(
 
 function withPipelineBundle(
   callback: (directory: string, modelFile: string, fallbackFile: string) => void,
+  animations: unknown = [pipelineClick],
 ): void {
   const directory = mkdtempSync(join(tmpdir(), "inochi2d-widget-bundle-"));
   try {
@@ -75,7 +97,10 @@ function withPipelineBundle(
           { name: "Body:: Yaw-Pitch", isVector: true },
           { name: "Eye:: Left:: Blink", isVector: false },
           { name: "Eye:: Right:: Blink", isVector: false },
+          { name: "Arm:: Left:: Move", isVector: false },
+          { name: "Arm:: Right:: Move", isVector: false },
         ],
+        animations,
       })}\n`,
     );
     callback(directory, modelFile, fallbackFile);
@@ -109,6 +134,7 @@ describe("Hexo adapter", () => {
         enable: true,
         model: "models/puppet.inp",
         fallback: "images/puppet.png",
+        interactions: { click: false },
       },
     });
     registerHexoWidget(hexo);
@@ -156,6 +182,9 @@ describe("Hexo adapter", () => {
       expect(html).toContain("Head:: Yaw-Pitch");
       expect(html).toContain('"axis":"x"');
       expect(html).toContain('"scale":-1');
+      expect(html).toContain('"animation":"Click"');
+      expect(html).toContain('"parameter":"Arm:: Right:: Move"');
+      expect(html).not.toContain('"clickAmplitude"');
     });
   });
 
@@ -172,10 +201,11 @@ describe("Hexo adapter", () => {
       );
       registerHexoWidget(hexo);
 
-      expect(registrations.generator?.()).toBeUndefined();
-      expect(registrations.injector?.()).toBeUndefined();
-      expect(hexo.log.warn).toHaveBeenCalledWith(
-        expect.stringContaining("publication.confirm"),
+      expect(() => registrations.generator?.()).toThrow(
+        /publication\.confirm/u,
+      );
+      expect(() => registrations.injector?.()).toThrow(
+        /publication\.confirm/u,
       );
     });
   });
@@ -198,11 +228,8 @@ describe("Hexo adapter", () => {
       );
       registerHexoWidget(hexo);
 
-      expect(registrations.generator?.()).toBeUndefined();
-      expect(registrations.injector?.()).toBeUndefined();
-      expect(hexo.log.warn).toHaveBeenCalledWith(
-        expect.stringContaining("sourceSha256"),
-      );
+      expect(() => registrations.generator?.()).toThrow(/sourceSha256/u);
+      expect(() => registrations.injector?.()).toThrow(/sourceSha256/u);
     });
   });
 
@@ -211,6 +238,53 @@ describe("Hexo adapter", () => {
       writeFileSync(join(directory, modelFile), "tampered");
       expect(() => collectModelAssets(".", directory)).toThrow(/size mismatch|SHA-256 mismatch/u);
     });
+  });
+
+  it("stops Hexo generation when the configured Click animation is missing", () => {
+    withPipelineBundle(
+      (directory) => {
+        const { hexo, registrations } = fakeHexo(
+          {
+            inochi2d_widget: {
+              enable: true,
+              bundle: ".",
+              publication: {
+                confirm: true,
+                allowRedistribution: true,
+                sourceSha256: createHash("sha256")
+                  .update("synthetic-model")
+                  .digest("hex"),
+              },
+            },
+          },
+          directory,
+        );
+        registerHexoWidget(hexo);
+
+        expect(() => registrations.generator?.()).toThrow(
+          /Click.*not present/u,
+        );
+      },
+      [],
+    );
+  });
+
+  it("stops before publication when animation data is malformed", () => {
+    expect(() =>
+      withPipelineBundle(
+        (directory) => collectModelAssets(".", directory),
+        [{ ...pipelineClick, weight: 0.5 }],
+      ),
+    ).toThrow(/invalid animations/u);
+  });
+
+  it("stops before publication when animation names are duplicated", () => {
+    expect(() =>
+      withPipelineBundle(
+        (directory) => collectModelAssets(".", directory),
+        [pipelineClick, structuredClone(pipelineClick)],
+      ),
+    ).toThrow(/duplicate animations/u);
   });
 
   it("places the mobile guard before the dynamic import", () => {

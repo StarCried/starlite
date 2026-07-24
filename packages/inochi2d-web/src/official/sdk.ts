@@ -13,7 +13,11 @@ interface OfficialExports extends WebAssembly.Exports {
   nu_malloc(bytes: number): Pointer;
   nu_realloc(pointer: Pointer, bytes: number): Pointer;
   nu_free(pointer: Pointer): void;
-  in_puppet_load_from_memory(data: Pointer, length: number, sink: Pointer): Pointer;
+  in_puppet_load_from_memory(
+    data: Pointer,
+    length: number,
+    sink: Pointer,
+  ): Pointer;
   in_puppet_free(puppet: Pointer): void;
   in_puppet_update(puppet: Pointer, deltaSeconds: number): void;
   in_puppet_draw(puppet: Pointer, deltaSeconds: number): void;
@@ -22,9 +26,13 @@ interface OfficialExports extends WebAssembly.Exports {
   in_puppet_get_texture_cache(puppet: Pointer): Pointer;
   in_parameter_get_name(parameter: Pointer): Pointer;
   in_parameter_get_dimensions(parameter: Pointer): number;
+  in_parameter_get_lower_bounds(parameter: Pointer): Pointer;
+  in_parameter_get_upper_bounds(parameter: Pointer): Pointer;
   in_parameter_get_binding_count(parameter: Pointer): number;
   in_parameter_get_bound_binding_count(parameter: Pointer): number;
-  in_parameter_get_invalid_binding_application_count(parameter: Pointer): number;
+  in_parameter_get_invalid_binding_application_count(
+    parameter: Pointer,
+  ): number;
   in_parameter_get_value(parameter: Pointer): Pointer;
   in_parameter_set_value(parameter: Pointer, values: Pointer): void;
   in_texture_cache_get_size(cache: Pointer): number;
@@ -33,7 +41,6 @@ interface OfficialExports extends WebAssembly.Exports {
   in_texture_get_height(texture: Pointer): number;
   in_texture_get_channels(texture: Pointer): number;
   in_texture_get_pixels(texture: Pointer): Pointer;
-  in_texture_flip_vertically(texture: Pointer): void;
   in_texture_premultiply(texture: Pointer): void;
   in_drawlist_get_commands(drawList: Pointer, count: Pointer): Pointer;
   in_drawlist_get_vertex_data(drawList: Pointer, bytes: Pointer): Pointer;
@@ -43,6 +50,8 @@ interface OfficialExports extends WebAssembly.Exports {
 export interface OfficialParameter {
   pointer: Pointer;
   dimensions: 1 | 2;
+  lowerBounds: readonly number[];
+  upperBounds: readonly number[];
   bindingCount: number;
   boundBindingCount: number;
 }
@@ -78,6 +87,22 @@ export interface OfficialDrawList {
   indices: Uint32Array;
 }
 
+interface DrawSnapshot {
+  vertices: Float32Array;
+  indices: Uint32Array;
+  commands: Array<{
+    sources: readonly Pointer[];
+    state: number;
+    blendMode: number;
+    maskMode: number;
+    vertexOffset: number;
+    indexOffset: number;
+    elementCount: number;
+    typeId: number;
+    variables: Float32Array;
+  }>;
+}
+
 export class OfficialInochi2dSdk {
   readonly #exports: OfficialExports;
   #scratchPointer = 0;
@@ -89,16 +114,23 @@ export class OfficialInochi2dSdk {
     exports.in_init();
   }
 
-  static async create(wasmUrl: URL, signal?: AbortSignal): Promise<OfficialInochi2dSdk> {
+  static async create(
+    wasmUrl: URL,
+    signal?: AbortSignal,
+  ): Promise<OfficialInochi2dSdk> {
     const bytes = await fetchBounded(wasmUrl, MAX_WASM_BYTES, signal);
     const result = await WebAssembly.instantiate(bytes, createWasiImports());
-    return new OfficialInochi2dSdk(assertOfficialExports(result.instance.exports));
+    return new OfficialInochi2dSdk(
+      assertOfficialExports(result.instance.exports),
+    );
   }
 
   loadPuppet(bytes: Uint8Array): OfficialPuppet {
     this.#assertActive();
     if (bytes.byteLength === 0 || bytes.byteLength > 0xffff_ffff) {
-      throw new Error("model byte length is invalid for the official Inochi2D SDK");
+      throw new Error(
+        "model byte length is invalid for the official Inochi2D SDK",
+      );
     }
 
     const modelPointer = this.#allocate(bytes.byteLength);
@@ -141,26 +173,91 @@ export class OfficialInochi2dSdk {
     value: number | readonly [number, number],
   ): void {
     this.#assertActive();
-    const pointer = this.#scratch(parameter.dimensions * Float32Array.BYTES_PER_ELEMENT);
+    const pointer = this.#scratch(
+      parameter.dimensions * Float32Array.BYTES_PER_ELEMENT,
+    );
     const view = new DataView(this.#exports.memory.buffer);
     if (typeof value === "number") {
       if (parameter.dimensions === 1) {
-        view.setFloat32(pointer, value, true);
+        view.setFloat32(
+          pointer,
+          clampParameterValue(parameter, 0, value),
+          true,
+        );
       } else {
         const current = this.#readParameterValue(parameter);
-        view.setFloat32(pointer, value, true);
-        view.setFloat32(pointer + 4, current[1] ?? 0, true);
+        view.setFloat32(
+          pointer,
+          clampParameterValue(parameter, 0, value),
+          true,
+        );
+        view.setFloat32(
+          pointer + 4,
+          clampParameterValue(parameter, 1, current[1] ?? 0),
+          true,
+        );
       }
     } else {
-      view.setFloat32(pointer, value[0], true);
+      view.setFloat32(
+        pointer,
+        clampParameterValue(parameter, 0, value[0]),
+        true,
+      );
       if (parameter.dimensions === 2) {
-        view.setFloat32(pointer + 4, value[1], true);
+        view.setFloat32(
+          pointer + 4,
+          clampParameterValue(parameter, 1, value[1]),
+          true,
+        );
       }
     }
     this.#exports.in_parameter_set_value(parameter.pointer, pointer);
   }
 
-  updateAndDraw(puppet: OfficialPuppet, deltaSeconds: number): OfficialDrawList {
+  /**
+   * Probes one parameter axis against the official draw list and restores the
+   * original value. Declared bindings alone are insufficient: some exported
+   * models contain bindings that produce no runtime-visible output.
+   */
+  parameterHasDrawEffect(
+    puppet: OfficialPuppet,
+    parameter: OfficialParameter,
+    axis: "x" | "y" | undefined,
+  ): boolean {
+    this.#assertActive();
+    const selectedAxis = axis === "y" && parameter.dimensions === 2 ? 1 : 0;
+    const original = this.#readParameterValue(parameter);
+    const start = [...original];
+    const end = [...original];
+    start[selectedAxis] = parameter.lowerBounds[selectedAxis]!;
+    end[selectedAxis] = parameter.upperBounds[selectedAxis]!;
+
+    try {
+      this.setParameter(
+        parameter,
+        parameter.dimensions === 1 ? start[0]! : [start[0]!, start[1]!],
+      );
+      const before = snapshotDrawList(this.updateAndDraw(puppet, 0));
+      this.setParameter(
+        parameter,
+        parameter.dimensions === 1 ? end[0]! : [end[0]!, end[1]!],
+      );
+      return drawListsDiffer(before, this.updateAndDraw(puppet, 0));
+    } finally {
+      this.setParameter(
+        parameter,
+        parameter.dimensions === 1
+          ? original[0]!
+          : [original[0]!, original[1]!],
+      );
+      this.updateAndDraw(puppet, 0);
+    }
+  }
+
+  updateAndDraw(
+    puppet: OfficialPuppet,
+    deltaSeconds: number,
+  ): OfficialDrawList {
     this.#assertActive();
     const delta = Number.isFinite(deltaSeconds)
       ? Math.min(0.1, Math.max(0, deltaSeconds))
@@ -189,7 +286,9 @@ export class OfficialInochi2dSdk {
     }
     const count = this.#exports.in_texture_cache_get_size(cache);
     if (!Number.isInteger(count) || count < 0 || count > 4_096) {
-      throw new Error(`invalid texture count returned by the official SDK: ${count}`);
+      throw new Error(
+        `invalid texture count returned by the official SDK: ${count}`,
+      );
     }
 
     const textures: OfficialTexture[] = [];
@@ -209,17 +308,27 @@ export class OfficialInochi2dSdk {
         width > 4_096 ||
         height > 4_096
       ) {
-        throw new Error(`texture ${slot} has invalid dimensions ${width}x${height}`);
+        throw new Error(
+          `texture ${slot} has invalid dimensions ${width}x${height}`,
+        );
       }
-      if (channels !== 1 && channels !== 2 && channels !== 3 && channels !== 4) {
-        throw new Error(`texture ${slot} has unsupported channel count ${channels}`);
+      if (
+        channels !== 1 &&
+        channels !== 2 &&
+        channels !== 3 &&
+        channels !== 4
+      ) {
+        throw new Error(
+          `texture ${slot} has unsupported channel count ${channels}`,
+        );
       }
       const byteLength = checkedProduct(width, height, channels);
       if (byteLength > MAX_DRAW_BUFFER_BYTES) {
-        throw new Error(`texture ${slot} exceeds the decoded texture byte limit`);
+        throw new Error(
+          `texture ${slot} exceeds the decoded texture byte limit`,
+        );
       }
 
-      this.#exports.in_texture_flip_vertically(pointer);
       this.#exports.in_texture_premultiply(pointer);
       const pixelsPointer = this.#exports.in_texture_get_pixels(pointer);
       textures.push({
@@ -247,29 +356,67 @@ export class OfficialInochi2dSdk {
 
   #readParameters(puppet: Pointer): Map<string, OfficialParameter> {
     const countPointer = this.#scratch(4);
-    const listPointer = this.#exports.in_puppet_get_parameters(puppet, countPointer);
-    const count = new DataView(this.#exports.memory.buffer).getUint32(countPointer, true);
+    const listPointer = this.#exports.in_puppet_get_parameters(
+      puppet,
+      countPointer,
+    );
+    const count = new DataView(this.#exports.memory.buffer).getUint32(
+      countPointer,
+      true,
+    );
     if (count > MAX_PARAMETERS) {
       throw new Error(`model exposes too many parameters: ${count}`);
     }
     const pointers = this.#bytes(listPointer, checkedProduct(count, 4));
-    const view = new DataView(pointers.buffer, pointers.byteOffset, pointers.byteLength);
+    const view = new DataView(
+      pointers.buffer,
+      pointers.byteOffset,
+      pointers.byteLength,
+    );
     const parameters = new Map<string, OfficialParameter>();
     for (let index = 0; index < count; index += 1) {
       const pointer = view.getUint32(index * 4, true);
       const name = this.#string(this.#exports.in_parameter_get_name(pointer));
       const dimensions = this.#exports.in_parameter_get_dimensions(pointer);
-      const bindingCount = this.#exports.in_parameter_get_binding_count(pointer);
+      const bindingCount =
+        this.#exports.in_parameter_get_binding_count(pointer);
       const boundBindingCount =
         this.#exports.in_parameter_get_bound_binding_count(pointer);
       if (name.length === 0) {
         throw new Error(`parameter ${index} has no name`);
       }
       if (dimensions !== 1 && dimensions !== 2) {
-        throw new Error(`parameter ${name} has unsupported dimensionality ${dimensions}`);
+        throw new Error(
+          `parameter ${name} has unsupported dimensionality ${dimensions}`,
+        );
       }
-      if (!Number.isInteger(bindingCount) || bindingCount < 0 || bindingCount > MAX_DRAW_COMMANDS) {
-        throw new Error(`parameter ${name} has an invalid binding count ${bindingCount}`);
+      const lowerBounds = this.#readFloatVector(
+        this.#exports.in_parameter_get_lower_bounds(pointer),
+        dimensions,
+      );
+      const upperBounds = this.#readFloatVector(
+        this.#exports.in_parameter_get_upper_bounds(pointer),
+        dimensions,
+      );
+      for (let axis = 0; axis < dimensions; axis += 1) {
+        if (
+          !Number.isFinite(lowerBounds[axis]) ||
+          !Number.isFinite(upperBounds[axis]) ||
+          lowerBounds[axis]! >= upperBounds[axis]!
+        ) {
+          throw new Error(
+            `parameter ${name} has invalid bounds on axis ${axis}`,
+          );
+        }
+      }
+      if (
+        !Number.isInteger(bindingCount) ||
+        bindingCount < 0 ||
+        bindingCount > MAX_DRAW_COMMANDS
+      ) {
+        throw new Error(
+          `parameter ${name} has an invalid binding count ${bindingCount}`,
+        );
       }
       if (
         !Number.isInteger(boundBindingCount) ||
@@ -283,18 +430,28 @@ export class OfficialInochi2dSdk {
       if (parameters.has(name)) {
         throw new Error(`model contains duplicate parameter ${name}`);
       }
-      parameters.set(name, { pointer, dimensions, bindingCount, boundBindingCount });
+      parameters.set(name, {
+        pointer,
+        dimensions,
+        lowerBounds,
+        upperBounds,
+        bindingCount,
+        boundBindingCount,
+      });
     }
     return parameters;
   }
 
   #readParameterValue(parameter: OfficialParameter): readonly number[] {
     const pointer = this.#exports.in_parameter_get_value(parameter.pointer);
-    const bytes = this.#bytes(pointer, parameter.dimensions * 4);
+    return this.#readFloatVector(pointer, parameter.dimensions);
+  }
+
+  #readFloatVector(pointer: Pointer, length: number): readonly number[] {
+    const bytes = this.#bytes(pointer, length * Float32Array.BYTES_PER_ELEMENT);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    return Array.from(
-      { length: parameter.dimensions },
-      (_, index) => view.getFloat32(index * 4, true),
+    return Array.from({ length }, (_, index) =>
+      view.getFloat32(index * 4, true),
     );
   }
 
@@ -304,8 +461,14 @@ export class OfficialInochi2dSdk {
       throw new Error("the official SDK returned no draw list");
     }
     const outPointer = this.#scratch(4);
-    const commandPointer = this.#exports.in_drawlist_get_commands(drawList, outPointer);
-    const commandCount = new DataView(this.#exports.memory.buffer).getUint32(outPointer, true);
+    const commandPointer = this.#exports.in_drawlist_get_commands(
+      drawList,
+      outPointer,
+    );
+    const commandCount = new DataView(this.#exports.memory.buffer).getUint32(
+      outPointer,
+      true,
+    );
     if (commandCount > MAX_DRAW_COMMANDS) {
       throw new Error(`draw command count exceeds the limit: ${commandCount}`);
     }
@@ -321,13 +484,15 @@ export class OfficialInochi2dSdk {
     const commands: OfficialDrawCommand[] = [];
     for (let index = 0; index < commandCount; index += 1) {
       const base = index * DRAW_COMMAND_BYTES;
-      const sources = Array.from(
-        { length: 8 },
-        (_, sourceIndex) => commandView.getUint32(base + sourceIndex * 4, true),
+      const sources = Array.from({ length: 8 }, (_, sourceIndex) =>
+        commandView.getUint32(base + sourceIndex * 4, true),
       );
       const variables = new Float32Array(16);
       for (let variable = 0; variable < variables.length; variable += 1) {
-        variables[variable] = commandView.getFloat32(base + 64 + variable * 4, true);
+        variables[variable] = commandView.getFloat32(
+          base + 64 + variable * 4,
+          true,
+        );
         if (!Number.isFinite(variables[variable])) {
           throw new Error(
             `draw command ${index} contains a non-finite variable at ${variable}`,
@@ -347,9 +512,18 @@ export class OfficialInochi2dSdk {
       });
     }
 
-    const vertexPointer = this.#exports.in_drawlist_get_vertex_data(drawList, outPointer);
-    const vertexBytes = new DataView(this.#exports.memory.buffer).getUint32(outPointer, true);
-    if (vertexBytes > MAX_DRAW_BUFFER_BYTES || vertexBytes % VERTEX_BYTES !== 0) {
+    const vertexPointer = this.#exports.in_drawlist_get_vertex_data(
+      drawList,
+      outPointer,
+    );
+    const vertexBytes = new DataView(this.#exports.memory.buffer).getUint32(
+      outPointer,
+      true,
+    );
+    if (
+      vertexBytes > MAX_DRAW_BUFFER_BYTES ||
+      vertexBytes % VERTEX_BYTES !== 0
+    ) {
       throw new Error(`invalid draw-list vertex byte length: ${vertexBytes}`);
     }
     const vertices = this.#float32(vertexPointer, vertexBytes);
@@ -359,8 +533,14 @@ export class OfficialInochi2dSdk {
       }
     }
 
-    const indexPointer = this.#exports.in_drawlist_get_index_data(drawList, outPointer);
-    const indexBytes = new DataView(this.#exports.memory.buffer).getUint32(outPointer, true);
+    const indexPointer = this.#exports.in_drawlist_get_index_data(
+      drawList,
+      outPointer,
+    );
+    const indexBytes = new DataView(this.#exports.memory.buffer).getUint32(
+      outPointer,
+      true,
+    );
     if (
       indexBytes > MAX_DRAW_BUFFER_BYTES ||
       indexBytes % Uint32Array.BYTES_PER_ELEMENT !== 0
@@ -425,7 +605,11 @@ export class OfficialInochi2dSdk {
       return "";
     }
     const memory = new Uint8Array(this.#exports.memory.buffer);
-    if (!Number.isInteger(pointer) || pointer < 0 || pointer >= memory.byteLength) {
+    if (
+      !Number.isInteger(pointer) ||
+      pointer < 0 ||
+      pointer >= memory.byteLength
+    ) {
       throw new Error("official SDK returned an invalid string pointer");
     }
     const maximum = Math.min(memory.byteLength, pointer + 16_384);
@@ -446,6 +630,79 @@ export class OfficialInochi2dSdk {
   }
 }
 
+function snapshotDrawList(drawList: OfficialDrawList): DrawSnapshot {
+  return {
+    vertices: new Float32Array(drawList.vertices),
+    indices: new Uint32Array(drawList.indices),
+    commands: drawList.commands.map((command) => ({
+      sources: [...command.sources],
+      state: command.state,
+      blendMode: command.blendMode,
+      maskMode: command.maskMode,
+      vertexOffset: command.vertexOffset,
+      indexOffset: command.indexOffset,
+      elementCount: command.elementCount,
+      typeId: command.typeId,
+      variables: new Float32Array(command.variables),
+    })),
+  };
+}
+
+function drawListsDiffer(
+  before: DrawSnapshot,
+  after: OfficialDrawList,
+): boolean {
+  if (
+    before.vertices.length !== after.vertices.length ||
+    before.indices.length !== after.indices.length ||
+    before.commands.length !== after.commands.length
+  ) {
+    return true;
+  }
+  for (let index = 0; index < before.vertices.length; index += 1) {
+    if (Math.abs(before.vertices[index]! - after.vertices[index]!) > 1e-4) {
+      return true;
+    }
+  }
+  for (let index = 0; index < before.indices.length; index += 1) {
+    if (before.indices[index] !== after.indices[index]) {
+      return true;
+    }
+  }
+  for (let index = 0; index < before.commands.length; index += 1) {
+    const left = before.commands[index]!;
+    const right = after.commands[index]!;
+    if (
+      left.state !== right.state ||
+      left.blendMode !== right.blendMode ||
+      left.maskMode !== right.maskMode ||
+      left.vertexOffset !== right.vertexOffset ||
+      left.indexOffset !== right.indexOffset ||
+      left.elementCount !== right.elementCount ||
+      left.typeId !== right.typeId ||
+      left.sources.length !== right.sources.length ||
+      left.variables.length !== right.variables.length
+    ) {
+      return true;
+    }
+    if (
+      left.sources.some(
+        (source, sourceIndex) => source !== right.sources[sourceIndex],
+      )
+    ) {
+      return true;
+    }
+    for (let variable = 0; variable < left.variables.length; variable += 1) {
+      if (
+        Math.abs(left.variables[variable]! - right.variables[variable]!) > 1e-6
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function assertOfficialExports(exports: WebAssembly.Exports): OfficialExports {
   const required = [
     "memory",
@@ -462,6 +719,8 @@ function assertOfficialExports(exports: WebAssembly.Exports): OfficialExports {
     "in_puppet_get_texture_cache",
     "in_parameter_get_name",
     "in_parameter_get_dimensions",
+    "in_parameter_get_lower_bounds",
+    "in_parameter_get_upper_bounds",
     "in_parameter_get_binding_count",
     "in_parameter_get_bound_binding_count",
     "in_parameter_get_invalid_binding_application_count",
@@ -473,7 +732,6 @@ function assertOfficialExports(exports: WebAssembly.Exports): OfficialExports {
     "in_texture_get_height",
     "in_texture_get_channels",
     "in_texture_get_pixels",
-    "in_texture_flip_vertically",
     "in_texture_premultiply",
     "in_drawlist_get_commands",
     "in_drawlist_get_vertex_data",
@@ -527,6 +785,20 @@ function createWasiImports(): WebAssembly.Imports {
   };
 }
 
+function clampParameterValue(
+  parameter: OfficialParameter,
+  axis: number,
+  value: number,
+): number {
+  if (!Number.isFinite(value)) {
+    throw new TypeError("parameter values must be finite numbers");
+  }
+  return Math.min(
+    parameter.upperBounds[axis]!,
+    Math.max(parameter.lowerBounds[axis]!, value),
+  );
+}
+
 async function fetchBounded(
   url: URL,
   maximumBytes: number,
@@ -564,7 +836,9 @@ function assertMemoryRange(
     (pointer === 0 && byteLength > 0) ||
     pointer + byteLength > memory.buffer.byteLength
   ) {
-    throw new Error(`official SDK returned an invalid memory range ${pointer}+${byteLength}`);
+    throw new Error(
+      `official SDK returned an invalid memory range ${pointer}+${byteLength}`,
+    );
   }
 }
 
@@ -591,7 +865,10 @@ function validateDrawRanges(
     // Only normal and mask-definition commands reference mesh buffers. The SDK
     // intentionally leaves allocation fields unspecified on stack/composite
     // control commands, so treating those fields as offsets rejects valid models.
-    if ((command.state !== 0 && command.state !== 1) || command.elementCount === 0) {
+    if (
+      (command.state !== 0 && command.state !== 1) ||
+      command.elementCount === 0
+    ) {
       continue;
     }
     if (

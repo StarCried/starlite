@@ -1,0 +1,157 @@
+{
+  "meta": {
+    "name": "inochi2d-web official SDK compatibility fixture",
+    "version": "v0.7.1",
+    "rigger": null,
+    "artist": null,
+    "copyright": "2026 StarCried contributors",
+    "licenseURL": null,
+    "contact": null,
+    "reference": null,
+    "preservePixels": false
+  },
+  "physics": {
+    "pixelsPerMeter": 1000,
+    "gravity": 9.81
+  },
+  "param": [
+    {
+      "uuid": 1,
+      "name": "Pointer",
+      "is_vec2": true,
+      "min": [-1, -1],
+      "max": [1, 1],
+      "defaults": [0, 0],
+      "axis_points": [
+        [0, 0.5, 1],
+        [0, 1]
+      ],
+      "bindings": []
+    },
+    {
+      "uuid": 2,
+      "name": "Legacy scalar",
+      "is_vec2": false,
+      "min": [-2, 0],
+      "max": [2, 1],
+      "defaults": [0, 0],
+      "axis_points": [
+        [0, 0.5, 1],
+        [0]
+      ],
+      "bindings": [
+        {
+          "node": 100,
+          "param_name": "deform",
+          "values": [
+            [
+              [[0, 0], [0, 0], [0, 0]]
+            ],
+            [
+              [[0, 0], [0, 0], [0, 0]]
+            ],
+            [
+              [[2, 0], [0, 2], [-2, 0]]
+            ]
+          ],
+          "isSet": [
+            [true],
+            [true],
+            [true]
+          ],
+          "interpolate_mode": "Linear"
+        }
+      ]
+    }
+  ],
+  "automation": [],
+  "nodes": {
+    "uuid": 0,
+    "name": "Root",
+    "type": "Node",
+    "enabled": true,
+    "zsort": 0,
+    "transform": {
+      "trans": [0, 0, 0],
+      "rot": [0, 0, 0],
+      "scale": [1, 1]
+    },
+    "lockToRoot": false,
+    "children": [
+      {
+        "uuid": 100,
+        "name": "Driven part",
+        "type": "Part",
+        "enabled": true,
+        "zsort": -1,
+        "transform": {
+          "trans": [0, 0, 0],
+          "rot": [0, 0, 0],
+          "scale": [1, 1]
+        },
+        "lockToRoot": false,
+        "children": [],
+        "mesh": {
+          "verts": [-10, -10, 10, -10, 0, 10],
+          "uvs": [0, 0, 1, 0, 0.5, 1],
+          "indices": [0, 1, 2],
+          "origin": [0, 0]
+        },
+        "textures": [],
+        "blend_mode": "Normal",
+        "tint": [1, 1, 1],
+        "screenTint": [0, 0, 0],
+        "mask_threshold": 0.5,
+        "opacity": 1,
+        "psdLayerPath": ""
+      },
+      {
+        "uuid": 200,
+        "name": "Tinted composite",
+        "type": "Composite",
+        "enabled": true,
+        "zsort": 1,
+        "transform": {
+          "trans": [0, 0, 0],
+          "rot": [0, 0, 0],
+          "scale": [1, 1]
+        },
+        "lockToRoot": false,
+        "children": [
+          {
+            "uuid": 201,
+            "name": "Composite child",
+            "type": "Part",
+            "enabled": true,
+            "zsort": 0,
+            "transform": {
+              "trans": [0, 0, 0],
+              "rot": [0, 0, 0],
+              "scale": [1, 1]
+            },
+            "lockToRoot": false,
+            "children": [],
+            "mesh": {
+              "verts": [-10, -10, 10, -10, 0, 10],
+              "uvs": [0, 0, 1, 0, 0.5, 1],
+              "indices": [0, 1, 2],
+              "origin": [0, 0]
+            },
+            "textures": [],
+            "blend_mode": "Normal",
+            "tint": [1, 1, 1],
+            "screenTint": [0, 0, 0],
+            "mask_threshold": 0.5,
+            "opacity": 1,
+            "psdLayerPath": ""
+          }
+        ],
+        "blend_mode": "Normal",
+        "tint": [0.25, 0.5, 0.75],
+        "screenTint": [0, 0, 0],
+        "mask_threshold": 0.5,
+        "opacity": 0.8
+      }
+    ]
+  }
+}

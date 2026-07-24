@@ -37,6 +37,8 @@ void deserialize08NestedArrays(T)(
     vec2u dims
 ) @nogc
 if (is(T == vector2d!U, U)) {
+    import inochi2d.core.math.deform : Deformation;
+
     if (!object.isArray) {
         state.error(nstring("expected array, got ", object.type.toTypeName, "!"));
         return;
@@ -57,7 +59,16 @@ if (is(T == vector2d!U, U)) {
             return;
         }
         foreach (y, ref value; row.array) {
-            target[x, y] = value.deserialize!(T.DT)(state);
+            // Deformation owns a manually allocated vertex array. Assigning a
+            // deserialized temporary here only copies that array's slice and
+            // loses its contents under the SDK's value/move semantics. Decode
+            // directly into the destination cell so every keypoint retains
+            // its vertex offsets.
+            static if (is(U == Deformation)) {
+                target[x, y].onDeserialize(value, state);
+            } else {
+                target[x, y] = value.deserialize!(T.DT)(state);
+            }
         }
     }
 }

@@ -16,6 +16,18 @@ source hash, model build, Hexo generation, browser gate, or native-binary
 integrity check must prevent `hexo deploy`. Reports that show a path around one
 of these gates are treated as security issues.
 
+## Unsigned native alpha
+
+`inochi2d-blog` currently bundles unsigned experimental Windows/Linux x64
+pipeline binaries. npm installation does not execute them. Explicit CLI use
+verifies the packaged byte length and SHA-256 first, but a hash is an integrity
+check rather than publisher identity or a security review.
+
+Do not disable Smart App Control, antivirus, application control, or endpoint
+policy for this tool. If execution is blocked, stop or build the Rust pipeline
+from reviewed source and select it with `pipelineBinary`. A start failure is
+fatal and no later Hexo generation or deploy command runs.
+
 ## Model files
 
 Creator exports are untrusted input. The native pipeline bounds file size,

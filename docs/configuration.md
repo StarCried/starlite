@@ -29,6 +29,13 @@ config file unless absolute:
     "mobile": {
       "show": false,
       "breakpoint": 768
+    },
+    "interactions": {
+      "pointer": true,
+      "click": {
+        "animation": "Click"
+      },
+      "drag": true
     }
   }
 }
@@ -43,12 +50,18 @@ require every field above.
 - `allowRedistribution` asserts that the operator has checked model rights.
 - `sourceSha256` binds that decision to the exact inspected input bytes.
 - `pipelineBinary` may point to a local native binary. Otherwise the package
-  verifies and uses its Windows/Linux x64 binary.
+  verifies and uses its experimental unsigned Windows/Linux x64 binary. No
+  native program runs during npm installation. If system policy blocks the
+  bundled executable, keep the block in place and point this field to a trusted
+  build made from the repository source; the CLI otherwise exits without
+  generating or deploying the blog.
 - `hexoConfig` defaults to `_config.yml`.
 - `previewPort` defaults to 4192 and must be between 1024 and 65535.
 - `widget` is merged into the generated `inochi2d_widget` Hexo config, but the
   CLI always forces `enable: true`, `mobile.show: false`, and its verified
-  immutable bundle.
+  immutable bundle. `widget.interactions.click.animation` is case-sensitive
+  and defaults to `Click`; inspection, preparation, and generation stop if that
+  animation is not present and valid in the source model and output bundle.
 
 The blog must install compatible `hexo`, `hexo-inox2d-widget`, and `playwright`
 packages. Chrome and Edge must be installed for Windows release gates.
@@ -60,7 +73,7 @@ An already prepared local bundle can be configured without the deploy CLI:
 ```yaml
 inochi2d_widget:
   enable: true
-  bundle: .inochi2d/bundles/sourcehash-modelhash
+  bundle: .inochi2d/bundles/sourcehash-modelhash-manifesthash
   publication:
     confirm: true
     allowRedistribution: true
@@ -75,6 +88,11 @@ inochi2d_widget:
   mobile:
     show: false
     breakpoint: 768
+  interactions:
+    pointer: true
+    click:
+      animation: Click
+    drag: true
 ```
 
 Externally hosted assets can use `model` and `fallback` instead of `bundle`.
@@ -82,9 +100,21 @@ Relative URLs are prefixed with Hexo's configured `root`; a cross-origin model
 server must permit CORS. Local bundle mode is safer because the adapter verifies
 the manifest and every artifact.
 
-Parameter mappings accept a string, multiple strings, or a descriptor with
+Idle parameter mappings accept a string, multiple strings, or a descriptor with
 `id`, optional `axis`, `scale`, and `offset`. See the Aka profile in
 `examples/vanilla/src/main.ts` for a two-axis Creator model.
+
+Click motion comes only from the Creator animation stored in the model.
+`interactions.click.animation` selects its exact name. Set
+`interactions.click: false` to disable click playback. There is deliberately no
+parameter mapping or synthesized movement fallback: an enabled but missing
+animation is a generation error, so an untested pose cannot enter a production
+blog.
+
+The browser runtime verifies that the configured breath target actually changes
+the official draw list. Declared-but-inert bindings automatically use a subtle
+whole-model breathing fallback; set `parameters.breath: null` to request a
+strictly non-breathing idle pose.
 
 To disable the widget, set `inochi2d_widget.enable: false` and regenerate. No
 theme or `node_modules` file is patched.

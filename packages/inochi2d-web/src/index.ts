@@ -2,6 +2,10 @@ import { mountWithDependencies } from "./controller.js";
 import { createDefaultDependencies } from "./dependencies.js";
 
 export type {
+  AnimationClip,
+  AnimationInterpolation,
+  AnimationKeyframe,
+  AnimationLane,
   Inochi2dWasmRuntime,
   ParameterAxis,
   ParameterBinding,

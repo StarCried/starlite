@@ -8,25 +8,28 @@ type MixedParameters = ReadonlyMap<string, ParameterValue>;
 
 interface MotionOptions {
   bindings: ResolvedParameterBindings;
-  clickAmplitude: number;
   random: () => number;
 }
 
-/** Mixes neutral, idle, pointer, drag, and click values in priority order. */
+const BREATH_PHASE_MILLISECONDS = 700;
+
+/** Returns one calm breath cycle in the normalized 0..1 parameter range. */
+export function idleBreathValue(timestampMs: number): number {
+  return (Math.sin(timestampMs / BREATH_PHASE_MILLISECONDS) + 1) / 2;
+}
+
+/** Mixes neutral, idle, pointer, and drag values in priority order. */
 export class MotionMixer {
   readonly #bindings: ResolvedParameterBindings;
-  readonly #clickAmplitude: number;
   readonly #random: () => number;
   #pointerX = 0;
   #pointerY = 0;
   #dragBodyX = 0;
-  #clickStartedAt: number | undefined;
   #blinkStartedAt: number | undefined;
   #nextBlinkAt = 0;
 
   constructor(options: MotionOptions) {
     this.#bindings = options.bindings;
-    this.#clickAmplitude = options.clickAmplitude;
     this.#random = options.random;
     this.#scheduleBlink(0);
   }
@@ -44,10 +47,6 @@ export class MotionMixer {
     this.#dragBodyX = 0;
   }
 
-  triggerClick(timestampMs: number): void {
-    this.#clickStartedAt = timestampMs;
-  }
-
   sample(timestampMs: number, reducedMotion: boolean): MixedParameters {
     const values = new Map<string, ParameterValue>();
 
@@ -60,14 +59,13 @@ export class MotionMixer {
     this.#set(values, "headX", 0);
     this.#set(values, "headY", 0);
     this.#set(values, "bodyX", 0);
-    this.#set(values, "click", 0);
 
     if (reducedMotion) {
       return values;
     }
 
     // Idle motion.
-    this.#set(values, "breath", (Math.sin(timestampMs / 1400) + 1) / 2);
+    this.#set(values, "breath", idleBreathValue(timestampMs));
     const eyeOpen = this.#sampleBlink(timestampMs);
     this.#set(values, "eyeOpenLeft", eyeOpen);
     this.#set(values, "eyeOpenRight", eyeOpen);
@@ -78,9 +76,9 @@ export class MotionMixer {
     this.#set(values, "headX", this.#pointerX * 0.45);
     this.#set(values, "headY", -this.#pointerY * 0.35);
 
-    // Drag and click have the highest automatic priority.
+    // Drag has the highest automatic priority in the idle mixer. A model
+    // animation is applied by AnimationPlayer after this map is returned.
     this.#set(values, "bodyX", this.#dragBodyX);
-    this.#set(values, "click", this.#sampleClick(timestampMs));
     return values;
   }
 
@@ -95,7 +93,10 @@ export class MotionMixer {
   }
 
   #sampleBlink(timestampMs: number): number {
-    if (this.#blinkStartedAt === undefined && timestampMs >= this.#nextBlinkAt) {
+    if (
+      this.#blinkStartedAt === undefined &&
+      timestampMs >= this.#nextBlinkAt
+    ) {
       this.#blinkStartedAt = timestampMs;
     }
     if (this.#blinkStartedAt === undefined) {
@@ -109,18 +110,6 @@ export class MotionMixer {
       return 1;
     }
     return Math.abs(progress * 2 - 1);
-  }
-
-  #sampleClick(timestampMs: number): number {
-    if (this.#clickStartedAt === undefined) {
-      return 0;
-    }
-    const progress = (timestampMs - this.#clickStartedAt) / 360;
-    if (progress >= 1 || progress < 0) {
-      this.#clickStartedAt = undefined;
-      return 0;
-    }
-    return Math.sin(progress * Math.PI) * this.#clickAmplitude;
   }
 
   #scheduleBlink(timestampMs: number): void {
@@ -138,7 +127,9 @@ function setTargetValue(
     return;
   }
   const current = values.get(target.id);
-  const vector: [number, number] = Array.isArray(current) ? [current[0], current[1]] : [0, 0];
+  const vector: [number, number] = Array.isArray(current)
+    ? [current[0], current[1]]
+    : [0, 0];
   vector[target.axis === "x" ? 0 : 1] = value;
   values.set(target.id, vector);
 }
