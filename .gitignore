@@ -13,5 +13,6 @@
 /examples/hexo/public/
 /examples/hexo/source/models/*.inp
 /examples/vanilla/public/models/*.inp
+/examples/vanilla/public/models/manifest.json
 *.log
 .DS_Store

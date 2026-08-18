@@ -3,8 +3,9 @@
 ## Repository boundaries
 
 - `crates/inochi2d-pipeline` owns untrusted `.inp/.inx` inspection,
-  compatibility and rights reports, lossless texture optimization, manifests,
-  and transactional output.
+  compatibility and rights reports, deterministic texture optimization
+  (lossless unless web limits require resizing), manifests, and transactional
+  output.
 - `tools/build-official-sdk.mjs` owns the reproducible official D-SDK download,
   source compatibility patches, minimal browser export surface, Binaryen
   optimization, and pinned output hashes.
@@ -33,10 +34,12 @@
 - Mobile defaults to hidden and must return before runtime import or model/WASM
   fetch.
 - Model-authored, non-additive `Forced` animation lanes may be normalized by the
-  pipeline and played by exact name. Do not add WebGL1, BC7, MeshGroup,
-  automation, additive/Bezier/transition-looping animation behavior,
-  voice/camera input, or Firefox/Safari support without an approved scope
-  change.
+  pipeline and played by exact name. Creator `leadIn`/`leadOut` regions may be
+  used for explicitly configured ambient loops. MeshGroup, Camera,
+  SimplePhysics, Cubic bindings, and ColorBurn are supported by the pinned SDK
+  compatibility profile. Do not add WebGL1, BC7, model automation,
+  additive/Bezier/crossfade animation behavior, voice/camera input, or
+  Firefox/Safari support without an approved scope change.
 - Keep official SDK source, toolchain, raw WASM, optimized WASM, LLD, and
   Binaryen versions synchronized with `tools/official-sdk/pin.json` and
   `docs/upstream.md`.

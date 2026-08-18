@@ -3,7 +3,7 @@
 ```text
 Creator .inp/.inx
   -> inochi2d-pipeline
-     bounds + compatibility + rights report + lossless compression + manifest
+     bounds + compatibility + rights report + bounded compression + manifest
   -> inochi2d-blog
      source attestation + immutable bundle + Hexo + browser gates + deploy
   -> hexo-inox2d-widget
@@ -23,13 +23,14 @@ stops the build.
 
 The D SDK owns container parsing, the puppet object graph, parameter bindings,
 deformations, texture decode, update, and draw-list creation. Only 30 WebAssembly
-exports remain: memory, initialization, three allocator functions, and the 25
+exports remain: memory, initialization, three allocator functions, and the 26
 puppet/parameter/texture/draw-list calls used by TypeScript. This permits link
 garbage collection and limits the browser-callable surface.
 
 Rust is not part of the browser runtime. The TypeScript renderer uploads decoded
-textures, validates finite command and vertex data, maintains stencil/mask and
-blend state, and draws the SDK command list into a transparent WebGL2 canvas.
+textures transactionally, validates finite command and vertex data, maintains
+stencil/mask state and the RGB/alpha equations from the Inochi2D blend standard,
+and draws the SDK command list into a transparent WebGL2 canvas.
 The SDK does not choose URLs or CORS policy.
 
 ## Browser controller
@@ -41,8 +42,9 @@ WASM/model bytes. It mixes values in this order:
 2. breath and blink;
 3. pointer-driven eyes and head;
 4. drag feedback;
-5. the active model-authored animation;
-6. explicit values supplied through `setParameter`.
+5. procedural/model-authored ambient motion;
+6. the active model-authored foreground animation;
+7. explicit values supplied through `setParameter`.
 
 `requestAnimationFrame` is throttled to the configured FPS. The loop pauses on
 visibility loss, reduced motion draws one neutral frame, and WebGL/model/network
@@ -64,23 +66,28 @@ container in JavaScript and never synthesizes a missing click pose.
 ## Native preparation
 
 `inochi2d-pipeline` parses the container with bounded allocations, validates the
-supported Creator schema, decodes PNG/TGA textures, and re-encodes pixels with a
-deterministic PNG encoder. A replacement occurs only when pixels are unchanged
-and the result is smaller. It preserves JSON semantics, texture order, and
+supported Creator schema, inspects texture headers before allocation, decodes
+PNG/TGA textures, and re-encodes pixels with a deterministic PNG encoder. It
+first keeps only smaller pixel-identical replacements. Source textures above
+4096 pixels are then resized with aspect ratio preserved, and an over-budget
+model receives bounded uniform adaptive texture passes until it is at most
+8 MiB or preparation fails. It preserves JSON semantics, texture order, and
 extended vendor bytes, then re-parses the emitted container.
 
 Output is written to a new sibling staging directory and atomically renamed.
-Existing output is never replaced. The manifest contains content hashes, sizes,
-parameters, normalized model animations, compatibility, publication warnings,
-and optimization statistics; it contains no timestamp or machine-local source
-path.
+Existing output is never replaced. Reuse requires a byte-identical manifest and
+revalidates canonical non-symlink artifacts by size and SHA-256. The manifest
+contains content hashes, sizes, parameters, normalized model animations, compatibility, publication warnings,
+source/output texture dimensions, lossy-resize warnings, and optimization
+statistics; it contains no timestamp or machine-local source path.
 
 ## Hexo and deployment
 
 The Hexo adapter verifies every local bundle path, size, SHA-256, fallback, and
 publication acknowledgement before generating immutable routes. An inline
-mobile check runs before the first dynamic import. One global owner tracks the
-controller, in-flight mount, animation loop, and PJAX listener.
+mobile check runs before the first dynamic import and on every PJAX completion.
+One global owner tracks the controller, in-flight mount, animation loop, and
+PJAX listener; a generation token discards mounts completed for a detached host.
 
 `inochi2d-blog` writes an isolated generated config beneath `.inochi2d`, runs
 Hexo clean/generate, launches a local preview, and verifies desktop rendering,

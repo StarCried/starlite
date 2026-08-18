@@ -1,12 +1,12 @@
 # Alpha status and approval gates
 
-Status on 2026-07-24:
+Status on 2026-07-27:
 
 ## Implemented and locally validated
 
 - Official Inochi2D D-SDK WASM at a fixed source/toolchain hash, with
   browser-compatibility patches and a 31-symbol export surface.
-- 445,034-byte optimized WASM; raw runtime JS plus WASM is below 1.5 MiB.
+- 451,459-byte optimized WASM; raw runtime JS plus WASM is below 1.5 MiB.
 - WebGL2 rendering with transparent layers, masks/blends, finite draw-buffer
   validation, deterministic teardown, fallback, reduced motion, and
   visibility/context lifecycle.
@@ -20,7 +20,9 @@ Status on 2026-07-24:
 - Hexo 7 hashed runtime/model assets, strict bundle verification, mobile
   no-fetch bootstrap, and PJAX singleton.
 - Windows/Linux native inspection and pixel-lossless TGA conversion/PNG
-  recompression with transactional immutable output.
+  recompression, bounded 8192-to-4096 source preprocessing, adaptive 8 MiB
+  texture fitting, and transactional immutable output. Every dimension change
+  is reported as lossy in the manifest.
 - Fail-closed inspection, preparation, Hexo generation, browser verification,
   dry run, and deployment orchestration.
 - Unit tests, synthetic fixtures, Chromium browser tests, CI definitions, and a
@@ -55,6 +57,19 @@ Status on 2026-07-24:
   Aka fixture scans
   `Head:: Yaw-Pitch` across its full range and rejects frozen segments or
   discontinuous jumps.
+- A local-only Mannequin 0.8.6 export now passes the complete pinned SDK path:
+  duplicate UUID/name parameter entries are merged, optional template-node
+  bindings are pruned safely, omitted legacy composite colors receive valid
+  defaults, Cubic bindings remain finite, MeshGroup deformation and ColorBurn
+  render, and all 207 textures are browser-safe. Its 600% export is reduced
+  from 22,598,857 to 8,143,142 bytes in two adaptive passes while retaining 82
+  parameters.
+- Verified bundles default to neutral draw-list auto-fitting, so Mannequin and
+  Creator models no longer require a generator-specific camera constant.
+  Conventional Mannequin head/eye/body channels and its tail/tip parameters are
+  inferred; deterministic tail oscillators run below foreground animations.
+  Source and prepared rigs are both checked before an explicitly configured
+  oscillator is allowed into Hexo generation.
 - Final npm tarballs install into a fresh directory without lifecycle
   execution; the packaged Linux native helper inspects Aka successfully and a
   production-dependency `npm audit` reports zero vulnerabilities. The reviewed
@@ -83,6 +98,26 @@ Status on 2026-07-24:
   validation then used a hash-verified executable built from the same reviewed
   source via the documented `pipelineBinary` override; no system protection was
   disabled or bypassed.
+- The approved explicit WSL backend now lets the Windows CLI run only
+  inspection/compression in a named distribution while keeping Hexo and the
+  Chrome/Edge gates on Windows. The original 22,599,804-byte local Mannequin
+  `.inx` produced the expected 8,144,294-byte model; Chrome and Edge both
+  measured 29.98 FPS with 1.60/1.70 ms p95. A nonexistent WSL binary stopped
+  before Hexo with no fallback, preview listener, production-output change, or
+  failed-run residue.
+- After manual review found horizontal eye and face-color movement excessive,
+  the default Mannequin profile was recalibrated to `0.4` gaze, `0.35` head,
+  and `0.12` body yaw on X while retaining the accepted vertical response.
+  The real-model direction test now enforces both lower and upper movement
+  bounds and samples animation peaks rather than one timing-sensitive frame.
+  Three consecutive full Mannequin browser runs passed; the refreshed Windows
+  Chrome/Edge gate remained at 29.98 FPS and 1.70 ms p95 in both browsers.
+- The user accepted the calibrated Mannequin fixture for the current local
+  workflow phase and will repeat the same workflow with the eventual StarCried
+  model. The 4196 preview was stopped, all isolated run directories were
+  cleaned, and the existing test-blog `public/index.html` hash and length were
+  unchanged. Production integration and model-specific recalibration remain
+  separate future gates.
 - Desktop/mobile checks passed on home, about, gallery, friends, prose, and
   code-heavy pages. Twenty PJAX events retained one sky, one cover sky on home,
   and one model canvas; mobile fetched no model/runtime assets; reduced motion

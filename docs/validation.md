@@ -1,5 +1,26 @@
 # Validation checklist
 
+## 2026-07-29 full code-review regression pass
+
+The review added focused coverage for the Inochi2D Lighten, LinearDodge,
+AddGlow, Inverse, and SliceFromLower blend equations; missing optional
+parameters versus real runtime traps; pointer-capture cancellation; non-finite
+injected random/DPR/config values; duplicate parameter/node UUIDs; malformed
+masks; canonical bounded bundle files; symbolic-link rejection; byte-identical
+immutable bundle reuse; and PJAX mounts completed after their host is replaced.
+
+`npm run validate` passes after a reproducible official-SDK rebuild. The public
+Aka and prepared Mannequin models also pass all 69 SDK/runtime tests when their
+respective test paths are supplied. Their two environment-gated Chromium tests
+also pass against real WASM; the harness now reports the first page exception
+directly instead of obscuring model-contract failures behind a load timeout.
+The private Hexo fixture now uses Hexo 7's built-in Nunjucks renderer instead
+of `hexo-renderer-ejs`, removing its vulnerable
+`ejs -> jake/filelist/minimatch` dependency chain without adding a package.
+Both the complete `npm audit` and `npm audit --omit=dev` report zero
+vulnerabilities. `cargo-audit` is not installed in the WSL toolchain and was
+not claimed as run.
+
 ## Local commands
 
 ```sh
@@ -49,8 +70,10 @@ model or running production `hexo deploy`.
 - Valid, malformed, missing, and cross-origin model responses.
 - Unsupported/corrupt `.inp/.inx`, BC7, resource limits, invalid parameter
   ranges/axes/bindings, malformed/missing configured animations, unsupported
-  animation lanes, non-linear binding interpolation, and non-finite draw
-  buffers.
+  animation lanes, overlapping ambient lanes, malformed dialogue libraries or
+  timing, conflicting click ownership, unsupported binding interpolation,
+  malformed/missing procedural ambient parameters, invalid SDK model bounds,
+  and non-finite draw buffers.
 - Publication prohibition, missing attestation, source hash drift, corrupt
   native binary manifest, blocked native execution with no generated Hexo
   config, bundle size/hash mismatch, and unsafe generated paths.
@@ -72,10 +95,20 @@ model or running production `hexo deploy`.
   `Click` animation with the authored right arm clearly moving while its hand
   stays connected to its sleeve, drag outside the original canvas rectangle
   without a click action, and double-click reset.
+- With a model that contains them, confirm every configured ambient animation
+  loops through its Creator `leadIn`/`leadOut` region, a foreground scene wins
+  overlapping lanes and the ambient clip resumes afterward, and the
+  enter/idle/click bubble displays only configured plain-text sentences above
+  the model.
+- With a model-authored `SimplePhysics` rig, confirm hair, sleeves, tail, or
+  other driven parts react to their authored parent/head/arm movement. Do not
+  accept camera scaling or synthesized parameter motion as a physics substitute.
 - Confirm a model with an ineffective declared Breath target reports fallback
   breathing and changes idle frames without enabling motion under
   `prefers-reduced-motion`.
-- Measure 260 x 360 at DPR 1.25: 30 FPS and p95 frame time at most 33 ms.
+- Measure the configured desktop size at DPR 1.25: 30 FPS and p95 render
+  duration at most 33 ms. The current Mannequin acceptance profile is
+  390 x 540 CSS pixels.
 - Confirm raw runtime JS plus WASM at most 1.5 MiB and prepared model at most
   8 MiB.
 - Disable the widget and regenerate; no host or widget assets may load.
@@ -103,9 +136,8 @@ Neither archive nor model is committed or packaged.
   every step and rejects frozen ranges, large discontinuities, and single-vertex
   spikes.
 
-Current optimized official WASM is 445,034 bytes with exactly 31 exports. The
-exact Rust 1.85 toolchain passes formatting, Clippy with warnings denied, and
-all native tests. `image` is pinned to 0.25.9 because 0.25.10 requires Rust
+The exact Rust 1.85 toolchain passes formatting, Clippy with warnings denied,
+and all native tests. `image` is pinned to 0.25.9 because 0.25.10 requires Rust
 1.88.
 
 An earlier production interaction/layout/mobile gate passed against the clean
@@ -183,7 +215,7 @@ was not executed.
 The release review also switches to reduced motion in the middle of a named
 clip and asserts that the lane returns to its model default. The full validated
 runtime is 538,715 raw JavaScript-plus-WASM bytes. The retained package
-candidate is `/home/pc/.cache/inochi2d-release-candidate-click-20260724-final4`
+candidate is a local, ignored release-candidate directory outside the repository
 with SHA-256 values:
 
 - `inochi2d-web`: `a406ec109aeb8af267090211f0e779f6961de822fabbfb9a1aa4353592b95860`;
@@ -194,3 +226,160 @@ The packaged unsigned Windows helper was also deliberately exercised as a
 failure path. Local endpoint policy blocked it, and the CLI stopped before Hexo
 generation. The successful final run used a hash-verified, source-built copy
 through `pipelineBinary`, leaving the endpoint block in place.
+
+## Ambient, dialogue, and model-physics baseline (2026-07-27)
+
+Automated ambient-animation tests use only source-generated parameter lanes and
+contain no model artwork or authored replacement animation. They verify Creator
+`leadIn`/`leadOut` looping, exact-name validation, independent-lane limits,
+foreground-scene precedence, ambient phase resumption, and reduced-motion
+neutral restoration. Visual acceptance of a tail loop remains conditional on a
+user model that actually contains the configured clip.
+
+The dialogue scheduler and widget tests cover:
+
+- entry only after the first successful model frame;
+- randomized occasional idle scheduling without a second animation loop;
+- immediate click priority and idle deferral after interaction;
+- safe plain-text output, viewport-aware bubble placement, drag/reset
+  positioning, page pause/fallback cleanup, and reduced-motion static behavior;
+- exact animation names and sentence/timing validation through the runtime,
+  Hexo adapter, and model-to-blog CLI;
+- generation failure when any referenced animation is missing from either the
+  source or prepared model.
+
+The ignored public physics fixture is the test-only Aka `Click` copy and source
+SHA-256 listed above. It contains 19 model-authored `SimplePhysics` nodes. The
+pinned official SDK originally loaded the nodes but did not reproduce Creator
+0.8 behavior: legacy enum spellings needed normalization, shared node properties
+were overwritten instead of composed, stale property offsets were not cleared
+each frame, and pinned `numath` 0.5.0's matrix inverse did not convert physics
+output back to the driver's local XY basis. The reproducible browser build
+applies those compatibility rules without rewriting the model.
+
+The official-WASM test confirms all 19 drivers are recognized, all 19 target
+parameters resolve, every driver retains its spring-pendulum/XY mode and
+non-zero output scale, and sixty positive 1/60-second updates after moving the
+model-authored head/body inputs produce finite vertices. The central front-hair
+driver must change by more than `0.12` on X and its X response must exceed Y by
+at least four times, preventing the former wrong-axis result from passing. The
+2026-07-27 Aka run measured `0.176773` on X and `0.015592` on Y, close to the
+Creator 0.8.6 diagnostic (`0.178648`/`0.012782`). No synthetic hair, sleeve, or
+tail motion or parameter amplification is used. Final visual acceptance of each
+secondary part remains conditional on the model author's intended rig and a
+human browser review.
+
+The resulting optimized official WASM is 451,459 bytes. The complete raw
+runtime JavaScript plus WASM is 574,565 bytes, below the 1.5 MiB release budget.
+
+## Local Mannequin compatibility baseline (2026-07-27)
+
+The user-generated Mannequin/Purplestar fixture is local-only. Its model,
+textures, and prepared bundle are ignored and must not be committed, packaged,
+or deployed without a separate redistribution review. `npm run build`
+regenerates the synthetic public example fixture, so restage the ignored
+Mannequin `puppet.inp` and manifest after the full build before running the
+environment-gated real-model suite.
+
+- 600% source SHA-256:
+  `0b2afb08c570cfa5b45c280c446b845d0262a706f7438d21c24214d2a418347c`;
+- source size: 22,598,857 bytes, with 207 PNG textures and a largest source
+  texture of 3840 x 7680;
+- local-only derived source SHA-256:
+  `500506d103cb9731ed287de876533e50348ebed08c995691060796680bacde2b`;
+  this copy adds one `Click` clip without changing texture or vendor sections;
+- derived prepared SHA-256:
+  `6905fb450329db8e4a3c21a2d03868a827da5b32bb6f8779fa5d9f4094499a98`;
+- derived prepared size: 8,144,294 bytes after two adaptive resize passes;
+- 82 unique parameters after merging the split
+  `Physics - Right Lower Arm` UUID alias;
+- 298 nodes, including 2 MeshGroups, 33 SimplePhysics drivers, and 10
+  ColorBurn parts; 21 physics targets resolve because 12 optional template
+  nodes are absent from this generated character;
+- official-WASM tests verify finite Cubic deformation, MeshGroup and ColorBurn
+  draw commands, visible head/gaze/body/tail/click parameter effects, changing
+  head/tail physics output, stable repeated texture reads, and single-
+  premultiplied translucent face pixels;
+- Chromium automation confirms transparent connected layers, automatic
+  centering/containment, correctly directed pointer-driven eye/head poses,
+  continuous tail/tip motion, whole-page drag, double-click reset, and a
+  model-authored click pose with its dialogue bubble, with no console warning
+  or fallback. The real-model browser test centers the widget for symmetric
+  pointer input and verifies both iris and face-color centroids: the measured
+  DPR-1.25 audit moved the iris about 9 px left, 10 px right, 4 px up, and 4 px
+  down from neutral. The same real-model test now verifies enter, idle, and
+  click scene labels and sentences; confirms each scene produces an upper-face
+  `Click` pose; drags the 390x540 widget by 200x100 CSS pixels; and verifies
+  double-click returns it to the configured bottom-right position. Final
+  directionality remains an explicit human visual-acceptance item.
+
+The original Mannequin export contains no embedded animation clips. The
+local-only derived fixture adds a three-lane `Click` animation for testing:
+`Head - Roll`, `Left Eye - Blink`, and `Right Eye - Blink`. The general
+pipeline does not synthesize this clip; a production model must already contain
+the exact configured animation before click/dialogue actions can be enabled.
+Mannequin's exported binding grids use the standard horizontal X and vertical Y
+storage order even though the related head parameter is named
+`Head - Pitch/Yaw`. The adapter therefore preserves X/Y storage order and only
+inverts the eye-gaze Y target to match the widget's pointer convention.
+The official-SDK real-model test also reads live physics output from front/back
+head hair, ears, all four upper/lower arm chains, and the tail while their
+parents and configured tail drivers move; each group must exceed the minimum
+nonzero response threshold.
+At the local 1.5x display profile, the widget occupies 390x540 CSS pixels and
+uses a 488x675 backing canvas at DPR 1.25. A 10-second real-model Chromium
+sample sustained 30.00 FPS with a 33.4 ms p95 frame interval and no intervals
+above 40 ms; a separate five-second GPU-synchronized sample reported a 1.7 ms
+p95 render-callback duration. The same generated Windows Volantis page passed
+the production browser gate in installed Chrome 150 at 29.98 FPS/2.10 ms p95
+and Edge 150 at 29.64 FPS/2.10 ms p95. Those gates also cover visible pointer
+and click changes, whole-page drag/reset, horizontal overflow, PJAX singleton
+behavior, and mobile no-fetch. The test blog then completed 20 real PJAX round
+trips (40 post-navigation checkpoints) between the home and category routes.
+Every checkpoint retained exactly one widget host and one canvas with
+`running` status and no widget error; the final page was restored to the home
+route for manual acceptance. The environment-gated SDK test resolves its WASM
+from the package working directory, matching the other official-SDK tests.
+
+## Windows CLI with explicit WSL compression (2026-07-28)
+
+The Windows test worktree used the original 22,599,804-byte Mannequin `.inx`
+and an explicit `Ubuntu` pipeline runner. Inspection and adaptive compression
+ran in WSL; Hexo 7, installed Chrome, installed Edge, and the local preview
+server remained Windows processes. The single `preview` command produced the
+same 8,144,294-byte prepared model and hashes listed above.
+
+The generated site contained 449 files. Chrome measured 29.98 FPS/1.60 ms p95
+render duration and Edge measured 29.98 FPS/1.70 ms at DPR 1.25. The isolated
+preview retained exactly one 390x540 widget canvas, a click produced the
+configured Chinese dialogue, and the browser console had no warning or error.
+The pre-existing `public/index.html` hash and length did not change.
+
+A second run selected a nonexistent absolute WSL binary. It returned non-zero
+before Hexo, did not listen on its preview port, preserved the production
+output, and removed only its failed one-run directory. No native fallback or
+deploy path was taken.
+
+Manual review then found the horizontal iris and face-color response too large
+while all other behavior was acceptable. The inferred Mannequin profile now
+uses `0.4` horizontal gaze, `0.35` horizontal head, and `0.12` body yaw;
+vertical gaze/head scales remain `-0.55`/`0.5`. The real-model browser test
+compares left/right extrema, requires nonzero eye and face movement, and also
+sets upper bounds so a future change cannot silently restore the excessive
+amplitude. Animation sampling covers the peak over time instead of depending
+on one timing-sensitive screenshot. Three consecutive single-worker
+real-model runs passed.
+
+The rebuilt Windows preview again generated 449 files. Chrome and Edge each
+measured 29.98 FPS with 1.70 ms p95 at DPR 1.25. Its injected configuration
+contains the calibrated values, one 390x540 canvas is running, click dialogue
+still works, and the browser console has no warning or error.
+
+The user accepted the calibrated Mannequin fixture for this local workflow
+phase, reporting the remaining behavior as good enough to proceed. This is not
+acceptance of the future StarCried production puppet: that model must repeat
+inspection, preparation, parameter calibration, Chrome/Edge gates, and human
+visual review because identical semantic parameter names do not guarantee
+identical deformation strength. The acceptance preview was then stopped; its
+one-run directory was removed and the pre-existing test-blog `public` output
+remained byte-identical.
