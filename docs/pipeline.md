@@ -19,11 +19,16 @@ experimental, unsigned Windows/Linux x64 `inochi2d-pipeline`.
   failure returns non-zero and prevents every later generation/deploy step.
 - Do not disable security controls to run it. Build the Rust pipeline from
   source and set `pipelineBinary` when a locally trusted executable is required.
+- Windows can explicitly configure `pipeline.backend` as `wsl` with a named
+  distribution and absolute Linux pipeline path. Only inspection/compression
+  then run through `wsl.exe --exec`; the CLI, Hexo, Chrome, and Edge stay on
+  Windows. Path translation and execution are argument-based without a shell.
+  WSL is never selected automatically and never falls back to a native binary.
 
 ## 1. Inspect
 
 Start with a config containing `schemaVersion`, `model`, and optionally
-`pipelineBinary`:
+`pipelineBinary` or the mutually exclusive `pipeline` object:
 
 ```sh
 inochi2d-blog inspect --config inochi2d-blog.config.json
@@ -43,9 +48,14 @@ Add the blog, PNG fallback, and publication fields from
 inochi2d-blog prepare --config inochi2d-blog.config.json
 ```
 
-The native pipeline decodes each PNG/TGA and deterministically re-encodes PNG.
-TGA becomes PNG only when smaller; PNG is replaced only when the re-encoding is
-smaller. Pixel values are unchanged. The source file is never overwritten.
+The native pipeline first inspects PNG/TGA headers without allocating their full
+pixel buffers. It then decodes within bounded source limits and
+deterministically re-encodes PNG. TGA becomes PNG only when smaller; PNG is
+replaced only when the re-encoding is smaller. These initial replacements are
+pixel-identical. A source texture above 4096 pixels is resized with aspect ratio
+preserved, and an output still above 8 MiB receives up to four uniform adaptive
+texture passes. Every changed dimension sets `optimization.lossless` to false
+and is recorded in the manifest. The source file is never overwritten.
 
 The bundle contains:
 
@@ -54,10 +64,19 @@ The bundle contains:
 - `manifest.json`.
 
 `manifest.json` contains the validated Creator animation clips required by the
-browser. The CLI defaults to the exact name `Click`; it stops before writing a
-bundle or generated Hexo config when that animation is absent or unsupported.
+browser, the complete parameter profile used for safe Hexo inference, source
+and output texture dimensions, and adaptive resize statistics. The CLI defaults
+to the exact name `Click`; it stops before writing a bundle or generated Hexo
+config when that animation is absent or unsupported.
 The name can be changed with `widget.interactions.click.animation`, or click
 playback can be disabled explicitly with `false`.
+
+The Hexo adapter uses the verified parameter profile to infer conventional
+Aka/Creator and Mannequin pointer/blink/breath channels. It also infers
+Mannequin's two tail oscillators and enables neutral SDK draw-bound fitting for
+verified bundles. Explicit user configuration takes precedence. A configured
+procedural parameter that is absent from either the source or prepared model,
+or overlaps a configured ambient animation lane, stops before generation.
 
 The alpha animation profile accepts non-additive Creator clips whose lanes use
 the `Forced` merge mode and `Nearest`, `Stepped`, `Linear`, or `Cubic`

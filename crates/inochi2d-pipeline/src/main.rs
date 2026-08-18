@@ -10,7 +10,7 @@ use serde::Serialize;
 #[command(
     name = "inochi2d-pipeline",
     version,
-    about = "Inspect and losslessly prepare Inochi2D puppets for the web"
+    about = "Inspect and deterministically prepare Inochi2D puppets for the web"
 )]
 struct Cli {
     #[command(subcommand)]

@@ -214,6 +214,8 @@ pub struct TextureArtifact {
     pub index: usize,
     pub source_format: TextureFormat,
     pub output_format: TextureFormat,
+    pub source_width: u32,
+    pub source_height: u32,
     pub width: u32,
     pub height: u32,
     pub source_bytes: u64,
@@ -225,6 +227,8 @@ pub struct TextureArtifact {
 #[serde(rename_all = "camelCase")]
 pub struct OptimizationReport {
     pub lossless: bool,
+    pub resized_textures: usize,
+    pub adaptive_resize_passes: usize,
     pub converted_tga_to_png: usize,
     pub retained_tga: usize,
     pub recompressed_png: usize,

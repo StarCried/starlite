@@ -37,7 +37,7 @@ pub enum PipelineError {
     },
     #[error("model is outside the browser compatibility profile: {0}")]
     UnsupportedModel(String),
-    #[error("optimized model failed pinned Inox2D runtime validation: {0}")]
+    #[error("prepared model failed post-build container validation: {0}")]
     RuntimeValidation(String),
     #[error("output directory already exists: {0}")]
     OutputExists(PathBuf),

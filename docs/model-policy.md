@@ -5,10 +5,15 @@ enter this repository, package archives, upstream contributions, CI artifacts,
 or a public blog deployment.
 
 A blog puppet must be a separate Creator export with explicit publication
-approval. The alpha profile accepts PNG/TGA, limits each texture dimension to
-4096, and requires the prepared `.inp` to remain at or below 8 MiB. BC7,
-MeshGroup, built-in automation/animation, unsupported node/blend types, and a
-Composite used as a mask are blocking errors.
+approval. The alpha profile accepts PNG/TGA source textures up to 8192 pixels
+per dimension and 32 Mi pixels, resizes browser output to at most 4096 pixels
+per dimension, and requires the prepared `.inp` to remain at or below 8 MiB.
+Oversized or over-budget inputs may therefore be lossy; the manifest records
+the original/final dimensions and every resize. BC7, model automation,
+additive/non-`Forced` animations, unsupported node/blend types, and a Composite
+used as a mask are blocking errors. MeshGroup, Camera, ColorBurn,
+SimplePhysics, Cubic bindings, and validated model-authored `Forced` animations
+are supported.
 
 `inochi2d-blog` does not infer rights. The operator must review the exact source
 hash and set both publication booleans. A model declaring redistribution as

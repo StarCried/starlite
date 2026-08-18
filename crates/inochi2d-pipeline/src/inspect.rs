@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::Cursor;
 
-use image::{ImageFormat, ImageReader, Limits};
+use image::{ImageFormat, ImageReader};
 use serde_json::{Map, Value};
 
 use crate::container::InpDocument;
@@ -14,7 +14,8 @@ use crate::model::{
 use crate::{sha256_hex, PipelineError, Result};
 
 const MAX_TEXTURE_DIMENSION: u32 = 4096;
-const MAX_TEXTURE_DECODE_ALLOC: u64 = 128 * 1024 * 1024;
+const MAX_SOURCE_TEXTURE_DIMENSION: u32 = 8192;
+const MAX_SOURCE_TEXTURE_PIXELS: u64 = 32 * 1024 * 1024;
 const MODEL_SIZE_BUDGET: u64 = 8 * 1024 * 1024;
 const MAX_PARAMETER_COUNT: usize = 4096;
 const MAX_BINDING_COUNT: usize = 65_536;
@@ -26,7 +27,7 @@ const MAX_ANIMATION_LANES: usize = 128;
 const MAX_ANIMATION_KEYFRAMES: usize = 4096;
 const MAX_ANIMATION_LENGTH: u64 = 18_000;
 const MAX_ANIMATION_TIMESTEP_SECONDS: f64 = 1.0;
-const SUPPORTED_BLEND_MODE_IDS: &[u64] = &[0, 1, 2, 5, 6, 7, 8, 15, 16, 17, 18];
+const SUPPORTED_BLEND_MODE_IDS: &[u64] = &[0, 1, 2, 5, 6, 7, 8, 9, 15, 16, 17, 18];
 const SUPPORTED_BLEND_MODE_NAMES: &[&str] = &[
     "Normal",
     "Multiply",
@@ -35,6 +36,7 @@ const SUPPORTED_BLEND_MODE_NAMES: &[&str] = &[
     "ColorDodge",
     "LinearDodge",
     "AddGlow",
+    "ColorBurn",
     "Inverse",
     "DestinationIn",
     "ClipToLower",
@@ -133,27 +135,40 @@ fn inspect_textures(
             }
 
             let format = image_format(texture.format);
-            let mut reader = ImageReader::with_format(Cursor::new(&texture.data), format);
-            let mut limits = Limits::default();
-            limits.max_image_width = Some(MAX_TEXTURE_DIMENSION);
-            limits.max_image_height = Some(MAX_TEXTURE_DIMENSION);
-            limits.max_alloc = Some(MAX_TEXTURE_DECODE_ALLOC);
-            reader.limits(limits);
-            let decoded = reader
-                .decode()
+            // Header inspection is intentionally allocation-free. Large
+            // source textures are accepted for deterministic resizing during
+            // build, while impossible or abusive dimensions still fail closed.
+            let (width, height) = ImageReader::with_format(Cursor::new(&texture.data), format)
+                .into_dimensions()
                 .map_err(|source| PipelineError::TextureDecode {
                     index,
                     format: texture.format.label(),
                     source,
                 })?;
-            let (width, height) = (decoded.width(), decoded.height());
-            if width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION {
+            let pixels = u64::from(width) * u64::from(height);
+            if width > MAX_SOURCE_TEXTURE_DIMENSION
+                || height > MAX_SOURCE_TEXTURE_DIMENSION
+                || pixels > MAX_SOURCE_TEXTURE_PIXELS
+            {
                 issues.push(issue(
-                    "texture_dimension_unsupported",
+                    "texture_source_dimension_unsupported",
                     IssueSeverity::Error,
                     format!(
-						"texture {index} is {width}x{height}; each dimension must be at most {MAX_TEXTURE_DIMENSION}"
-					),
+                        "texture {index} is {width}x{height}; source textures are limited to \
+                         {MAX_SOURCE_TEXTURE_DIMENSION}px per dimension and \
+                         {MAX_SOURCE_TEXTURE_PIXELS} pixels"
+                    ),
+                    None,
+                ));
+            }
+            if width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION {
+                issues.push(issue(
+                    "texture_resize_required",
+                    IssueSeverity::Warning,
+                    format!(
+                        "texture {index} is {width}x{height}; build will preserve its aspect ratio \
+                         and resize it to at most {MAX_TEXTURE_DIMENSION}px per dimension"
+                    ),
                     None,
                 ));
             }
@@ -218,7 +233,8 @@ fn inspect_parameters(
         ));
     }
 
-    let mut names = HashSet::new();
+    let mut names = HashMap::<String, (Option<u64>, Map<String, Value>)>::new();
+    let mut uuids = HashMap::<u64, String>::new();
     let mut binding_count = 0_usize;
     parameters
         .iter()
@@ -253,13 +269,47 @@ fn inspect_parameters(
                 ));
                 return None;
             };
-            if !names.insert(name.to_owned()) {
-                issues.push(issue(
-                    "parameter_name_duplicate",
-                    IssueSeverity::Error,
-                    format!("parameter name {name:?} is duplicated"),
-                    None,
-                ));
+            let uuid = parameter.get("uuid").and_then(Value::as_u64);
+            if let Some(uuid) = uuid {
+                if let Some(existing_name) = uuids.get(&uuid) {
+                    if existing_name != name {
+                        issues.push(issue(
+                            "parameter_uuid_duplicate",
+                            IssueSeverity::Error,
+                            format!(
+                                "parameter UUID {uuid} is shared by {existing_name:?} and {name:?}"
+                            ),
+                            None,
+                        ));
+                    }
+                } else {
+                    uuids.insert(uuid, name.to_owned());
+                }
+            }
+            let mut signature = parameter.clone();
+            signature.remove("bindings");
+            if let Some((existing_uuid, existing_signature)) = names.get(name) {
+                if uuid.is_some() && *existing_uuid == uuid && *existing_signature == signature {
+                    issues.push(issue(
+                        "parameter_alias_merged",
+                        IssueSeverity::Warning,
+                        format!(
+                            "parameter name {name:?} is split across entries with the same UUID; their bindings will be merged"
+                        ),
+                        None,
+                    ));
+                } else {
+                    issues.push(issue(
+                        "parameter_name_duplicate",
+                        IssueSeverity::Error,
+                        format!(
+                            "parameter name {name:?} is duplicated with different or missing UUIDs"
+                        ),
+                        None,
+                    ));
+                }
+            } else {
+                names.insert(name.to_owned(), (uuid, signature));
             }
 
             let Some(min) = vec2(parameter.get("min")) else {
@@ -279,7 +329,7 @@ fn inspect_parameters(
             validate_bindings(name, parameter.get("bindings"), &mut binding_count, issues);
 
             Some(ParameterProfile {
-                uuid: parameter.get("uuid").and_then(Value::as_u64),
+                uuid,
                 name: name.to_owned(),
                 is_vector,
                 min,
@@ -827,16 +877,20 @@ fn validate_bindings(
             continue;
         };
         if let Some(mode) = binding.get("interpolate_mode") {
-            let linear = mode.as_u64() == Some(1)
-                || mode
-                    .as_str()
-                    .is_some_and(|name| name.eq_ignore_ascii_case("linear"));
-            if !linear {
+            let supported = mode
+                .as_u64()
+                .is_some_and(|value| matches!(value, 0 | 1 | 2 | 4))
+                || mode.as_str().is_some_and(|name| {
+                    ["nearest", "linear", "stepped", "cubic"]
+                        .iter()
+                        .any(|supported| name.eq_ignore_ascii_case(supported))
+                });
+            if !supported {
                 issues.push(issue(
                     "binding_interpolation_unsupported",
                     IssueSeverity::Error,
                     format!(
-                        "parameter {parameter_name:?} binding {index} does not use linear interpolation"
+                        "parameter {parameter_name:?} binding {index} uses unsupported interpolation {mode}"
                     ),
                     None,
                 ));
@@ -885,6 +939,23 @@ fn inspect_nodes(
     };
     collect_nodes(root, texture_count, 0, &mut records, issues);
 
+    let mut unique_nodes = HashMap::<u64, &NodeRecord>::new();
+    for record in &records {
+        if let Some(uuid) = record.uuid {
+            if let Some(existing) = unique_nodes.insert(uuid, record) {
+                issues.push(issue(
+                    "node_uuid_duplicate",
+                    IssueSeverity::Error,
+                    format!(
+                        "node UUID {uuid} is shared by {} and {}",
+                        node_label(existing),
+                        node_label(record)
+                    ),
+                    None,
+                ));
+            }
+        }
+    }
     let by_uuid: HashMap<u64, &NodeRecord> = records
         .iter()
         .filter_map(|record| record.uuid.map(|uuid| (uuid, record)))
@@ -966,28 +1037,43 @@ fn collect_nodes(
         ));
         return;
     };
-    let record = NodeRecord {
+    let mut record = NodeRecord {
         uuid: node.get("uuid").and_then(Value::as_u64),
         name: optional_string(node, "name"),
         node_type: optional_string(node, "type"),
-        masks: node
-            .get("masks")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|mask| mask.get("source").and_then(Value::as_u64))
-            .collect(),
+        masks: Vec::new(),
     };
     let label = node_label(&record);
+    if let Some(masks) = node.get("masks") {
+        if let Some(masks) = masks.as_array() {
+            for (index, mask) in masks.iter().enumerate() {
+                let Some(source) = mask
+                    .as_object()
+                    .and_then(|value| value.get("source"))
+                    .and_then(Value::as_u64)
+                else {
+                    issues.push(issue(
+                        "mask_schema_invalid",
+                        IssueSeverity::Error,
+                        format!("mask {index} must be an object with an unsigned integer source"),
+                        Some(label.clone()),
+                    ));
+                    continue;
+                };
+                record.masks.push(source);
+            }
+        } else {
+            issues.push(issue(
+                "mask_schema_invalid",
+                IssueSeverity::Error,
+                "node.masks must be an array",
+                Some(label.clone()),
+            ));
+        }
+    }
 
     match record.node_type.as_deref() {
-        Some("Node" | "Part" | "Composite" | "SimplePhysics") => {}
-        Some("MeshGroup") => issues.push(issue(
-            "mesh_group_unsupported",
-            IssueSeverity::Error,
-            "MeshGroup nodes are outside the first browser runtime scope",
-            Some(label.clone()),
-        )),
+        Some("Node" | "Part" | "Composite" | "SimplePhysics" | "MeshGroup" | "Camera") => {}
         Some(other) => issues.push(issue(
             "node_type_unsupported",
             IssueSeverity::Error,
@@ -1263,18 +1349,34 @@ mod tests {
     }
 
     #[test]
-    fn rejects_mesh_group_nodes() {
+    fn accepts_mesh_group_and_camera_nodes() {
         let payload = payload_with_nodes(serde_json::json!({
-            "uuid": 1, "name": "root", "type": "MeshGroup", "children": []
+            "uuid": 1,
+            "name": "root",
+            "type": "Node",
+            "children": [
+                {
+                    "uuid": 2,
+                    "name": "face",
+                    "type": "MeshGroup",
+                    "dynamic_deformation": true,
+                    "mesh": {"verts": [], "uvs": [], "indices": [], "origin": [0, 0]},
+                    "children": []
+                },
+                {
+                    "uuid": 3,
+                    "name": "Default Camera",
+                    "type": "Camera",
+                    "viewport": [0, 0, 1280, 720],
+                    "children": []
+                }
+            ]
         }));
         let document = document(payload, Vec::new());
         let report = inspect(&[], &document).unwrap();
-        assert!(!report.compatibility.supported);
-        assert!(report
-            .compatibility
-            .issues
-            .iter()
-            .any(|item| item.code == "mesh_group_unsupported"));
+        assert!(report.compatibility.supported);
+        assert_eq!(report.nodes.types.get("MeshGroup"), Some(&1));
+        assert_eq!(report.nodes.types.get("Camera"), Some(&1));
     }
 
     #[test]
@@ -1295,6 +1397,69 @@ mod tests {
             .issues
             .iter()
             .any(|item| item.code == "composite_as_mask_unsupported"));
+    }
+
+    #[test]
+    fn rejects_duplicate_node_uuids_and_malformed_masks() {
+        let payload = payload_with_nodes(serde_json::json!({
+            "uuid": 1,
+            "name": "root",
+            "type": "Node",
+            "children": [
+                {"uuid": 2, "name": "first", "type": "Node", "children": []},
+                {
+                    "uuid": 2,
+                    "name": "second",
+                    "type": "Node",
+                    "masks": [{"mode": "Mask"}, 3],
+                    "children": []
+                }
+            ]
+        }));
+        let report = inspect(&[], &document(payload, Vec::new())).unwrap();
+        assert!(!report.compatibility.supported);
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "node_uuid_duplicate"));
+        assert_eq!(
+            report
+                .compatibility
+                .issues
+                .iter()
+                .filter(|item| item.code == "mask_schema_invalid")
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn rejects_one_parameter_uuid_shared_by_different_names() {
+        let parameter = |name: &str| {
+            serde_json::json!({
+                "uuid": 42,
+                "name": name,
+                "is_vec2": false,
+                "min": [-1, 0],
+                "max": [1, 1],
+                "defaults": [0, 0],
+                "axis_points": [[0, 1], [0]],
+                "bindings": []
+            })
+        };
+        let payload = serde_json::json!({
+            "meta": {"version": "1", "licenseURL": "https://example.test/license"},
+            "param": [parameter("HeadX"), parameter("BodyX")],
+            "nodes": {"uuid": 1, "name": "root", "type": "Node", "children": []}
+        });
+        let report = inspect(&[], &document(payload, Vec::new())).unwrap();
+        assert!(!report.compatibility.supported);
+        assert!(report
+            .compatibility
+            .issues
+            .iter()
+            .any(|item| item.code == "parameter_uuid_duplicate"));
     }
 
     #[test]
@@ -1335,6 +1500,19 @@ mod tests {
     }
 
     #[test]
+    fn accepts_color_burn_blend_mode() {
+        let payload = payload_with_nodes(serde_json::json!({
+            "uuid": 1,
+            "name": "shadow",
+            "type": "Composite",
+            "blend_mode": "ColorBurn",
+            "children": []
+        }));
+        let report = inspect(&[], &document(payload, Vec::new())).unwrap();
+        assert!(report.compatibility.supported);
+    }
+
+    #[test]
     fn rejects_excessive_node_depth_without_recursing_unboundedly() {
         let mut node =
             serde_json::json!({"uuid": 200, "name": "leaf", "type": "Node", "children": []});
@@ -1356,7 +1534,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_non_linear_binding_interpolation() {
+    fn accepts_cubic_binding_interpolation() {
         let payload = serde_json::json!({
             "meta": {"version": "1", "licenseURL": "https://example.test/license"},
             "param": [{
@@ -1370,6 +1548,30 @@ mod tests {
                     "param_name": "transform.r.z",
                     "node": 1,
                     "interpolate_mode": "Cubic",
+                    "values": [[0], [0], [0]]
+                }]
+            }],
+            "nodes": {"uuid": 1, "name": "root", "type": "Node", "children": []}
+        });
+        let report = inspect(&[], &document(payload, Vec::new())).unwrap();
+        assert!(report.compatibility.supported);
+    }
+
+    #[test]
+    fn rejects_quadratic_binding_interpolation() {
+        let payload = serde_json::json!({
+            "meta": {"version": "1", "licenseURL": "https://example.test/license"},
+            "param": [{
+                "name": "HeadX",
+                "is_vec2": false,
+                "min": [-1, 0],
+                "max": [1, 1],
+                "defaults": [0, 0],
+                "axis_points": [[0, 0.5, 1], [0]],
+                "bindings": [{
+                    "param_name": "transform.r.z",
+                    "node": 1,
+                    "interpolate_mode": "Quadratic",
                     "values": [[0], [0], [0]]
                 }]
             }],
@@ -1427,8 +1629,8 @@ mod tests {
                     "timestep": 0.03333333333333333,
                     "additive": false,
                     "length": 30,
-                    "leadIn": -1,
-                    "leadOut": -1,
+                    "leadIn": 5,
+                    "leadOut": 25,
                     "animationWeight": 1,
                     "lanes": [{
                         "interpolation": "Cubic",
@@ -1451,8 +1653,8 @@ mod tests {
         assert_eq!(report.animations.len(), 1);
         assert_eq!(report.animations[0].name, "Click");
         assert_eq!(report.animations[0].timestep_ms, 1000.0 / 30.0);
-        assert_eq!(report.animations[0].lead_in, -1);
-        assert_eq!(report.animations[0].lead_out, -1);
+        assert_eq!(report.animations[0].lead_in, 5);
+        assert_eq!(report.animations[0].lead_out, 25);
         assert_eq!(
             report.animations[0].lanes[0].parameter,
             "Arm:: Right:: Move"

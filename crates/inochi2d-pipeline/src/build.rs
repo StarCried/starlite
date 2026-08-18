@@ -1,14 +1,16 @@
+use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{DynamicImage, ImageEncoder, ImageFormat, ImageReader, Limits};
+use serde_json::Value;
 
 use crate::container::{self, InpDocument, TextureEntry};
 use crate::inspect;
 use crate::model::{
-    BuildManifest, IssueSeverity, ModelArtifact, OptimizationReport, PublishedArtifact,
+    BuildManifest, Issue, IssueSeverity, ModelArtifact, OptimizationReport, PublishedArtifact,
     TextureArtifact, TextureFormat, MANIFEST_SCHEMA_VERSION,
 };
 use crate::{read_limited_file, sha256_hex, PipelineError, Result, MAX_INPUT_BYTES};
@@ -16,7 +18,11 @@ use crate::{read_limited_file, sha256_hex, PipelineError, Result, MAX_INPUT_BYTE
 const MODEL_SIZE_BUDGET: u64 = 8 * 1024 * 1024;
 const FALLBACK_SIZE_BUDGET: u64 = 8 * 1024 * 1024;
 const MAX_TEXTURE_DIMENSION: u32 = 4096;
-const MAX_TEXTURE_DECODE_ALLOC: u64 = 128 * 1024 * 1024;
+const MAX_SOURCE_TEXTURE_DIMENSION: u32 = 8192;
+const MAX_SOURCE_TEXTURE_DECODE_ALLOC: u64 = 192 * 1024 * 1024;
+const MAX_OUTPUT_TEXTURE_DECODE_ALLOC: u64 = 128 * 1024 * 1024;
+const MAX_ADAPTIVE_RESIZE_PASSES: usize = 4;
+const ADAPTIVE_RESIZE_SAFETY_FACTOR: f64 = 0.9;
 const HASH_PREFIX_LENGTH: usize = 12;
 
 #[derive(Clone, Debug)]
@@ -61,7 +67,7 @@ fn prepare(
     mut document: InpDocument,
     fallback: Option<PreparedFallback>,
 ) -> Result<PreparedBuild> {
-    let inspection = inspect::inspect(source_bytes, &document)?;
+    let mut inspection = inspect::inspect(source_bytes, &document)?;
     if !inspection.compatibility.supported {
         let errors = inspection
             .compatibility
@@ -73,11 +79,19 @@ fn prepare(
             .join(", ");
         return Err(PipelineError::UnsupportedModel(errors));
     }
+    let alias_issues = inspection
+        .compatibility
+        .issues
+        .iter()
+        .filter(|issue| issue.code == "parameter_alias_merged")
+        .cloned()
+        .collect::<Vec<_>>();
+    if merge_parameter_aliases(&mut document)? > 0 {
+        inspection = inspect::inspect(source_bytes, &document)?;
+        inspection.compatibility.issues.extend(alias_issues);
+    }
 
     let mut texture_artifacts = Vec::with_capacity(document.textures.len());
-    let mut converted_tga_to_png = 0;
-    let mut retained_tga = 0;
-    let mut recompressed_png = 0;
     let source_texture_bytes = document
         .textures
         .iter()
@@ -88,32 +102,46 @@ fn prepare(
         let source_format = texture.format;
         let source_length = texture.data.len() as u64;
         let decoded = decode_texture(index, texture)?;
-        let (width, height) = (decoded.width(), decoded.height());
+        let (source_width, source_height) = (decoded.width(), decoded.height());
+        let resized = source_width > MAX_TEXTURE_DIMENSION || source_height > MAX_TEXTURE_DIMENSION;
+        let prepared_image = if resized {
+            decoded.resize(
+                MAX_TEXTURE_DIMENSION,
+                MAX_TEXTURE_DIMENSION,
+                image::imageops::FilterType::Lanczos3,
+            )
+        } else {
+            decoded
+        };
+        let (width, height) = (prepared_image.width(), prepared_image.height());
 
-        let png = encode_png(index, &decoded)?;
-        match source_format {
-            TextureFormat::Tga => {
-                if png.len() < texture.data.len() {
-                    texture.format = TextureFormat::Png;
-                    texture.data = png;
-                    converted_tga_to_png += 1;
-                } else {
-                    retained_tga += 1;
+        let png = encode_png(index, &prepared_image)?;
+        if resized {
+            texture.format = TextureFormat::Png;
+            texture.data = png;
+        } else {
+            match source_format {
+                TextureFormat::Tga => {
+                    if png.len() < texture.data.len() {
+                        texture.format = TextureFormat::Png;
+                        texture.data = png;
+                    }
                 }
-            }
-            TextureFormat::Png => {
-                if png.len() < texture.data.len() {
-                    texture.data = png;
-                    recompressed_png += 1;
+                TextureFormat::Png => {
+                    if png.len() < texture.data.len() {
+                        texture.data = png;
+                    }
                 }
+                TextureFormat::Bc7 => unreachable!("BC7 is rejected during texture decoding"),
             }
-            TextureFormat::Bc7 => unreachable!("BC7 is rejected during texture decoding"),
         }
 
         texture_artifacts.push(TextureArtifact {
             index,
             source_format,
             output_format: texture.format,
+            source_width,
+            source_height,
             width,
             height,
             source_bytes: source_length,
@@ -122,7 +150,34 @@ fn prepare(
         });
     }
 
-    let model_bytes = container::encode(&document)?;
+    let mut model_bytes = container::encode(&document)?;
+    let mut adaptive_resize_passes = 0;
+    while model_bytes.len() as u64 > MODEL_SIZE_BUDGET
+        && adaptive_resize_passes < MAX_ADAPTIVE_RESIZE_PASSES
+    {
+        let texture_bytes = document
+            .textures
+            .iter()
+            .map(|texture| texture.data.len() as u64)
+            .sum::<u64>();
+        let fixed_bytes = (model_bytes.len() as u64).saturating_sub(texture_bytes);
+        if fixed_bytes >= MODEL_SIZE_BUDGET {
+            return Err(PipelineError::UnsupportedModel(format!(
+                "model_payload_over_size_budget: non-texture data is {fixed_bytes} bytes; \
+                 the complete model limit is {MODEL_SIZE_BUDGET}"
+            )));
+        }
+        let available_texture_bytes = MODEL_SIZE_BUDGET - fixed_bytes;
+        let scale = ((available_texture_bytes as f64 / texture_bytes.max(1) as f64).sqrt()
+            * ADAPTIVE_RESIZE_SAFETY_FACTOR)
+            .clamp(0.05, 0.9);
+        if !resize_all_textures(&mut document, &mut texture_artifacts, scale)? {
+            break;
+        }
+        adaptive_resize_passes += 1;
+        model_bytes = container::encode(&document)?;
+    }
+
     container::parse(&model_bytes)
         .map_err(|error| PipelineError::RuntimeValidation(error.to_string()))?;
     if model_bytes.len() as u64 > MODEL_SIZE_BUDGET {
@@ -139,6 +194,36 @@ fn prepare(
         .iter()
         .map(|texture| texture.data.len() as u64)
         .sum();
+    let resized_textures = texture_artifacts
+        .iter()
+        .filter(|texture| {
+            texture.source_width != texture.width || texture.source_height != texture.height
+        })
+        .count();
+    let converted_tga_to_png = texture_artifacts
+        .iter()
+        .filter(|texture| {
+            texture.source_format == TextureFormat::Tga
+                && texture.output_format == TextureFormat::Png
+        })
+        .count();
+    let retained_tga = texture_artifacts
+        .iter()
+        .filter(|texture| {
+            texture.source_format == TextureFormat::Tga
+                && texture.output_format == TextureFormat::Tga
+        })
+        .count();
+    let recompressed_png = texture_artifacts
+        .iter()
+        .filter(|texture| {
+            texture.source_format == TextureFormat::Png
+                && texture.output_format == TextureFormat::Png
+                && texture.source_width == texture.width
+                && texture.source_height == texture.height
+                && texture.output_bytes < texture.source_bytes
+        })
+        .count();
     let total_bytes_saved = (source_bytes.len() as u64).saturating_sub(model_bytes.len() as u64);
     let output_to_source_ratio = if source_bytes.is_empty() {
         1.0
@@ -147,9 +232,26 @@ fn prepare(
     };
 
     let mut compatibility = inspection.compatibility.clone();
-    compatibility
-        .issues
-        .retain(|issue| issue.code != "source_model_over_size_budget");
+    compatibility.issues.retain(|issue| {
+        issue.code != "source_model_over_size_budget" && issue.code != "texture_resize_required"
+    });
+    for texture in texture_artifacts.iter().filter(|texture| {
+        texture.source_width != texture.width || texture.source_height != texture.height
+    }) {
+        compatibility.issues.push(Issue {
+            code: "texture_resized_for_web".to_owned(),
+            severity: IssueSeverity::Warning,
+            message: format!(
+                "texture {} was resized from {}x{} to {}x{} with Lanczos3 filtering",
+                texture.index,
+                texture.source_width,
+                texture.source_height,
+                texture.width,
+                texture.height
+            ),
+            node: None,
+        });
+    }
     let manifest = BuildManifest {
         schema_version: MANIFEST_SCHEMA_VERSION,
         tool: "inochi2d-pipeline".to_owned(),
@@ -172,7 +274,9 @@ fn prepare(
         compatibility,
         publication: inspection.publication,
         optimization: OptimizationReport {
-            lossless: true,
+            lossless: resized_textures == 0,
+            resized_textures,
+            adaptive_resize_passes,
             converted_tga_to_png,
             retained_tga,
             recompressed_png,
@@ -190,6 +294,81 @@ fn prepare(
     })
 }
 
+fn merge_parameter_aliases(document: &mut InpDocument) -> Result<usize> {
+    let payload = document.payload_json.as_object_mut().ok_or_else(|| {
+        PipelineError::InvalidContainer("the JSON payload root must be an object".to_owned())
+    })?;
+    let parameters = payload
+        .get_mut("param")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| {
+            PipelineError::InvalidContainer("payload.param must be an array".to_owned())
+        })?;
+
+    let mut merged = Vec::<Value>::with_capacity(parameters.len());
+    let mut indices = HashMap::<(String, u64), usize>::new();
+    let mut merged_count = 0;
+    for parameter in parameters.drain(..) {
+        let object = parameter.as_object().ok_or_else(|| {
+            PipelineError::InvalidContainer("a parameter entry is not an object".to_owned())
+        })?;
+        let name = object
+            .get("name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                PipelineError::InvalidContainer("a parameter entry has no name".to_owned())
+            })?
+            .to_owned();
+        let Some(uuid) = object.get("uuid").and_then(Value::as_u64) else {
+            merged.push(parameter);
+            continue;
+        };
+        let key = (name.clone(), uuid);
+        let Some(existing_index) = indices.get(&key).copied() else {
+            indices.insert(key, merged.len());
+            merged.push(parameter);
+            continue;
+        };
+
+        let existing = merged[existing_index]
+            .as_object_mut()
+            .expect("only parameter objects are inserted");
+        let mut existing_signature = existing.clone();
+        let mut incoming_signature = object.clone();
+        existing_signature.remove("bindings");
+        incoming_signature.remove("bindings");
+        if existing_signature != incoming_signature {
+            return Err(PipelineError::UnsupportedModel(format!(
+                "parameter_alias_conflict: parameter {name:?} shares UUID {uuid} but has incompatible metadata"
+            )));
+        }
+
+        let incoming_bindings = object
+            .get("bindings")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                PipelineError::InvalidContainer(format!(
+                    "parameter {name:?} bindings must be an array"
+                ))
+            })?;
+        let existing_bindings = existing
+            .get_mut("bindings")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| {
+                PipelineError::InvalidContainer(format!(
+                    "parameter {name:?} bindings must be an array"
+                ))
+            })?;
+        existing_bindings.extend(incoming_bindings.iter().cloned());
+        merged_count += 1;
+    }
+    *parameters = merged;
+    if merged_count > 0 {
+        document.payload = serde_json::to_vec(&document.payload_json)?;
+    }
+    Ok(merged_count)
+}
+
 fn decode_texture(index: usize, texture: &TextureEntry) -> Result<DynamicImage> {
     let format = match texture.format {
         TextureFormat::Png => ImageFormat::Png,
@@ -200,7 +379,13 @@ fn decode_texture(index: usize, texture: &TextureEntry) -> Result<DynamicImage> 
             ));
         }
     };
-    decode_bounded(&texture.data, format).map_err(|source| PipelineError::TextureDecode {
+    decode_bounded(
+        &texture.data,
+        format,
+        MAX_SOURCE_TEXTURE_DIMENSION,
+        MAX_SOURCE_TEXTURE_DECODE_ALLOC,
+    )
+    .map_err(|source| PipelineError::TextureDecode {
         index,
         format: texture.format.label(),
         source,
@@ -220,6 +405,38 @@ fn encode_png(index: usize, image: &DynamicImage) -> Result<Vec<u8>> {
     Ok(output)
 }
 
+fn resize_all_textures(
+    document: &mut InpDocument,
+    artifacts: &mut [TextureArtifact],
+    scale: f64,
+) -> Result<bool> {
+    let mut changed = false;
+    for (index, texture) in document.textures.iter_mut().enumerate() {
+        let decoded = decode_texture(index, texture)?;
+        let width = ((f64::from(decoded.width()) * scale).floor() as u32).max(1);
+        let height = ((f64::from(decoded.height()) * scale).floor() as u32).max(1);
+        if width == decoded.width() && height == decoded.height() {
+            continue;
+        }
+
+        let resized = decoded.resize_exact(width, height, image::imageops::FilterType::Lanczos3);
+        texture.format = TextureFormat::Png;
+        texture.data = encode_png(index, &resized)?;
+        let artifact = artifacts.get_mut(index).ok_or_else(|| {
+            PipelineError::RuntimeValidation(format!(
+                "texture artifact {index} disappeared during adaptive resize"
+            ))
+        })?;
+        artifact.output_format = TextureFormat::Png;
+        artifact.width = width;
+        artifact.height = height;
+        artifact.output_bytes = texture.data.len() as u64;
+        artifact.sha256 = sha256_hex(&texture.data);
+        changed = true;
+    }
+    Ok(changed)
+}
+
 fn prepare_fallback(path: &Path) -> Result<PreparedFallback> {
     let extension = path
         .extension()
@@ -235,7 +452,13 @@ fn prepare_fallback(path: &Path) -> Result<PreparedFallback> {
     }
 
     let bytes = read_limited_file(path, "fallback", FALLBACK_SIZE_BUDGET)?;
-    decode_bounded(&bytes, ImageFormat::Png).map_err(|source| PipelineError::TextureDecode {
+    decode_bounded(
+        &bytes,
+        ImageFormat::Png,
+        MAX_TEXTURE_DIMENSION,
+        MAX_OUTPUT_TEXTURE_DECODE_ALLOC,
+    )
+    .map_err(|source| PipelineError::TextureDecode {
         index: usize::MAX,
         format: "fallback PNG",
         source,
@@ -249,12 +472,17 @@ fn prepare_fallback(path: &Path) -> Result<PreparedFallback> {
     Ok(PreparedFallback { bytes, artifact })
 }
 
-fn decode_bounded(bytes: &[u8], format: ImageFormat) -> image::ImageResult<DynamicImage> {
+fn decode_bounded(
+    bytes: &[u8],
+    format: ImageFormat,
+    maximum_dimension: u32,
+    maximum_allocation: u64,
+) -> image::ImageResult<DynamicImage> {
     let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
     let mut limits = Limits::default();
-    limits.max_image_width = Some(MAX_TEXTURE_DIMENSION);
-    limits.max_image_height = Some(MAX_TEXTURE_DIMENSION);
-    limits.max_alloc = Some(MAX_TEXTURE_DECODE_ALLOC);
+    limits.max_image_width = Some(maximum_dimension);
+    limits.max_image_height = Some(maximum_dimension);
+    limits.max_alloc = Some(maximum_allocation);
     reader.limits(limits);
     reader.decode()
 }
@@ -422,6 +650,48 @@ mod tests {
     }
 
     #[test]
+    fn resizes_oversized_textures_deterministically_and_reports_loss() {
+        let png = solid_png(4097, 2, CompressionType::Fast);
+        let (source, document) = fixture_document(Some(TextureEntry {
+            format: TextureFormat::Png,
+            data: png,
+        }));
+        let prepared = prepare(&source, document, None).unwrap();
+        let output = container::parse(&prepared.model_bytes).unwrap();
+        let resized =
+            image::load_from_memory_with_format(&output.textures[0].data, ImageFormat::Png)
+                .unwrap();
+
+        assert_eq!((resized.width(), resized.height()), (4096, 2));
+        assert!(!prepared.manifest.optimization.lossless);
+        assert_eq!(prepared.manifest.optimization.resized_textures, 1);
+        assert_eq!(prepared.manifest.textures[0].source_width, 4097);
+        assert_eq!(prepared.manifest.textures[0].source_height, 2);
+        assert_eq!(prepared.manifest.textures[0].width, 4096);
+        assert_eq!(prepared.manifest.textures[0].height, 2);
+        assert!(prepared
+            .manifest
+            .compatibility
+            .issues
+            .iter()
+            .any(|issue| issue.code == "texture_resized_for_web"));
+    }
+
+    #[test]
+    fn rejects_source_textures_beyond_the_preprocessing_bound() {
+        let png = solid_png(8193, 1, CompressionType::Fast);
+        let (source, document) = fixture_document(Some(TextureEntry {
+            format: TextureFormat::Png,
+            data: png,
+        }));
+        let error = prepare(&source, document, None).unwrap_err().to_string();
+        assert!(
+            error.contains("texture_source_dimension_unsupported"),
+            "{error}"
+        );
+    }
+
+    #[test]
     fn preparation_is_deterministic() {
         let texture = TextureEntry {
             format: TextureFormat::Tga,
@@ -433,6 +703,53 @@ mod tests {
         let second = prepare(&source_b, document_b, None).unwrap();
         assert_eq!(first.model_bytes, second.model_bytes);
         assert_eq!(first.manifest, second.manifest);
+    }
+
+    #[test]
+    fn merges_split_parameter_bindings_with_the_same_name_and_uuid() {
+        let payload = serde_json::json!({
+            "meta": {"version": "v0.8.6"},
+            "param": [
+                {
+                    "uuid": 42,
+                    "name": "Physics - Arm",
+                    "is_vec2": false,
+                    "min": [-1, 0],
+                    "max": [1, 1],
+                    "defaults": [0, 0],
+                    "axis_points": [[0, 1], [0]],
+                    "bindings": [{"param_name": "transform.r.z", "node": 1}]
+                },
+                {
+                    "uuid": 42,
+                    "name": "Physics - Arm",
+                    "is_vec2": false,
+                    "min": [-1, 0],
+                    "max": [1, 1],
+                    "defaults": [0, 0],
+                    "axis_points": [[0, 1], [0]],
+                    "bindings": [{"param_name": "deform", "node": 2}]
+                }
+            ],
+            "nodes": {"uuid": 1, "name": "Root", "type": "Node", "children": []}
+        });
+        let encoded = serde_json::to_vec(&payload).unwrap();
+        let mut document = InpDocument {
+            payload: encoded.clone(),
+            payload_json: serde_json::from_slice(&encoded).unwrap(),
+            textures: Vec::new(),
+            extended_section: Vec::new(),
+            vendor_count: 0,
+        };
+
+        assert_eq!(merge_parameter_aliases(&mut document).unwrap(), 1);
+        let parameters = document.payload_json["param"].as_array().unwrap();
+        assert_eq!(parameters.len(), 1);
+        assert_eq!(parameters[0]["bindings"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            serde_json::from_slice::<Value>(&document.payload).unwrap(),
+            document.payload_json
+        );
     }
 
     #[test]
