@@ -1,12 +1,24 @@
 import { mountWithDependencies } from "./controller.js";
 import { createDefaultDependencies } from "./dependencies.js";
 
+export { validateInochi2DWidgetConfig } from "./config.js";
+
 export type {
+  AmbientAnimationConfig,
   AnimationClip,
   AnimationInterpolation,
   AnimationKeyframe,
   AnimationLane,
+  AnimationPlaybackMode,
+  AnimationPlaybackOptions,
+  AnimationPlaybackResult,
+  DialogueConfig,
+  DialogueSceneConfig,
+  DialogueSceneName,
+  EnterDialogueSceneConfig,
+  IdleDialogueSceneConfig,
   Inochi2dWasmRuntime,
+  ModelAnimationInfo,
   ParameterAxis,
   ParameterBinding,
   ParameterIds,

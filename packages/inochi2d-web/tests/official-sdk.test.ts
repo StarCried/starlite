@@ -45,6 +45,36 @@ describe("official SDK compatibility profile", () => {
       expect(deformedVertices).toBe(3);
       sdk.setParameter(scalar!, 0);
 
+      const compositionA = puppet.parameters.get("Composition A");
+      const compositionB = puppet.parameters.get("Composition B");
+      expect(compositionA).toBeDefined();
+      expect(compositionB).toBeDefined();
+      sdk.setParameter(compositionA!, 0);
+      sdk.setParameter(compositionB!, 0);
+      const neutralDraw = sdk.updateAndDraw(puppet, 0);
+      const drivenVertexOffset =
+        Math.min(
+          ...neutralDraw.commands
+            .filter((command) => command.state === 0)
+            .map((command) => command.vertexOffset),
+        ) * 4;
+      const neutralX = neutralDraw.vertices[drivenVertexOffset]!;
+      sdk.setParameter(compositionA!, 1);
+      sdk.setParameter(compositionB!, 1);
+      const compositionDraw = sdk.updateAndDraw(puppet, 0);
+      expect(
+        compositionDraw.vertices[drivenVertexOffset]! - neutralX,
+      ).toBeCloseTo(
+        30,
+      );
+      sdk.setParameter(compositionB!, 0);
+      for (let frame = 0; frame < 5; frame += 1) {
+        expect(
+          sdk.updateAndDraw(puppet, 0).vertices[drivenVertexOffset]! - neutralX,
+        ).toBeCloseTo(10);
+      }
+      sdk.setParameter(compositionA!, 0);
+
       sdk.setParameter(parameter!, [100, -100]);
       expect(() => sdk.updateAndDraw(puppet, 0)).not.toThrow();
       expect(() => sdk.setParameter(parameter!, [Number.NaN, 0])).toThrow(
@@ -80,6 +110,7 @@ describe("official SDK compatibility profile", () => {
       const puppet = sdk.loadPuppet(new Uint8Array(model));
 
       try {
+        sdk.setPhysicsEnabled(puppet, false);
         const parameter = puppet.parameters.get("Head:: Yaw-Pitch");
         expect(parameter).toBeDefined();
         expect(parameter!.lowerBounds).toEqual([-1, -1]);
@@ -143,6 +174,7 @@ describe("official SDK compatibility profile", () => {
       const puppet = sdk.loadPuppet(new Uint8Array(model));
 
       try {
+        sdk.setPhysicsEnabled(puppet, false);
         const metrics = Object.fromEntries(
           [
             ["Breath", 0, 1],
@@ -207,6 +239,7 @@ describe("official SDK compatibility profile", () => {
       const puppet = sdk.loadPuppet(new Uint8Array(model));
 
       try {
+        sdk.setPhysicsEnabled(puppet, false);
         const parameter = puppet.parameters.get("Arm:: Right:: Move");
         expect(parameter).toBeDefined();
         sdk.setParameter(parameter!, 1);
@@ -224,6 +257,85 @@ describe("official SDK compatibility profile", () => {
         }
 
         expect(maximumDrift).toBeLessThan(1e-4);
+      } finally {
+        sdk.freePuppet(puppet);
+        sdk.destroy();
+      }
+    },
+  );
+
+  it.skipIf(!process.env.INOCHI2D_TEST_MODEL_PATH)(
+    "advances the public Aka model-owned hair physics after settling",
+    async () => {
+      const wasm = await readFile(
+        resolve(process.cwd(), "src/generated/inochi2d.wasm"),
+      );
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(wasm));
+      const sdk = await OfficialInochi2dSdk.create(
+        new URL("https://fixture.invalid/inochi2d.wasm"),
+      );
+      const model = await readFile(process.env.INOCHI2D_TEST_MODEL_PATH!);
+      const puppet = sdk.loadPuppet(new Uint8Array(model));
+
+      try {
+        expect(puppet.physics).toEqual({
+          enabled: true,
+          driverCount: 19,
+          resolvedDriverCount: 19,
+          springDriverCount: 19,
+          xyDriverCount: 19,
+          nonzeroScaleCount: 19,
+        });
+        const physics = [...puppet.parameters].filter(([name]) =>
+          name.endsWith(":: Physics"),
+        );
+        expect(physics.length).toBeGreaterThan(0);
+        for (let frame = 0; frame < 180; frame += 1) {
+          sdk.updateAndDraw(puppet, 1 / 60);
+        }
+        const initial = new Map(
+          physics.map(([name, parameter]) => [
+            name,
+            sdk.readParameterValue(parameter),
+          ]),
+        );
+
+        for (const [name, value] of [
+          ["Head:: Yaw-Pitch", [0.45, 0.35]],
+          ["Body:: Yaw-Pitch", [0.1575, 0.07]],
+        ] as const) {
+          const parameter = puppet.parameters.get(name);
+          expect(parameter, `missing Aka driver: ${name}`).toBeDefined();
+          sdk.setParameter(parameter!, value);
+        }
+
+        const changes = new Map<string, [number, number]>();
+        for (let frame = 0; frame < 60; frame += 1) {
+          const draw = sdk.updateAndDraw(puppet, 1 / 60);
+          expect(draw.vertices.every(Number.isFinite)).toBe(true);
+          for (const [name, parameter] of physics) {
+            const current = sdk.readParameterValue(parameter);
+            const baseline = initial.get(name)!;
+            for (const [axis, value] of current.entries()) {
+              const change = Math.abs(value - baseline[axis]!);
+              const maximum: [number, number] = changes.get(name) ?? [0, 0];
+              maximum[axis] = Math.max(maximum[axis]!, change);
+              changes.set(name, maximum);
+            }
+          }
+        }
+
+        const frontHair = changes.get("Front Hair:: Center:: Physics");
+        expect(frontHair).toBeDefined();
+        expect(frontHair![0]).toBeGreaterThan(0.12);
+        expect(frontHair![0]).toBeGreaterThan(frontHair![1]! * 4);
+        expect(
+          Math.max(
+            ...[...changes]
+              .filter(([name]) => name.startsWith("Back Side:: Hair::"))
+              .flatMap(([, change]) => change),
+          ),
+        ).toBeGreaterThan(0.005);
       } finally {
         sdk.freePuppet(puppet);
         sdk.destroy();

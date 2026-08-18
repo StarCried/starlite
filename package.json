@@ -5,7 +5,7 @@
   "description": "Reproducible Inochi2D WebGL2 runtime and Hexo widget workspace",
   "license": "BSD-2-Clause",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "workspaces": [
     "packages/*",

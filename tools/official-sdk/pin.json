@@ -5,6 +5,6 @@
   "toolchainTag": "v0.9.0-testing",
   "toolchainUrl": "https://github.com/Inochi2D/sdk-toolchain/releases/download/v0.9.0-testing/ldc2-wasm32-wasi.tar.gz",
   "toolchainSha256": "5adc0c991f68f5313f215e638c3470b857796ad57bd2344b28cddf707d3784c3",
-  "rawWasmSha256": "36433d4f5ddceb70af2ed5206fe6621ad19576f9dc23cb37d41e4e8d934e0365",
-  "optimizedWasmSha256": "33ee462fd6ab7a395c8a275ec6c749024993bd865f85b38fa8e19c43345838e7"
+  "rawWasmSha256": "ba5190c36946b992039e7f47640cea7555b11e65103b90d5bccb98138275dbb2",
+  "optimizedWasmSha256": "fa48b4dedc4b324127aa6aec01c4a57d298164ba7635054060adc2a00a63c7f1"
 }

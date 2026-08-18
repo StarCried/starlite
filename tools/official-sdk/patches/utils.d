@@ -11,6 +11,7 @@
 module inochi2d.param.utils;
 import inochi2d.core.vector2d;
 import inochi2d.core.serde;
+import inochi2d.core.math;
 import inochi2d.common;
 import inochi2d.param;
 import numath;
@@ -82,32 +83,79 @@ void resizeToParam(T)(ref T values, Parameter parameter) {
 }
 
 /**
-    Bilinearly interpolates a Creator keypoint grid.
+    Interpolates a Creator keypoint grid using the mode stored by the binding.
 
-    The release profile accepts linear interpolation only. The model pipeline
-    rejects other modes before a bundle can be generated.
+    Creator 0.8 uses Catmull-Rom cubic interpolation for secondary-motion
+    bindings. Clamp edge samples exactly like the 0.8 reference runtime so
+    physics-driven hair, sleeves and tails do not flatten at the outer points.
 */
 T interpolateKeypoint(T)(
     ref vector2d!T values,
     vec2u index,
-    vec2 norm
+    vec2 norm,
+    InterpolateMode mode
 ) @nogc {
     assert(values.rows > 0 && values.columns > 0);
     assert(index.x < values.rows);
     assert(index.y < values.columns);
 
+    const currentX = cast(size_t)index.x;
+    const currentY = cast(size_t)index.y;
     const nextX = nu_min(cast(size_t)index.x + 1, values.rows - 1);
     const nextY = nu_min(cast(size_t)index.y + 1, values.columns - 1);
     const x = clamp(norm.x, 0.0f, 1.0f);
     const y = clamp(norm.y, 0.0f, 1.0f);
 
-    auto top = values[index.x, index.y] * (1.0f - x) +
-        values[nextX, index.y] * x;
-    if (values.columns == 1) {
-        return top;
-    }
+    final switch (mode) {
+    case InterpolateMode.nearest:
+        const nearestX = x >= 0.5f ? nextX : currentX;
+        const nearestY =
+            values.columns > 1 && y >= 0.5f ? nextY : currentY;
+        return values[nearestX, nearestY];
+    case InterpolateMode.stepped:
+        return values[currentX, currentY];
+    case InterpolateMode.linear:
+        auto top = values[currentX, currentY] * (1.0f - x) +
+            values[nextX, currentY] * x;
+        if (values.columns == 1) {
+            return top;
+        }
 
-    auto bottom = values[index.x, nextY] * (1.0f - x) +
-        values[nextX, nextY] * x;
-    return top * (1.0f - y) + bottom * y;
+        auto bottom = values[currentX, nextY] * (1.0f - x) +
+            values[nextX, nextY] * x;
+        return top * (1.0f - y) + bottom * y;
+    case InterpolateMode.cubic:
+        const previousX = currentX > 0 ? currentX - 1 : 0;
+        const followingX = nu_min(currentX + 2, values.rows - 1);
+        if (values.columns == 1) {
+            return cubic(
+                values[previousX, 0],
+                values[currentX, 0],
+                values[nextX, 0],
+                values[followingX, 0],
+                x
+            );
+        }
+
+        T[4] rows;
+        const previousY = currentY > 0 ? currentY - 1 : 0;
+        const followingY = nu_min(currentY + 2, values.columns - 1);
+        size_t[4] rowIndices;
+        rowIndices[0] = previousY;
+        rowIndices[1] = currentY;
+        rowIndices[2] = nextY;
+        rowIndices[3] = followingY;
+        foreach (row, sampleY; rowIndices) {
+            rows[row] = cubic(
+                values[previousX, sampleY],
+                values[currentX, sampleY],
+                values[nextX, sampleY],
+                values[followingX, sampleY],
+                x
+            );
+        }
+        return cubic(rows[0], rows[1], rows[2], rows[3], y);
+    case InterpolateMode.quadratic:
+        assert(false, "Quadratic parameter binding interpolation is unsupported.");
+    }
 }

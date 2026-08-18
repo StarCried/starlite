@@ -31,6 +31,7 @@ private:
 @nogc:
     vector2d!float values_;
     nstring property_;
+    bool legacyComposition_;
     uint invalidApplications_;
 
 protected:
@@ -45,7 +46,11 @@ protected:
     void onDeserialize(ref DataNode object, ref ModelState state) {
         super.onDeserialize(object, state);
         if ("param_name" in object) {
+            legacyComposition_ = true;
             object.tryGetRef(state, property_, "param_name");
+            // The 0.8 spelling predates the lowercase 0.9 property quark.
+            if (property_ == "zSort")
+                property_ = "zsort";
         } else {
             object.tryGetRef(state, property_, "property");
         }
@@ -80,12 +85,61 @@ public:
     void apply(vec2u index, vec2 norm) {
         if (!target)
             return;
-        const value = interpolateKeypoint(values_, index, norm);
+        const value = interpolateKeypoint(values_, index, norm, interpMode);
         if (!isFinite(value)) {
             invalidApplications_++;
             return;
         }
-        target.setProperty(nu_quarkof(property_[]), value);
+        const key = nu_quarkof(property_[]);
+        if (!target.hasProperty(key)) {
+            invalidApplications_++;
+            return;
+        }
+
+        float composed = value;
+        if (legacyComposition_) {
+            // Creator 0.8 accumulated bindings that target the same property.
+            // The unfinished 0.9 binding surface only exposes setProperty(),
+            // so reproduce the old per-property merge rules here.
+            switch (property_[]) {
+            case "zsort":
+            case "transform.t.x":
+            case "transform.t.y":
+            case "transform.t.z":
+            case "transform.r.x":
+            case "transform.r.y":
+            case "transform.r.z":
+            case "screenTint.r":
+            case "screenTint.g":
+            case "screenTint.b":
+            case "emissionStrength":
+            case "length":
+                composed = target.getProperty(key) + value;
+                break;
+            case "alphaThreshold":
+            case "opacity":
+            case "tint.r":
+            case "tint.g":
+            case "tint.b":
+            case "transform.s.x":
+            case "transform.s.y":
+            case "gravity":
+            case "frequency":
+            case "angleDamping":
+            case "lengthDamping":
+            case "outputScale.x":
+            case "outputScale.y":
+                composed = target.getProperty(key) * value;
+                break;
+            default:
+                break;
+            }
+        }
+        if (!isFinite(composed)) {
+            invalidApplications_++;
+            return;
+        }
+        target.setProperty(key, composed);
     }
 
     override

@@ -10,17 +10,53 @@ npm install inochi2d-web
 ```
 
 ```ts
-import { mountInochi2DWidget } from "inochi2d-web";
+import {
+  mountInochi2DWidget,
+  type WidgetConfig,
+} from "inochi2d-web";
 import "inochi2d-web/widget.css";
 
 const host = document.querySelector<HTMLElement>("#inochi2d-widget");
 if (!host) throw new Error("missing widget host");
+const manifest = await fetch("/models/manifest.json").then(
+  (response) =>
+    response.json() as Promise<{
+      animations?: WidgetConfig["animations"];
+    }>,
+);
+if (!manifest.animations) throw new Error("model manifest has no animations");
 
 const widget = await mountInochi2DWidget(host, {
   model: "/models/puppet.inp",
   fallback: "/models/puppet.png",
-  render: { fps: 30, maxDevicePixelRatio: 1.25 },
+  animations: manifest.animations,
+  render: {
+    fps: 30,
+    maxDevicePixelRatio: 1.25,
+    autoFit: true,
+    fitPadding: 0.9,
+  },
   mobile: { show: false, breakpoint: 768 },
+  ambient: {
+    parameters: [
+      {
+        id: "Tail - Left/Right Swing",
+        minimum: -0.55,
+        maximum: 0.55,
+        periodMs: 4200,
+      },
+    ],
+  },
+  dialogue: {
+    enter: { animation: "Greeting", lines: ["Welcome!"] },
+    idle: {
+      animation: "IdleTalk",
+      lines: ["Still here?", "Take your time."],
+      intervalMinMs: 30_000,
+      intervalMaxMs: 60_000,
+    },
+    click: { animation: "Click", lines: ["Hello!"] },
+  },
 });
 
 // Lifecycle and manual parameter control remain available to the host page.
@@ -39,9 +75,14 @@ servers must allow CORS. Use the companion native pipeline and
 
 The alpha targets desktop Chrome and Edge. Mobile is hidden before any runtime,
 WASM, or model fetch. Pipeline-validated, model-authored `Forced` animation
-lanes can be played by exact name. WebGL1, BC7, MeshGroup, model automation,
-additive/Bezier/transition-looping animation behavior, microphone/camera input,
-and Firefox/Safari compatibility promises are outside this release.
+lanes can be played by exact name; configured ambient clips use the Creator
+`leadIn`/`leadOut` loop region. The official runtime also advances model-owned
+`SimplePhysics` nodes and supports MeshGroup, Camera, ColorBurn, and Cubic
+bindings in the pinned compatibility profile. `render.autoFit` centers and
+contains neutral SDK draw bounds without model-specific scale constants.
+WebGL1, BC7, model automation, additive/Bezier/crossfade animation behavior,
+microphone/camera input, and Firefox/Safari compatibility promises are outside
+this release.
 
 This package is AI-assisted, human-reviewed, BSD-2-Clause licensed, and not
 affiliated with the Inochi2D project. It contains no puppet.

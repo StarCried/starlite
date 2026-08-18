@@ -62,6 +62,64 @@
           "interpolate_mode": "Linear"
         }
       ]
+    },
+    {
+      "uuid": 3,
+      "name": "Composition A",
+      "is_vec2": false,
+      "min": [-1, 0],
+      "max": [1, 1],
+      "defaults": [0, 0],
+      "axis_points": [
+        [0, 0.5, 1],
+        [0]
+      ],
+      "bindings": [
+        {
+          "node": 100,
+          "param_name": "transform.t.x",
+          "values": [
+            [-10],
+            [0],
+            [10]
+          ],
+          "isSet": [
+            [true],
+            [true],
+            [true]
+          ],
+          "interpolate_mode": "Linear"
+        }
+      ]
+    },
+    {
+      "uuid": 4,
+      "name": "Composition B",
+      "is_vec2": false,
+      "min": [-1, 0],
+      "max": [1, 1],
+      "defaults": [0, 0],
+      "axis_points": [
+        [0, 0.5, 1],
+        [0]
+      ],
+      "bindings": [
+        {
+          "node": 100,
+          "param_name": "transform.t.x",
+          "values": [
+            [-20],
+            [0],
+            [20]
+          ],
+          "isSet": [
+            [true],
+            [true],
+            [true]
+          ],
+          "interpolate_mode": "Linear"
+        }
+      ]
     }
   ],
   "automation": [],

@@ -88,4 +88,15 @@ describe("MotionMixer", () => {
     mixer.releaseDrag();
     expect(mixer.sample(200, false).get("BodyX")).toBe(0);
   });
+
+  it("keeps blink scheduling finite when an injected RNG misbehaves", () => {
+    const mixer = new MotionMixer({
+      bindings: bindings(),
+      random: () => Number.NaN,
+    });
+
+    expect(mixer.sample(4_099, false).get("EyeOpenL")).toBe(1);
+    expect(mixer.sample(4_100, false).get("EyeOpenL")).toBe(1);
+    expect(mixer.sample(4_180, false).get("EyeOpenL")).toBe(0);
+  });
 });

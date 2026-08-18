@@ -5,6 +5,7 @@ import {
   copyFile,
   mkdir,
   readFile,
+  readlink,
   rename,
   symlink,
   unlink,
@@ -68,6 +69,16 @@ await fixParameter1dRangeDeserialization(
 await fixSimplePhysicsOutputScaleDeserialization(
   resolve(sourceRoot, "source/inochi2d/nodes/legacy/simplephysics.d"),
 );
+await restoreLegacyPropertyLifecycle(
+  resolve(sourceRoot, "source/inochi2d/nodes/package.d"),
+  resolve(sourceRoot, "source/inochi2d/puppet.d"),
+);
+await fixSimplePhysicsLocalCoordinates(
+  resolve(sourceRoot, "source/inochi2d/nodes/legacy/simplephysics.d"),
+);
+await enablePhysicsDiagnostics(
+  resolve(sourceRoot, "source/inochi2d/cffi.d"),
+);
 await restrictBrowserExports(
   resolve(sourceRoot, "source/inochi2d/cffi.d"),
   resolve(sourceRoot, "dub.sdl"),
@@ -86,11 +97,7 @@ requireToolVersion("wasm-opt", ["--version"], /version 120\b/u, "Binaryen 120");
 const shimDirectory = resolve(cacheRoot, "bin");
 const shimLink = resolve(shimDirectory, "wasm-ld");
 await mkdir(shimDirectory, { recursive: true });
-try {
-  await access(shimLink);
-} catch {
-  await symlink(linker, shimLink);
-}
+await ensureSymlink(linker, shimLink);
 
 const compiler = resolve(toolchainRoot, "bin/ldc2");
 const dub = resolve(toolchainRoot, "bin/dub");
@@ -260,13 +267,53 @@ async function fixCompositeColorDeserialization(compositePath) {
   const original =
     '        object.tryGetRef(state, tint, "tint");\n' +
     '        object.tryGetRef(state, screenTint, "screenTint");';
-  const patched =
+  const oldPatched =
     '        // Match Part deserialization: DataNode writes vector elements through\n' +
     '        // the backing array rather than replacing the vector value.\n' +
     '        object.tryGetRef(state, tint.data, "tint");\n' +
     '        object.tryGetRef(state, screenTint.data, "screenTint");';
+  const unguardedPatched =
+    '        // Legacy grouping composites may omit every visual field. nogc_new\n' +
+    '        // does not reliably retain D field initializers, so establish the\n' +
+    '        // Creator defaults before reading optional values.\n' +
+    '        opacity = 1;\n' +
+    '        tint = vec3(1, 1, 1);\n' +
+    '        screenTint = vec3(0, 0, 0);\n' +
+    '        object.tryGetRef(state, opacity, "opacity");\n' +
+    '        // Match Part deserialization: DataNode writes vector elements through\n' +
+    '        // the backing array rather than replacing the vector value.\n' +
+    '        object.tryGetRef(state, tint.data, "tint");\n' +
+    '        object.tryGetRef(state, screenTint.data, "screenTint");';
+  const patched =
+    '        // Legacy grouping composites may omit every visual field. D float.init\n' +
+    '        // is NaN, so preserve explicit Creator defaults when a key is absent.\n' +
+    '        opacity = 1;\n' +
+    '        tint = vec3(1, 1, 1);\n' +
+    '        screenTint = vec3(0, 0, 0);\n' +
+    '        if ("opacity" in object)\n' +
+    '            object.tryGetRef(state, opacity, "opacity");\n' +
+    '        // Match Part deserialization: DataNode writes vector elements through\n' +
+    '        // the backing array rather than replacing the vector value.\n' +
+    '        if ("tint" in object)\n' +
+    '            object.tryGetRef(state, tint.data, "tint");\n' +
+    '        if ("screenTint" in object)\n' +
+    '            object.tryGetRef(state, screenTint.data, "screenTint");';
   const source = await readFile(compositePath, "utf8");
   if (source.includes(patched)) {
+    return;
+  }
+  if (source.includes(unguardedPatched)) {
+    await writeFile(
+      compositePath,
+      source.replace(unguardedPatched, patched),
+    );
+    return;
+  }
+  if (source.includes(oldPatched)) {
+    const withDefaults = source
+      .replace('        object.tryGetRef(state, opacity, "opacity");\n', "")
+      .replace(oldPatched, patched);
+    await writeFile(compositePath, withDefaults);
     return;
   }
   if (!source.includes(original)) {
@@ -274,7 +321,12 @@ async function fixCompositeColorDeserialization(compositePath) {
       "official SDK composite color decoder changed; compatibility patch was not applied",
     );
   }
-  await writeFile(compositePath, source.replace(original, patched));
+  await writeFile(
+    compositePath,
+    source
+      .replace('        object.tryGetRef(state, opacity, "opacity");\n', "")
+      .replace(original, patched),
+  );
 }
 
 async function fixParameter2dRangeDeserialization(parameterPath) {
@@ -341,18 +393,178 @@ async function fixParameter1dRangeDeserialization(parameterPath) {
 }
 
 async function fixSimplePhysicsOutputScaleDeserialization(physicsPath) {
-  const original =
+  const outputOriginal =
     '        object.tryGetRef(state, outputScale, "output_scale", vec2(1, 1));';
-  const patched =
+  const outputPatched =
     '        // Fixed-size vectors deserialize through their backing arrays.\n' +
     '        object.tryGetRef(state, outputScale.data, "output_scale");';
+  const enumOriginal =
+    '        object.tryGetRef(state, modelType_, "model_type", PhysicsModel.Pendulum);\n' +
+    '        object.tryGetRef(state, mapMode, "map_mode", ParamMapMode.AngleLength);';
+  const enumPatched =
+    '        // Inochi2D 0.8 serialized enum member names, while 0.9 uses the\n' +
+    '        // lower-case string values declared by the enums.\n' +
+    '        string legacyModelType;\n' +
+    '        object.tryGetRef(state, legacyModelType, "model_type");\n' +
+    '        switch (legacyModelType) {\n' +
+    '        case "Pendulum":\n' +
+    '            modelType_ = PhysicsModel.Pendulum;\n' +
+    '            break;\n' +
+    '        case "SpringPendulum":\n' +
+    '            modelType_ = PhysicsModel.SpringPendulum;\n' +
+    '            break;\n' +
+    '        default:\n' +
+    '            object.tryGetRef(state, modelType_, "model_type", PhysicsModel.Pendulum);\n' +
+    '            break;\n' +
+    '        }\n' +
+    '        string legacyMapMode;\n' +
+    '        object.tryGetRef(state, legacyMapMode, "map_mode");\n' +
+    '        switch (legacyMapMode) {\n' +
+    '        case "AngleLength":\n' +
+    '            mapMode = ParamMapMode.AngleLength;\n' +
+    '            break;\n' +
+    '        case "XY":\n' +
+    '            mapMode = ParamMapMode.XY;\n' +
+    '            break;\n' +
+    '        case "LengthAngle":\n' +
+    '            mapMode = ParamMapMode.LengthAngle;\n' +
+    '            break;\n' +
+    '        case "YX":\n' +
+    '            mapMode = ParamMapMode.YX;\n' +
+    '            break;\n' +
+    '        default:\n' +
+    '            object.tryGetRef(state, mapMode, "map_mode", ParamMapMode.AngleLength);\n' +
+    '            break;\n' +
+    '        }';
+  const enumAmbiguous = enumPatched
+    .replace(
+      '        string legacyModelType;\n        object.tryGetRef(state, legacyModelType, "model_type");',
+      '        const legacyModelType = object.tryGet!string(state, "model_type");',
+    )
+    .replace(
+      '        string legacyMapMode;\n        object.tryGetRef(state, legacyMapMode, "map_mode");',
+      '        const legacyMapMode = object.tryGet!string(state, "map_mode");',
+    );
+  let source = await readFile(physicsPath, "utf8");
+  if (!source.includes(outputPatched)) {
+    if (!source.includes(outputOriginal)) {
+      throw new Error(
+        "official SDK simple-physics output scale decoder changed; compatibility patch was not applied",
+      );
+    }
+    source = source.replace(outputOriginal, outputPatched);
+  }
+  if (!source.includes(enumPatched)) {
+    if (source.includes(enumAmbiguous)) {
+      source = source.replace(enumAmbiguous, enumPatched);
+    } else if (source.includes(enumOriginal)) {
+      source = source.replace(enumOriginal, enumPatched);
+    } else {
+      throw new Error(
+        "official SDK simple-physics enum decoder changed; compatibility patch was not applied",
+      );
+    }
+  }
+  await writeFile(physicsPath, source);
+}
+
+async function restoreLegacyPropertyLifecycle(nodePath, puppetPath) {
+  const nodeOriginal =
+    "    final void preUpdate(DrawList drawList) @nogc {\n" +
+    "        if (!enabled)\n" +
+    "            return;\n\n" +
+    "        this.onPreUpdate(drawList);";
+  const nodePatched =
+    "    final void preUpdate(DrawList drawList) @nogc {\n" +
+    "        // Creator 0.8 cleared every accumulated parameter offset before\n" +
+    "        // applying the next frame. Without this, additive compatibility\n" +
+    "        // bindings retain stale values and drift on every update.\n" +
+    "        this.resetProperties();\n" +
+    "        if (!enabled)\n" +
+    "            return;\n\n" +
+    "        this.onPreUpdate(drawList);";
+  const nodeSource = await readFile(nodePath, "utf8");
+  if (!nodeSource.includes(nodePatched)) {
+    if (!nodeSource.includes(nodeOriginal)) {
+      throw new Error(
+        "official SDK node update lifecycle changed; property-reset patch was not applied",
+      );
+    }
+    await writeFile(nodePath, nodeSource.replace(nodeOriginal, nodePatched));
+  }
+
+  const puppetOriginal =
+    "        if (renderParameters) {\n" +
+    "            foreach (parameter; parameters_) {\n" +
+    "                parameter.update();\n" +
+    "            }\n" +
+    "        }";
+  const puppetPatched =
+    "        if (renderParameters) {\n" +
+    "            foreach (parameter; parameters_) {\n" +
+    "                // A legacy physics driver applies its output parameter\n" +
+    "                // later in this frame. Applying it here as well would\n" +
+    "                // compose the previous and current physics states twice.\n" +
+    "                version (IN_LEGACY) {\n" +
+    "                    if (!enableDrivers || parameter !in driven_)\n" +
+    "                        parameter.update();\n" +
+    "                } else {\n" +
+    "                    parameter.update();\n" +
+    "                }\n" +
+    "            }\n" +
+    "        }";
+  const puppetSource = await readFile(puppetPath, "utf8");
+  if (!puppetSource.includes(puppetPatched)) {
+    if (!puppetSource.includes(puppetOriginal)) {
+      throw new Error(
+        "official SDK parameter update lifecycle changed; legacy-driver patch was not applied",
+      );
+    }
+    await writeFile(
+      puppetPath,
+      puppetSource.replace(puppetOriginal, puppetPatched),
+    );
+  }
+}
+
+async function fixSimplePhysicsLocalCoordinates(physicsPath) {
+  const original =
+    "        auto localPos4 = localOnly ?\n" +
+    "            vec4(output.x, output.y, 0, 1) : (this.matrix.inverse * vec4(output.x, output.y, 0, 1));\n" +
+    "        vec2 localAngle = vec2(localPos4.x, localPos4.y).normalized;";
+  const patched =
+    "        vec2 localAngle;\n" +
+    "        if (localOnly) {\n" +
+    "            localAngle = vec2(output.x, output.y).normalized;\n" +
+    "        } else {\n" +
+    "            // numath 0.5.0 implements matrix.inverse as multiplication by\n" +
+    "            // -1, so invert the affine XY basis explicitly. Physics only\n" +
+    "            // needs the direction from the transformed anchor to the bob.\n" +
+    "            const basis = this.matrix.matrix;\n" +
+    "            const determinant =\n" +
+    "                basis.matrix[0][0] * basis.matrix[1][1] -\n" +
+    "                basis.matrix[0][1] * basis.matrix[1][0];\n" +
+    "            if (abs(determinant) < 0.000001f)\n" +
+    "                return;\n" +
+    "            const worldOffset = output - anchor;\n" +
+    "            localAngle = vec2(\n" +
+    "                (\n" +
+    "                    basis.matrix[1][1] * worldOffset.x -\n" +
+    "                    basis.matrix[0][1] * worldOffset.y\n" +
+    "                ) / determinant,\n" +
+    "                (\n" +
+    "                    -basis.matrix[1][0] * worldOffset.x +\n" +
+    "                    basis.matrix[0][0] * worldOffset.y\n" +
+    "                ) / determinant,\n" +
+    "            ).normalized;\n" +
+    "        }";
   const source = await readFile(physicsPath, "utf8");
   if (source.includes(patched)) {
     return;
   }
   if (!source.includes(original)) {
     throw new Error(
-      "official SDK simple-physics output scale decoder changed; compatibility patch was not applied",
+      "official SDK simple-physics coordinate conversion changed; affine-inverse patch was not applied",
     );
   }
   await writeFile(physicsPath, source.replace(original, patched));
@@ -625,7 +837,11 @@ uint in_parameter_get_invalid_binding_application_count(in_parameter_t* obj) {
 
 async function restrictBrowserExports(cffiPath, recipePath) {
   const allocatorExports = ["nu_malloc", "nu_realloc", "nu_free"];
-  const removedExports = ["in_texture_flip_vertically"];
+  const removedExports = [
+    "in_texture_flip_vertically",
+    "in_puppet_get_driver_anchor_x",
+    "in_puppet_get_driver_anchor_y",
+  ];
   const cffiExports = [
     "in_puppet_load_from_memory",
     "in_puppet_free",
@@ -634,6 +850,13 @@ async function restrictBrowserExports(cffiPath, recipePath) {
     "in_puppet_get_parameters",
     "in_puppet_get_drawlist",
     "in_puppet_get_texture_cache",
+    "in_puppet_get_physics_enabled",
+    "in_puppet_set_physics_enabled",
+    "in_puppet_get_driver_count",
+    "in_puppet_get_resolved_driver_count",
+    "in_puppet_get_spring_driver_count",
+    "in_puppet_get_xy_driver_count",
+    "in_puppet_get_nonzero_physics_scale_count",
     "in_parameter_get_name",
     "in_parameter_get_dimensions",
     "in_parameter_get_lower_bounds",
@@ -732,6 +955,112 @@ async function restrictBrowserExports(cffiPath, recipePath) {
   if (patchedRecipe !== recipe) {
     await writeFile(recipePath, patchedRecipe);
   }
+}
+
+async function enablePhysicsDiagnostics(path) {
+  const original = `void in_puppet_reset_drivers(in_puppet_t* obj) {
+    assumeNoThrowNoGC(&(cast(Puppet)obj).resetDrivers);
+}`;
+  const patched = `${original}
+
+/**
+    Gets the number of model-authored legacy physics drivers.
+*/
+uint in_puppet_get_driver_count(in_puppet_t* obj) {
+    return cast(uint)(cast(Puppet)obj).drivers.length;
+}
+
+/**
+    Gets the number of physics drivers whose output parameters resolved.
+*/
+uint in_puppet_get_resolved_driver_count(in_puppet_t* obj) {
+    uint count;
+    foreach (driver; (cast(Puppet)obj).drivers) {
+        if (driver.param !is null)
+            count++;
+    }
+    return count;
+}
+
+uint in_puppet_get_spring_driver_count(in_puppet_t* obj) {
+    uint count;
+    foreach (driver; (cast(Puppet)obj).drivers) {
+        if (driver.modelType == PhysicsModel.SpringPendulum)
+            count++;
+    }
+    return count;
+}
+
+uint in_puppet_get_xy_driver_count(in_puppet_t* obj) {
+    uint count;
+    foreach (driver; (cast(Puppet)obj).drivers) {
+        if (driver.mapMode == ParamMapMode.XY)
+            count++;
+    }
+    return count;
+}
+
+uint in_puppet_get_nonzero_physics_scale_count(in_puppet_t* obj) {
+    uint count;
+    foreach (driver; (cast(Puppet)obj).drivers) {
+        auto scale = driver.finalOutputScale;
+        if (scale.x != 0 || scale.y != 0)
+            count++;
+    }
+    return count;
+}`;
+  const source = await readFile(path, "utf8");
+  const exportedPatched = patched
+    .replace(
+      "\nuint in_puppet_get_driver_count",
+      "\nexport uint in_puppet_get_driver_count",
+    )
+    .replace(
+      "\nuint in_puppet_get_resolved_driver_count",
+      "\nexport uint in_puppet_get_resolved_driver_count",
+    )
+    .replace(
+      "\nuint in_puppet_get_spring_driver_count",
+      "\nexport uint in_puppet_get_spring_driver_count",
+    )
+    .replace(
+      "\nuint in_puppet_get_xy_driver_count",
+      "\nexport uint in_puppet_get_xy_driver_count",
+    )
+    .replace(
+      "\nuint in_puppet_get_nonzero_physics_scale_count",
+      "\nexport uint in_puppet_get_nonzero_physics_scale_count",
+    );
+  if (source.includes(patched) || source.includes(exportedPatched)) {
+    return;
+  }
+  const springStart = patched.indexOf(
+    "\n\nuint in_puppet_get_spring_driver_count",
+  );
+  const basePatched = patched.slice(0, springStart);
+  const exportedBasePatched = basePatched
+    .replace(
+      "\nuint in_puppet_get_driver_count",
+      "\nexport uint in_puppet_get_driver_count",
+    )
+    .replace(
+      "\nuint in_puppet_get_resolved_driver_count",
+      "\nexport uint in_puppet_get_resolved_driver_count",
+    );
+  if (source.includes(exportedBasePatched)) {
+    await writeFile(path, source.replace(exportedBasePatched, patched));
+    return;
+  }
+  if (source.includes(basePatched)) {
+    await writeFile(path, source.replace(basePatched, patched));
+    return;
+  }
+  if (!source.includes(original)) {
+    throw new Error(
+      "official SDK physics C API changed; diagnostics patch was not applied",
+    );
+  }
+  await writeFile(path, source.replace(original, patched));
 }
 
 async function orderParameterAxesBeforeBindings(path, original, patched) {
@@ -835,6 +1164,34 @@ async function requireHash(path, expected, label) {
   }
 }
 
+async function ensureSymlink(target, destination) {
+  try {
+    const current = await readlink(destination);
+    if (resolve(dirname(destination), current) === resolve(target)) {
+      return;
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT" && error?.code !== "EINVAL") {
+      throw error;
+    }
+  }
+
+  // Replace stale cache shims atomically so the version-checked linker is the
+  // linker that the D compiler actually resolves from PATH.
+  const temporary = `${destination}.tmp-${process.pid}`;
+  await unlink(temporary).catch((error) => {
+    if (error?.code !== "ENOENT") throw error;
+  });
+  try {
+    await symlink(target, temporary);
+    await rename(temporary, destination);
+  } finally {
+    await unlink(temporary).catch((error) => {
+      if (error?.code !== "ENOENT") throw error;
+    });
+  }
+}
+
 function run(command, args, cwd, extraEnvironment = {}) {
   const result = spawnSync(command, args, {
     cwd,
@@ -844,7 +1201,11 @@ function run(command, args, cwd, extraEnvironment = {}) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`${command} exited with status ${result.status}`);
+    const outcome =
+      result.status === null
+        ? `was terminated by signal ${result.signal ?? "unknown"}`
+        : `exited with status ${result.status}`;
+    throw new Error(`${command} ${outcome}`);
   }
 }
 

@@ -1,8 +1,17 @@
-import { AnimationPlayer } from "./animation.js";
+import { animationDurationMs, AnimationPlayer } from "./animation.js";
+import { applyAmbientParameterOscillators } from "./ambient.js";
 import { resolveConfig } from "./config.js";
+import {
+  type DialogueAction,
+  DialogueScheduler,
+} from "./dialogue.js";
+import { MissingModelParameterError } from "./errors.js";
 import { idleBreathValue, MotionMixer } from "./motion.js";
 import type {
+  AnimationPlaybackOptions,
+  AnimationPlaybackResult,
   Inochi2dWasmRuntime,
+  ModelAnimationInfo,
   ResolvedWidgetConfig,
   WidgetConfig,
   WidgetController,
@@ -19,6 +28,12 @@ interface ParameterEffectInspector {
   parameterHasVisibleEffect(id: string, axis?: "x" | "y"): boolean | undefined;
 }
 
+interface CameraTransform {
+  x: number;
+  y: number;
+  scale: number;
+}
+
 export async function mountWithDependencies(
   element: HTMLElement,
   input: WidgetConfig,
@@ -28,7 +43,7 @@ export async function mountWithDependencies(
   const mobileQuery = `(max-width: ${Math.max(0, config.mobile.breakpoint - 1)}px)`;
   if (!config.mobile.show && dependencies.isMobile(mobileQuery)) {
     element.dataset.inochi2dStatus = "disabled";
-    return new DisabledController(element);
+    return new DisabledController(element, animationInfo(config));
   }
 
   const controller = new ActiveController(element, config, dependencies);
@@ -39,9 +54,14 @@ export async function mountWithDependencies(
 class DisabledController implements WidgetController {
   #status: WidgetStatus = "disabled";
   readonly #element: HTMLElement;
+  readonly #animations: readonly ModelAnimationInfo[];
 
-  constructor(element: HTMLElement) {
+  constructor(
+    element: HTMLElement,
+    animations: readonly ModelAnimationInfo[],
+  ) {
     this.#element = element;
+    this.#animations = animations;
   }
 
   get status(): WidgetStatus {
@@ -51,6 +71,19 @@ class DisabledController implements WidgetController {
   pause(): void {}
 
   resume(): void {}
+
+  getAnimations(): readonly ModelAnimationInfo[] {
+    return this.#animations;
+  }
+
+  async playAnimation(
+    _name: string,
+    _options?: AnimationPlaybackOptions,
+  ): Promise<AnimationPlaybackResult> {
+    return "stopped";
+  }
+
+  stopAnimation(): void {}
 
   setParameter(_id: string, _value: ManualValue): void {}
 
@@ -68,8 +101,11 @@ class ActiveController implements WidgetController {
   readonly #dependencies: WidgetDependencies;
   readonly #canvas: HTMLCanvasElement;
   readonly #fallback: HTMLImageElement;
+  readonly #bubble: HTMLDivElement;
+  readonly #bubbleText: HTMLSpanElement;
   readonly #motion: MotionMixer;
   readonly #animations: AnimationPlayer;
+  readonly #dialogue: DialogueScheduler;
   readonly #manualParameters = new Map<string, ManualValue>();
   readonly #unsupportedParameters = new Set<string>();
   readonly #removeListeners: Array<() => void> = [];
@@ -83,6 +119,10 @@ class ActiveController implements WidgetController {
   #pausedByUser = false;
   #pausedByVisibility = false;
   #usesFallbackBreathing = false;
+  #modelRendered = false;
+  #cameraTransform: CameraTransform;
+  #bubbleVisibleUntil = 0;
+  #bubbleTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
   #dragOrigin:
     | {
         pointerId: number;
@@ -104,11 +144,22 @@ class ActiveController implements WidgetController {
     this.#dependencies = dependencies;
     this.#canvas = document.createElement("canvas");
     this.#fallback = document.createElement("img");
+    this.#bubble = document.createElement("div");
+    this.#bubbleText = document.createElement("span");
+    this.#cameraTransform = {
+      x: 0,
+      y: 0,
+      scale: config.render.initialScale,
+    };
     this.#motion = new MotionMixer({
       bindings: config.parameters,
       random: dependencies.random,
     });
-    this.#animations = new AnimationPlayer(config.animations);
+    this.#animations = new AnimationPlayer(
+      config.animations,
+      config.ambient.animations,
+    );
+    this.#dialogue = new DialogueScheduler(config.dialogue, dependencies.random);
   }
 
   get status(): WidgetStatus {
@@ -184,6 +235,7 @@ class ActiveController implements WidgetController {
       new Error("widget was destroyed during loading"),
     );
     this.#clearMountDeadline();
+    this.#hideBubble();
     if (this.#status === "running") {
       this.#setStatus("paused");
     }
@@ -199,22 +251,63 @@ class ActiveController implements WidgetController {
       !this.#dependencies.prefersReducedMotion() &&
       this.#runtime
     ) {
+      this.#dialogue.deferIdle(performance.now());
       this.#setStatus("running");
       this.#scheduleFrame();
     }
   }
 
+  getAnimations(): readonly ModelAnimationInfo[] {
+    return animationInfo(this.#config);
+  }
+
+  playAnimation(
+    name: string,
+    options?: AnimationPlaybackOptions,
+  ): Promise<AnimationPlaybackResult> {
+    if (
+      this.#status === "destroyed" ||
+      this.#status === "fallback" ||
+      !this.#runtime ||
+      this.#dependencies.prefersReducedMotion()
+    ) {
+      return Promise.resolve("stopped");
+    }
+    return this.#animations.trigger(name, performance.now(), options);
+  }
+
+  stopAnimation(): void {
+    this.#animations.stop();
+  }
+
   setParameter(id: string, value: ManualValue): void {
+    if (
+      typeof id !== "string" ||
+      id.trim().length === 0 ||
+      new TextEncoder().encode(id).byteLength > 256
+    ) {
+      throw new Error("parameter id must contain 1..=256 UTF-8 bytes");
+    }
+    if (
+      (typeof value === "number" && !Number.isFinite(value)) ||
+      (typeof value !== "number" &&
+        (!Array.isArray(value) ||
+          value.length !== 2 ||
+          !value.every(Number.isFinite)))
+    ) {
+      throw new Error("parameter value must be a finite scalar or 2D vector");
+    }
     this.#manualParameters.set(id, value);
   }
 
   resetCamera(): void {
     this.#motion.releaseDrag();
-    this.#runtime?.setCameraTransform(0, 0, this.#config.render.initialScale);
+    this.#applyCameraTransform();
     this.#element.style.removeProperty("left");
     this.#element.style.removeProperty("top");
     this.#element.style.removeProperty("right");
     this.#element.style.removeProperty("bottom");
+    this.#positionBubble();
   }
 
   destroy(): void {
@@ -222,6 +315,8 @@ class ActiveController implements WidgetController {
       return;
     }
     this.#stopFrame();
+    this.#animations.stop();
+    this.#hideBubble();
     this.#resizeObserver?.disconnect();
     for (const remove of this.#removeListeners.splice(0)) {
       remove();
@@ -247,7 +342,18 @@ class ActiveController implements WidgetController {
     this.#fallback.className = "inochi2d-widget__fallback";
     this.#fallback.alt = "Character illustration";
     this.#fallback.hidden = true;
-    this.#element.replaceChildren(this.#canvas, this.#fallback);
+    this.#bubble.className = "inochi2d-widget__bubble";
+    this.#bubble.hidden = true;
+    this.#bubble.setAttribute("role", "status");
+    this.#bubble.setAttribute("aria-live", "polite");
+    this.#bubble.setAttribute("aria-atomic", "true");
+    this.#bubbleText.className = "inochi2d-widget__bubble-text";
+    this.#bubble.append(this.#bubbleText);
+    this.#element.replaceChildren(
+      this.#canvas,
+      this.#fallback,
+      this.#bubble,
+    );
     this.#setStatus("loading");
   }
 
@@ -256,10 +362,12 @@ class ActiveController implements WidgetController {
       this.#pausedByVisibility = document.hidden;
       if (document.hidden) {
         this.#stopFrame();
+        this.#hideBubble();
         if (this.#status === "running") {
           this.#setStatus("paused");
         }
       } else if (!this.#pausedByUser) {
+        this.#dialogue.deferIdle(performance.now());
         this.resume();
       }
     });
@@ -277,7 +385,7 @@ class ActiveController implements WidgetController {
     if (this.#config.interactions.pointer) {
       this.#listen(window, "blur", () => this.#motion.setPointer(0, 0));
     }
-    if (this.#config.interactions.click && !this.#config.interactions.drag) {
+    if (this.#hasClickAction() && !this.#config.interactions.drag) {
       this.#listen(this.#canvas, "click", () => this.#triggerClick());
     }
     if (this.#config.interactions.drag) {
@@ -292,11 +400,18 @@ class ActiveController implements WidgetController {
       );
     }
     this.#listen(this.#canvas, "dblclick", () => this.resetCamera());
-    this.#listen(window, "resize", () => this.#constrainPosition());
+    this.#listen(window, "resize", () => {
+      this.#constrainPosition();
+      this.#positionBubble();
+    });
 
-    this.#resizeObserver = this.#dependencies.createResizeObserver(() =>
-      this.#resize(),
-    );
+    this.#resizeObserver = this.#dependencies.createResizeObserver(() => {
+      try {
+        this.#resize();
+      } catch (error) {
+        this.#showFallback(errorMessage(error));
+      }
+    });
     this.#resizeObserver?.observe(this.#element);
   }
 
@@ -370,6 +485,7 @@ class ActiveController implements WidgetController {
       return;
     }
     event.preventDefault();
+    this.#dialogue.deferIdle(performance.now());
     const bounds = this.#element.getBoundingClientRect();
     this.#canvas.setPointerCapture?.(event.pointerId);
     this.#dragOrigin = {
@@ -387,21 +503,44 @@ class ActiveController implements WidgetController {
       return;
     }
     const triggerClick =
-      !canceled && !this.#dragOrigin.moved && this.#config.interactions.click;
-    this.#canvas.releasePointerCapture?.(event.pointerId);
-    this.#dragOrigin = undefined;
-    delete this.#element.dataset.inochi2dDragging;
-    this.#motion.releaseDrag();
+      !canceled && !this.#dragOrigin.moved && this.#hasClickAction();
+    try {
+      if (
+        this.#canvas.releasePointerCapture &&
+        (this.#canvas.hasPointerCapture?.(event.pointerId) ?? true)
+      ) {
+        this.#canvas.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // pointercancel may run after the browser has already released capture.
+      // Gesture state still has to be cleared so a stale drag cannot persist.
+    } finally {
+      this.#dragOrigin = undefined;
+      delete this.#element.dataset.inochi2dDragging;
+      this.#motion.releaseDrag();
+    }
     if (triggerClick) {
       this.#triggerClick();
     }
   }
 
   #triggerClick(): void {
-    const click = this.#config.interactions.click;
-    if (click) {
-      this.#animations.trigger(click.animation, performance.now());
+    const timestamp = performance.now();
+    const action = this.#dialogue.triggerClick(timestamp);
+    if (action) {
+      this.#activateDialogue(action, timestamp);
+      return;
     }
+    const legacyClick = this.#config.interactions.click;
+    if (legacyClick) {
+      this.#animations.trigger(legacyClick.animation, timestamp);
+    }
+  }
+
+  #hasClickAction(): boolean {
+    return Boolean(
+      this.#config.dialogue.click || this.#config.interactions.click,
+    );
   }
 
   #setElementPosition(left: number, top: number): void {
@@ -409,6 +548,7 @@ class ActiveController implements WidgetController {
     this.#element.style.top = `${Math.round(top)}px`;
     this.#element.style.right = "auto";
     this.#element.style.bottom = "auto";
+    this.#positionBubble();
   }
 
   #constrainPosition(): void {
@@ -428,6 +568,7 @@ class ActiveController implements WidgetController {
       clamp(bounds.left, 0, Math.max(0, viewportWidth - bounds.width)),
       clamp(bounds.top, 0, Math.max(0, viewportHeight - bounds.height)),
     );
+    this.#positionBubble();
   }
 
   #resize(): void {
@@ -437,11 +578,63 @@ class ActiveController implements WidgetController {
     const bounds = this.#element.getBoundingClientRect();
     const width = bounds.width || this.#config.display.width;
     const height = bounds.height || this.#config.display.height;
+    const requestedDpr = this.#dependencies.devicePixelRatio();
+    if (!Number.isFinite(requestedDpr) || requestedDpr <= 0) {
+      throw new Error("device pixel ratio must be finite and positive");
+    }
     const dpr = Math.min(
-      this.#dependencies.devicePixelRatio(),
+      requestedDpr,
       this.#config.render.maxDevicePixelRatio,
     );
     this.#runtime.resize(width, height, dpr);
+    this.#fitCamera(width, height);
+    this.#positionBubble();
+  }
+
+  #fitCamera(width: number, height: number): void {
+    const runtime = this.#runtime;
+    if (!runtime || !this.#config.render.autoFit) {
+      return;
+    }
+    const bounds = runtime.modelBounds?.();
+    if (!bounds) {
+      return;
+    }
+    const values = [
+      bounds.minX,
+      bounds.minY,
+      bounds.maxX,
+      bounds.maxY,
+    ];
+    const modelWidth = bounds.maxX - bounds.minX;
+    const modelHeight = bounds.maxY - bounds.minY;
+    if (
+      !values.every(Number.isFinite) ||
+      modelWidth <= 0 ||
+      modelHeight <= 0
+    ) {
+      throw new Error("official runtime returned invalid model bounds");
+    }
+    const scale =
+      Math.min(width / modelWidth, height / modelHeight) *
+      this.#config.render.fitPadding;
+    if (!Number.isFinite(scale) || scale <= 0) {
+      throw new Error("automatic model fit produced an invalid camera scale");
+    }
+    this.#cameraTransform = {
+      x: -(bounds.minX + bounds.maxX) / 2,
+      y: -(bounds.minY + bounds.maxY) / 2,
+      scale,
+    };
+    this.#applyCameraTransform();
+  }
+
+  #applyCameraTransform(scaleMultiplier = 1): void {
+    this.#runtime?.setCameraTransform(
+      this.#cameraTransform.x,
+      this.#cameraTransform.y,
+      this.#cameraTransform.scale * scaleMultiplier,
+    );
   }
 
   #scheduleFrame(): void {
@@ -483,18 +676,30 @@ class ActiveController implements WidgetController {
       return;
     }
     try {
+      this.#updateBubble(timestamp);
+      if (this.#modelRendered && !reducedMotion) {
+        const action = this.#dialogue.poll(
+          timestamp,
+          this.#animations.isActive(timestamp),
+        );
+        if (action) {
+          this.#activateDialogue(action, timestamp);
+        }
+      }
       if (this.#usesFallbackBreathing) {
         const multiplier = reducedMotion
           ? 1
           : 1 +
             (idleBreathValue(timestamp) - 0.5) * FALLBACK_BREATH_SCALE_RANGE;
-        this.#runtime.setCameraTransform(
-          0,
-          0,
-          this.#config.render.initialScale * multiplier,
-        );
+        this.#applyCameraTransform(multiplier);
       }
       const parameters = new Map(this.#motion.sample(timestamp, reducedMotion));
+      applyAmbientParameterOscillators(
+        parameters,
+        this.#config.ambient.parameters,
+        timestamp,
+        reducedMotion,
+      );
       this.#animations.apply(parameters, timestamp, reducedMotion);
       for (const [id, value] of parameters) {
         this.#setRuntimeParameter(id, value);
@@ -503,9 +708,84 @@ class ActiveController implements WidgetController {
         this.#setRuntimeParameter(id, value);
       }
       this.#runtime.renderFrame(timestamp);
+      if (!this.#modelRendered) {
+        this.#modelRendered = true;
+        // Reduced-motion mode renders only one neutral frame. Show the enter
+        // sentence immediately instead of leaving a delayed scene unpolled.
+        this.#dialogue.start(timestamp, reducedMotion);
+        const action = this.#dialogue.poll(
+          timestamp,
+          this.#animations.isActive(timestamp),
+        );
+        if (action) {
+          this.#activateDialogue(action, timestamp);
+        }
+      }
     } catch (error) {
       this.#showFallback(errorMessage(error));
     }
+  }
+
+  #activateDialogue(action: DialogueAction, timestamp: number): void {
+    this.#clearBubbleTimeout();
+    this.#animations.trigger(action.animation, timestamp);
+    this.#bubbleText.textContent = action.line;
+    this.#bubble.dataset.inochi2dScene = action.scene;
+    this.#bubble.hidden = false;
+    this.#bubbleVisibleUntil = timestamp + action.durationMs;
+    this.#positionBubble();
+    if (this.#dependencies.prefersReducedMotion()) {
+      this.#bubbleTimeoutHandle = setTimeout(
+        () => this.#hideBubble(),
+        action.durationMs,
+      );
+    }
+  }
+
+  #updateBubble(timestamp: number): void {
+    if (!this.#bubble.hidden && timestamp >= this.#bubbleVisibleUntil) {
+      this.#hideBubble();
+    }
+  }
+
+  #hideBubble(): void {
+    this.#clearBubbleTimeout();
+    this.#bubble.hidden = true;
+    this.#bubbleText.textContent = "";
+    delete this.#bubble.dataset.inochi2dScene;
+    this.#bubbleVisibleUntil = 0;
+  }
+
+  #clearBubbleTimeout(): void {
+    if (this.#bubbleTimeoutHandle !== undefined) {
+      clearTimeout(this.#bubbleTimeoutHandle);
+      this.#bubbleTimeoutHandle = undefined;
+    }
+  }
+
+  #positionBubble(): void {
+    if (this.#bubble.hidden) {
+      return;
+    }
+    const widget = this.#element.getBoundingClientRect();
+    const bubble = this.#bubble.getBoundingClientRect();
+    const viewportWidth = Math.max(
+      1,
+      document.documentElement.clientWidth || window.innerWidth,
+    );
+    const margin = 12;
+    const placement =
+      widget.top >= bubble.height + margin * 2 ? "above" : "below";
+    this.#bubble.dataset.inochi2dPlacement = placement;
+
+    const centeredLeft = widget.left + widget.width / 2 - bubble.width / 2;
+    const minimumLeft = margin;
+    const maximumLeft = Math.max(minimumLeft, viewportWidth - bubble.width - margin);
+    const shift = clamp(centeredLeft, minimumLeft, maximumLeft) - centeredLeft;
+    this.#bubble.style.setProperty(
+      "--inochi2d-bubble-shift-x",
+      `${Math.round(shift)}px`,
+    );
   }
 
   #configureBreathing(runtime: Inochi2dWasmRuntime): void {
@@ -538,10 +818,14 @@ class ActiveController implements WidgetController {
       } else {
         this.#runtime.setParameterVector(id, value[0], value[1]);
       }
-    } catch {
+    } catch (error) {
       // Different puppets expose different parameter sets. Missing optional
       // parameters are disabled after the first failed lookup.
-      this.#unsupportedParameters.add(id);
+      if (error instanceof MissingModelParameterError) {
+        this.#unsupportedParameters.add(id);
+        return;
+      }
+      throw error;
     }
   }
 
@@ -550,6 +834,8 @@ class ActiveController implements WidgetController {
       return;
     }
     this.#stopFrame();
+    this.#animations.stop();
+    this.#hideBubble();
     this.#releaseRuntime();
     this.#canvas.hidden = true;
     this.#fallback.src = this.#config.fallback;
@@ -606,4 +892,13 @@ function errorMessage(error: unknown): string {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function animationInfo(
+  config: Pick<ResolvedWidgetConfig, "animations">,
+): readonly ModelAnimationInfo[] {
+  return [...config.animations.values()].map((clip) => ({
+    name: clip.name,
+    durationMs: animationDurationMs(clip),
+  }));
 }

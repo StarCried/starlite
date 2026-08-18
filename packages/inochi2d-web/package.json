@@ -25,6 +25,12 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "require": "./dist/config.js",
+      "default": "./dist/config.js"
+    },
     "./widget.css": "./dist/widget.css"
   },
   "scripts": {
@@ -34,6 +40,6 @@
     "test": "vitest run"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   }
 }

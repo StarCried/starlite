@@ -68,24 +68,32 @@ public:
 
     override
     void apply(vec2u index, vec2 norm) {
+        // Creator 0.8 prunes bindings whose optional template node is absent
+        // from the exported puppet. Current SDK deserialization retains the
+        // binding with a null target, so mirror the legacy no-op behavior.
+        if (!target) {
+            return;
+        }
         auto deformable = cast(IDeformable)target;
         if (!deformable) {
             invalidApplications_++;
             return;
         }
 
-        const nextX = nu_min(cast(size_t)index.x + 1, values_.rows - 1);
-        const nextY = nu_min(cast(size_t)index.y + 1, values_.columns - 1);
+        const currentX = cast(size_t)index.x;
+        const currentY = cast(size_t)index.y;
+        const nextX = nu_min(currentX + 1, values_.rows - 1);
+        const nextY = nu_min(currentY + 1, values_.columns - 1);
         const x = clamp(norm.x, 0.0f, 1.0f);
         const y = clamp(norm.y, 0.0f, 1.0f);
-        const vertexCount = values_[index.x, index.y].vertexOffsets.length;
+        const vertexCount = values_[currentX, currentY].vertexOffsets.length;
 
         if (
             !isFinite(x) ||
             !isFinite(y) ||
             vertexCount != deformable.deformPoints.length ||
-            values_[nextX, index.y].vertexOffsets.length != vertexCount ||
-            values_[index.x, nextY].vertexOffsets.length != vertexCount ||
+            values_[nextX, currentY].vertexOffsets.length != vertexCount ||
+            values_[currentX, nextY].vertexOffsets.length != vertexCount ||
             values_[nextX, nextY].vertexOffsets.length != vertexCount
         ) {
             invalidApplications_++;
@@ -97,13 +105,69 @@ public:
         // which poisons later vertices after a temporary is released.
         interpolated_.clear(vertexCount);
         foreach (vertex; 0 .. vertexCount) {
-            const top =
-                values_[index.x, index.y].vertexOffsets[vertex] * (1.0f - x) +
-                values_[nextX, index.y].vertexOffsets[vertex] * x;
-            const bottom =
-                values_[index.x, nextY].vertexOffsets[vertex] * (1.0f - x) +
-                values_[nextX, nextY].vertexOffsets[vertex] * x;
-            const value = top * (1.0f - y) + bottom * y;
+            vec2 value;
+            final switch (interpMode) {
+            case InterpolateMode.nearest:
+                const sampleX = x >= 0.5f ? nextX : currentX;
+                const sampleY =
+                    values_.columns > 1 && y >= 0.5f ? nextY : currentY;
+                value = values_[sampleX, sampleY].vertexOffsets[vertex];
+                break;
+            case InterpolateMode.stepped:
+                value = values_[currentX, currentY].vertexOffsets[vertex];
+                break;
+            case InterpolateMode.linear:
+                const top =
+                    values_[currentX, currentY].vertexOffsets[vertex] *
+                        (1.0f - x) +
+                    values_[nextX, currentY].vertexOffsets[vertex] * x;
+                if (values_.columns == 1) {
+                    value = top;
+                } else {
+                    const bottom =
+                        values_[currentX, nextY].vertexOffsets[vertex] *
+                            (1.0f - x) +
+                        values_[nextX, nextY].vertexOffsets[vertex] * x;
+                    value = top * (1.0f - y) + bottom * y;
+                }
+                break;
+            case InterpolateMode.cubic:
+                const previousX = currentX > 0 ? currentX - 1 : 0;
+                const followingX = nu_min(currentX + 2, values_.rows - 1);
+                if (values_.columns == 1) {
+                    value = cubic(
+                        values_[previousX, 0].vertexOffsets[vertex],
+                        values_[currentX, 0].vertexOffsets[vertex],
+                        values_[nextX, 0].vertexOffsets[vertex],
+                        values_[followingX, 0].vertexOffsets[vertex],
+                        x
+                    );
+                } else {
+                    vec2[4] rows;
+                    const previousY = currentY > 0 ? currentY - 1 : 0;
+                    const followingY =
+                        nu_min(currentY + 2, values_.columns - 1);
+                    size_t[4] rowIndices;
+                    rowIndices[0] = previousY;
+                    rowIndices[1] = currentY;
+                    rowIndices[2] = nextY;
+                    rowIndices[3] = followingY;
+                    foreach (row, sampleY; rowIndices) {
+                        rows[row] = cubic(
+                            values_[previousX, sampleY].vertexOffsets[vertex],
+                            values_[currentX, sampleY].vertexOffsets[vertex],
+                            values_[nextX, sampleY].vertexOffsets[vertex],
+                            values_[followingX, sampleY].vertexOffsets[vertex],
+                            x
+                        );
+                    }
+                    value = cubic(rows[0], rows[1], rows[2], rows[3], y);
+                }
+                break;
+            case InterpolateMode.quadratic:
+                invalidApplications_++;
+                return;
+            }
             if (!value.isFinite) {
                 invalidApplications_++;
                 return;

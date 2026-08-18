@@ -9,9 +9,9 @@
   height: var(--inochi2d-height);
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 96px);
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
-  contain: layout paint style;
+  contain: layout style;
   will-change: left, top;
 }
 
@@ -40,6 +40,55 @@
 
 .inochi2d-widget__canvas {
   background: transparent;
+}
+
+.inochi2d-widget__bubble {
+  --inochi2d-bubble-shift-x: 0px;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  z-index: 2;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 10px 14px;
+  border: 1px solid rgb(255 255 255 / 65%);
+  border-radius: 14px;
+  color: #20242b;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  transform: translateX(calc(-50% + var(--inochi2d-bubble-shift-x)));
+}
+
+.inochi2d-widget__bubble[data-inochi2d-placement="below"] {
+  top: calc(100% + 12px);
+  bottom: auto;
+}
+
+.inochi2d-widget__bubble::after {
+  position: absolute;
+  left: calc(50% - var(--inochi2d-bubble-shift-x));
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  border-right: 1px solid rgb(255 255 255 / 65%);
+  border-bottom: 1px solid rgb(255 255 255 / 65%);
+  background: rgb(255 255 255 / 94%);
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.inochi2d-widget__bubble[data-inochi2d-placement="below"]::after {
+  top: -7px;
+  bottom: auto;
+  transform: translateX(-50%) rotate(225deg);
+}
+
+.inochi2d-widget__bubble[hidden] {
+  display: none;
 }
 
 .inochi2d-widget[data-inochi2d-status="disabled"],

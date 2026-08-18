@@ -113,7 +113,12 @@ export class MotionMixer {
   }
 
   #scheduleBlink(timestampMs: number): void {
-    this.#nextBlinkAt = timestampMs + 2200 + this.#random() * 3800;
+    this.#nextBlinkAt = timestampMs + 2200 + this.#unitRandom() * 3800;
+  }
+
+  #unitRandom(): number {
+    const value = this.#random();
+    return Number.isFinite(value) ? clamp(value, 0, 1) : 0.5;
   }
 }
 

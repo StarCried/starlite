@@ -22,10 +22,84 @@ const BLEND_LIGHTEN = 0x05;
 const BLEND_COLOR_DODGE = 0x06;
 const BLEND_LINEAR_DODGE = 0x07;
 const BLEND_ADD_GLOW = 0x08;
+const BLEND_COLOR_BURN = 0x09;
 const BLEND_INVERSE = 0x0f;
 const BLEND_DESTINATION_IN = 0x10;
 const BLEND_SOURCE_IN = 0x11;
 const BLEND_SOURCE_OUT = 0x12;
+
+/**
+ * Apply the fixed-function blend equations defined by the Inochi2D standard.
+ *
+ * RGB and alpha use different destination factors for LinearDodge and AddGlow;
+ * using blendFunc() there subtly accumulates transparency into dark fringes.
+ */
+export function applyInochiBlendMode(
+  gl: WebGL2RenderingContext,
+  mode: number,
+): void {
+  gl.enable(gl.BLEND);
+  switch (mode) {
+    case BLEND_NORMAL:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      break;
+    case BLEND_MULTIPLY:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
+      break;
+    case BLEND_SCREEN:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+      break;
+    case BLEND_LIGHTEN:
+      gl.blendEquation(gl.MAX);
+      gl.blendFunc(gl.DST_COLOR, gl.ONE);
+      break;
+    case BLEND_COLOR_DODGE:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.DST_COLOR, gl.ONE);
+      break;
+    case BLEND_LINEAR_DODGE:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFuncSeparate(
+        gl.ONE,
+        gl.ONE_MINUS_SRC_COLOR,
+        gl.ONE,
+        gl.ONE_MINUS_SRC_ALPHA,
+      );
+      break;
+    case BLEND_ADD_GLOW:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFuncSeparate(
+        gl.ONE,
+        gl.ONE,
+        gl.ONE,
+        gl.ONE_MINUS_SRC_ALPHA,
+      );
+      break;
+    case BLEND_COLOR_BURN:
+      throw new Error("ColorBurn requires the shader-based blend path");
+    case BLEND_INVERSE:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.ONE_MINUS_DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
+      break;
+    case BLEND_DESTINATION_IN:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.ZERO, gl.SRC_ALPHA);
+      break;
+    case BLEND_SOURCE_IN:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.DST_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      break;
+    case BLEND_SOURCE_OUT:
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
+      break;
+    default:
+      throw new Error(`unsupported official Inochi2D blend mode ${mode}`);
+  }
+}
 
 interface RenderTarget {
   framebuffer: WebGLFramebuffer;
@@ -59,6 +133,10 @@ interface MaskProgramHandles extends ProgramHandles {
   albedo: WebGLUniformLocation | null;
 }
 
+interface ColorBurnProgramHandles extends PartProgramHandles {
+  backdrop: WebGLUniformLocation | null;
+}
+
 interface CombineProgramHandles {
   program: WebGLProgram;
   parentMask: WebGLUniformLocation | null;
@@ -74,6 +152,7 @@ export class OfficialWebGlRenderer {
   readonly #quadVertexArray: WebGLVertexArrayObject;
   readonly #quadVertexBuffer: WebGLBuffer;
   readonly #partProgram: PartProgramHandles;
+  readonly #colorBurnProgram: ColorBurnProgramHandles;
   readonly #maskProgram: MaskProgramHandles;
   readonly #combineProgram: CombineProgramHandles;
   readonly #textures = new Map<number, WebGLTexture>();
@@ -113,6 +192,7 @@ export class OfficialWebGlRenderer {
     this.#quadVertexArray = requireGlObject(gl.createVertexArray(), "quad vertex array");
     this.#quadVertexBuffer = requireGlObject(gl.createBuffer(), "quad vertex buffer");
     this.#partProgram = createPartProgram(gl);
+    this.#colorBurnProgram = createColorBurnProgram(gl);
     this.#maskProgram = createMaskProgram(gl);
     this.#combineProgram = createCombineProgram(gl);
     this.#whiteTexture = createWhiteTexture(gl);
@@ -121,13 +201,28 @@ export class OfficialWebGlRenderer {
 
   uploadTextures(textures: readonly OfficialTexture[]): void {
     this.#assertActive();
+    const next = new Map<number, WebGLTexture>();
+    try {
+      for (const source of textures) {
+        if (next.has(source.pointer)) {
+          throw new Error(
+            `official SDK returned duplicate texture pointer ${source.pointer}`,
+          );
+        }
+        next.set(source.pointer, createModelTexture(this.#gl, source));
+      }
+    } catch (error) {
+      for (const texture of next.values()) {
+        this.#gl.deleteTexture(texture);
+      }
+      throw error;
+    }
     for (const texture of this.#textures.values()) {
       this.#gl.deleteTexture(texture);
     }
     this.#textures.clear();
-    for (const source of textures) {
-      const texture = createModelTexture(this.#gl, source);
-      this.#textures.set(source.pointer, texture);
+    for (const [pointer, texture] of next) {
+      this.#textures.set(pointer, texture);
     }
   }
 
@@ -143,6 +238,14 @@ export class OfficialWebGlRenderer {
 
   resize(width: number, height: number, devicePixelRatio: number): void {
     this.#assertActive();
+    if (
+      ![width, height, devicePixelRatio].every(Number.isFinite) ||
+      width <= 0 ||
+      height <= 0 ||
+      devicePixelRatio <= 0
+    ) {
+      throw new Error("canvas dimensions and device pixel ratio must be finite and positive");
+    }
     const logicalWidth = Math.max(1, width);
     const logicalHeight = Math.max(1, height);
     const ratio = Math.max(0.1, devicePixelRatio);
@@ -222,6 +325,7 @@ export class OfficialWebGlRenderer {
     this.#deleteTargets(this.#colorTargets);
     this.#deleteTargets(this.#maskTargets);
     gl.deleteProgram(this.#partProgram.program);
+    gl.deleteProgram(this.#colorBurnProgram.program);
     gl.deleteProgram(this.#maskProgram.program);
     gl.deleteProgram(this.#combineProgram.program);
     gl.deleteBuffer(this.#meshVertexBuffer);
@@ -261,6 +365,10 @@ export class OfficialWebGlRenderer {
 
   #drawPart(command: OfficialDrawCommand, screenSpace: boolean): void {
     if (command.elementCount === 0) {
+      return;
+    }
+    if (command.blendMode === BLEND_COLOR_BURN) {
+      this.#drawColorBurn(command, screenSpace, false);
       return;
     }
     const gl = this.#gl;
@@ -376,6 +484,11 @@ export class OfficialWebGlRenderer {
       throw new Error("official draw list requested a composite blit without a source");
     }
     const gl = this.#gl;
+    if (command.blendMode === BLEND_COLOR_BURN) {
+      this.#drawColorBurn(command, true, true);
+      this.#lastComposite = undefined;
+      return;
+    }
     this.#bindOutputTarget();
     this.#setBlendMode(command.blendMode);
     const program = this.#partProgram;
@@ -407,6 +520,72 @@ export class OfficialWebGlRenderer {
     gl.uniform1f(program.opacity, clamp(finiteOr(command.variables[7], 1), 0, 1));
     this.#drawQuad();
     this.#lastComposite = undefined;
+  }
+
+  #drawColorBurn(
+    command: OfficialDrawCommand,
+    screenSpace: boolean,
+    compositeBlit: boolean,
+  ): void {
+    const gl = this.#gl;
+    const backdrop = this.#captureOutput();
+    this.#bindOutputTarget();
+    gl.disable(gl.BLEND);
+    const program = this.#colorBurnProgram;
+    gl.useProgram(program.program);
+    this.#setCommonUniforms(program, screenSpace);
+    const source = compositeBlit
+      ? this.#lastComposite?.texture
+      : this.#textures.get(command.sources[0] ?? 0);
+    bindTexture(gl, 0, source ?? this.#whiteTexture);
+    gl.uniform1i(program.albedo, 0);
+    const mask = this.#activeMask();
+    if (mask) {
+      bindTexture(gl, 1, mask.texture);
+      gl.uniform1i(program.mask, 1);
+      gl.uniform1i(program.hasMask, 1);
+    } else {
+      gl.uniform1i(program.hasMask, 0);
+    }
+    bindTexture(gl, 2, backdrop.texture);
+    gl.uniform1i(program.backdrop, 2);
+    gl.uniform2f(program.targetSize, this.#canvas.width, this.#canvas.height);
+    gl.uniform3f(
+      program.tint,
+      finiteOr(command.variables[0], 1),
+      finiteOr(command.variables[1], 1),
+      finiteOr(command.variables[2], 1),
+    );
+    gl.uniform3f(
+      program.screenTint,
+      finiteOr(command.variables[3], 0),
+      finiteOr(command.variables[4], 0),
+      finiteOr(command.variables[5], 0),
+    );
+    gl.uniform1f(program.opacity, clamp(finiteOr(command.variables[7], 1), 0, 1));
+    if (compositeBlit) {
+      this.#drawQuad();
+    } else {
+      this.#drawMesh(command);
+    }
+  }
+
+  #captureOutput(): RenderTarget {
+    const gl = this.#gl;
+    const target = this.#acquireColorTarget();
+    this.#bindOutputTarget();
+    bindTexture(gl, 2, target.texture);
+    gl.copyTexSubImage2D(
+      gl.TEXTURE_2D,
+      0,
+      0,
+      0,
+      0,
+      0,
+      this.#canvas.width,
+      this.#canvas.height,
+    );
+    return target;
   }
 
   #drawMesh(command: OfficialDrawCommand): void {
@@ -495,53 +674,7 @@ export class OfficialWebGlRenderer {
   }
 
   #setBlendMode(mode: number): void {
-    const gl = this.#gl;
-    gl.enable(gl.BLEND);
-    switch (mode) {
-      case BLEND_NORMAL:
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case BLEND_MULTIPLY:
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case BLEND_SCREEN:
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
-        break;
-      case BLEND_LIGHTEN:
-        gl.blendEquation(gl.MAX);
-        gl.blendFunc(gl.ONE, gl.ONE);
-        break;
-      case BLEND_COLOR_DODGE:
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.DST_COLOR, gl.ONE);
-        break;
-      case BLEND_LINEAR_DODGE:
-      case BLEND_ADD_GLOW:
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.ONE, gl.ONE);
-        break;
-      case BLEND_INVERSE:
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.ONE_MINUS_DST_COLOR, gl.ONE_MINUS_SRC_COLOR);
-        break;
-      case BLEND_DESTINATION_IN:
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.ZERO, gl.SRC_ALPHA);
-        break;
-      case BLEND_SOURCE_IN:
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.DST_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      case BLEND_SOURCE_OUT:
-        gl.blendEquation(gl.FUNC_SUBTRACT);
-        gl.blendFunc(gl.ONE_MINUS_DST_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        break;
-      default:
-        throw new Error(`unsupported official Inochi2D blend mode ${mode}`);
-    }
+    applyInochiBlendMode(this.#gl, mode);
   }
 
   #bindOutputTarget(): void {
@@ -670,6 +803,51 @@ void main() {
   out_color = color;
 }`;
 
+const COLOR_BURN_FRAGMENT_SHADER = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_albedo;
+uniform sampler2D u_mask;
+uniform sampler2D u_backdrop;
+uniform bool u_has_mask;
+uniform vec2 u_target_size;
+uniform vec3 u_tint;
+uniform vec3 u_screen_tint;
+uniform float u_opacity;
+out vec4 out_color;
+void main() {
+  vec4 tex_color = texture(u_albedo, v_uv);
+  vec3 screen_color =
+    vec3(1.0) - ((vec3(1.0) - tex_color.rgb) *
+    (vec3(1.0) - (u_screen_tint * tex_color.a)));
+  vec4 source = vec4(screen_color, tex_color.a) * vec4(u_tint, 1.0) * u_opacity;
+  if (u_has_mask) {
+    source *= texture(u_mask, gl_FragCoord.xy / u_target_size).r;
+  }
+
+  vec4 backdrop = texture(u_backdrop, gl_FragCoord.xy / u_target_size);
+  float source_alpha = clamp(source.a, 0.0, 1.0);
+  float backdrop_alpha = clamp(backdrop.a, 0.0, 1.0);
+  vec3 source_color =
+    source_alpha > 0.000001 ? source.rgb / source_alpha : vec3(0.0);
+  vec3 backdrop_color =
+    backdrop_alpha > 0.000001 ? backdrop.rgb / backdrop_alpha : vec3(0.0);
+  vec3 burn = vec3(0.0);
+  bvec3 nonzero_source = greaterThan(source_color, vec3(0.000001));
+  vec3 divided =
+    vec3(1.0) - min(vec3(1.0), (vec3(1.0) - backdrop_color) /
+      max(source_color, vec3(0.000001)));
+  burn = mix(burn, divided, nonzero_source);
+
+  float output_alpha =
+    source_alpha + backdrop_alpha - source_alpha * backdrop_alpha;
+  vec3 output_rgb =
+    source.rgb * (1.0 - backdrop_alpha) +
+    backdrop.rgb * (1.0 - source_alpha) +
+    burn * source_alpha * backdrop_alpha;
+  out_color = vec4(output_rgb, output_alpha);
+}`;
+
 const MASK_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -708,6 +886,24 @@ function createPartProgram(gl: WebGL2RenderingContext): PartProgramHandles {
     program,
     albedo: gl.getUniformLocation(program, "u_albedo"),
     mask: gl.getUniformLocation(program, "u_mask"),
+    hasMask: gl.getUniformLocation(program, "u_has_mask"),
+    targetSize: gl.getUniformLocation(program, "u_target_size"),
+    tint: gl.getUniformLocation(program, "u_tint"),
+    screenTint: gl.getUniformLocation(program, "u_screen_tint"),
+    opacity: gl.getUniformLocation(program, "u_opacity"),
+  };
+}
+
+function createColorBurnProgram(
+  gl: WebGL2RenderingContext,
+): ColorBurnProgramHandles {
+  const program = linkProgram(gl, VERTEX_SHADER, COLOR_BURN_FRAGMENT_SHADER);
+  return {
+    ...commonHandles(gl, program),
+    program,
+    albedo: gl.getUniformLocation(program, "u_albedo"),
+    mask: gl.getUniformLocation(program, "u_mask"),
+    backdrop: gl.getUniformLocation(program, "u_backdrop"),
     hasMask: gl.getUniformLocation(program, "u_has_mask"),
     targetSize: gl.getUniformLocation(program, "u_target_size"),
     tint: gl.getUniformLocation(program, "u_tint"),

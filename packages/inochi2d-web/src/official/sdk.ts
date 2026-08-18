@@ -24,6 +24,13 @@ interface OfficialExports extends WebAssembly.Exports {
   in_puppet_get_parameters(puppet: Pointer, count: Pointer): Pointer;
   in_puppet_get_drawlist(puppet: Pointer): Pointer;
   in_puppet_get_texture_cache(puppet: Pointer): Pointer;
+  in_puppet_get_physics_enabled(puppet: Pointer): number;
+  in_puppet_set_physics_enabled(puppet: Pointer, enabled: number): void;
+  in_puppet_get_driver_count(puppet: Pointer): number;
+  in_puppet_get_resolved_driver_count(puppet: Pointer): number;
+  in_puppet_get_spring_driver_count(puppet: Pointer): number;
+  in_puppet_get_xy_driver_count(puppet: Pointer): number;
+  in_puppet_get_nonzero_physics_scale_count(puppet: Pointer): number;
   in_parameter_get_name(parameter: Pointer): Pointer;
   in_parameter_get_dimensions(parameter: Pointer): number;
   in_parameter_get_lower_bounds(parameter: Pointer): Pointer;
@@ -41,7 +48,6 @@ interface OfficialExports extends WebAssembly.Exports {
   in_texture_get_height(texture: Pointer): number;
   in_texture_get_channels(texture: Pointer): number;
   in_texture_get_pixels(texture: Pointer): Pointer;
-  in_texture_premultiply(texture: Pointer): void;
   in_drawlist_get_commands(drawList: Pointer, count: Pointer): Pointer;
   in_drawlist_get_vertex_data(drawList: Pointer, bytes: Pointer): Pointer;
   in_drawlist_get_index_data(drawList: Pointer, bytes: Pointer): Pointer;
@@ -59,6 +65,14 @@ export interface OfficialParameter {
 export interface OfficialPuppet {
   pointer: Pointer;
   parameters: Map<string, OfficialParameter>;
+  physics: {
+    enabled: boolean;
+    driverCount: number;
+    resolvedDriverCount: number;
+    springDriverCount: number;
+    xyDriverCount: number;
+    nonzeroScaleCount: number;
+  };
 }
 
 export interface OfficialTexture {
@@ -154,6 +168,22 @@ export class OfficialInochi2dSdk {
       return {
         pointer: puppetPointer,
         parameters: this.#readParameters(puppetPointer),
+        physics: {
+          enabled:
+            this.#exports.in_puppet_get_physics_enabled(puppetPointer) !== 0,
+          driverCount:
+            this.#exports.in_puppet_get_driver_count(puppetPointer),
+          resolvedDriverCount:
+            this.#exports.in_puppet_get_resolved_driver_count(puppetPointer),
+          springDriverCount:
+            this.#exports.in_puppet_get_spring_driver_count(puppetPointer),
+          xyDriverCount:
+            this.#exports.in_puppet_get_xy_driver_count(puppetPointer),
+          nonzeroScaleCount:
+            this.#exports.in_puppet_get_nonzero_physics_scale_count(
+              puppetPointer,
+            ),
+        },
       };
     } catch (error) {
       this.#exports.in_puppet_free(puppetPointer);
@@ -212,6 +242,21 @@ export class OfficialInochi2dSdk {
       }
     }
     this.#exports.in_parameter_set_value(parameter.pointer, pointer);
+  }
+
+  /** Reads the current model-owned parameter value for compatibility tests. */
+  readParameterValue(parameter: OfficialParameter): readonly number[] {
+    this.#assertActive();
+    return this.#readParameterValue(parameter);
+  }
+
+  setPhysicsEnabled(puppet: OfficialPuppet, enabled: boolean): void {
+    this.#assertActive();
+    this.#exports.in_puppet_set_physics_enabled(
+      puppet.pointer,
+      enabled ? 1 : 0,
+    );
+    puppet.physics.enabled = enabled;
   }
 
   /**
@@ -329,7 +374,9 @@ export class OfficialInochi2dSdk {
         );
       }
 
-      this.#exports.in_texture_premultiply(pointer);
+      // Creator/Mannequin container textures already carry premultiplied RGB.
+      // Mutating the SDK cache here would multiply alpha a second time and
+      // produce dark fringes; it would also compound after a repeated read.
       const pixelsPointer = this.#exports.in_texture_get_pixels(pointer);
       textures.push({
         pointer,
@@ -484,6 +531,10 @@ export class OfficialInochi2dSdk {
     const commands: OfficialDrawCommand[] = [];
     for (let index = 0; index < commandCount; index += 1) {
       const base = index * DRAW_COMMAND_BYTES;
+      const state = commandView.getUint32(base + 32, true);
+      const blendMode = commandView.getUint32(base + 36, true);
+      const maskMode = commandView.getUint32(base + 40, true);
+      const typeId = commandView.getUint32(base + 60, true);
       const sources = Array.from({ length: 8 }, (_, sourceIndex) =>
         commandView.getUint32(base + sourceIndex * 4, true),
       );
@@ -495,19 +546,20 @@ export class OfficialInochi2dSdk {
         );
         if (!Number.isFinite(variables[variable])) {
           throw new Error(
-            `draw command ${index} contains a non-finite variable at ${variable}`,
+            `draw command ${index} contains a non-finite variable at ${variable} ` +
+              `(state=${state}, blendMode=${blendMode}, maskMode=${maskMode}, typeId=${typeId})`,
           );
         }
       }
       commands.push({
         sources,
-        state: commandView.getUint32(base + 32, true),
-        blendMode: commandView.getUint32(base + 36, true),
-        maskMode: commandView.getUint32(base + 40, true),
+        state,
+        blendMode,
+        maskMode,
         vertexOffset: commandView.getUint32(base + 48, true),
         indexOffset: commandView.getUint32(base + 52, true),
         elementCount: commandView.getUint32(base + 56, true),
-        typeId: commandView.getUint32(base + 60, true),
+        typeId,
         variables,
       });
     }
@@ -717,6 +769,13 @@ function assertOfficialExports(exports: WebAssembly.Exports): OfficialExports {
     "in_puppet_get_parameters",
     "in_puppet_get_drawlist",
     "in_puppet_get_texture_cache",
+    "in_puppet_get_physics_enabled",
+    "in_puppet_set_physics_enabled",
+    "in_puppet_get_driver_count",
+    "in_puppet_get_resolved_driver_count",
+    "in_puppet_get_spring_driver_count",
+    "in_puppet_get_xy_driver_count",
+    "in_puppet_get_nonzero_physics_scale_count",
     "in_parameter_get_name",
     "in_parameter_get_dimensions",
     "in_parameter_get_lower_bounds",
@@ -732,7 +791,6 @@ function assertOfficialExports(exports: WebAssembly.Exports): OfficialExports {
     "in_texture_get_height",
     "in_texture_get_channels",
     "in_texture_get_pixels",
-    "in_texture_premultiply",
     "in_drawlist_get_commands",
     "in_drawlist_get_vertex_data",
     "in_drawlist_get_index_data",

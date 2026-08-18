@@ -6,8 +6,17 @@ export type WidgetStatus =
   | "fallback"
   | "destroyed";
 
+export interface ModelBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 export interface Inochi2dWasmRuntime {
   loadModel(bytes: Uint8Array): void;
+  /** Neutral-pose bounds from SDK draw vertices, when the runtime can expose them. */
+  modelBounds?(): ModelBounds | undefined;
   setParameterScalar(id: string, value: number): void;
   setParameterVector(id: string, x: number, y: number): void;
   setCameraTransform(x: number, y: number, scale: number): void;
@@ -54,6 +63,101 @@ export interface AnimationClip {
   leadOut: number;
   weight: number;
   lanes: readonly AnimationLane[];
+}
+
+export type AnimationPlaybackMode = "once" | "loop";
+
+export interface AnimationPlaybackOptions {
+  /** Plays through once by default; loops use the Creator lead-in/out region. */
+  mode?: AnimationPlaybackMode;
+  /** Restart an identical active clip instead of sharing its current playback. */
+  restart?: boolean;
+}
+
+export type AnimationPlaybackResult =
+  | "completed"
+  | "interrupted"
+  | "stopped";
+
+export interface ModelAnimationInfo {
+  name: string;
+  durationMs: number;
+}
+
+export interface AmbientAnimationConfig {
+  /**
+   * Exact, case-sensitive names of model-authored clips that remain looping.
+   * Loop clips may target different parameters or different vector axes.
+   */
+  animations?: readonly string[];
+  /** Procedural sine-wave parameters, such as a continuously swaying tail. */
+  parameters?: readonly AmbientParameterOscillatorConfig[];
+}
+
+export interface AmbientParameterOscillatorConfig {
+  /** Exact, case-sensitive model parameter name. */
+  id: string;
+  /** Required for one axis of a two-dimensional parameter. */
+  axis?: ParameterAxis;
+  minimum: number;
+  maximum: number;
+  /** Duration of one complete sine-wave cycle. */
+  periodMs: number;
+  /** Cycle offset in the inclusive 0..1 range. */
+  phase?: number;
+}
+
+export interface ResolvedAmbientParameterOscillator {
+  id: string;
+  axis?: ParameterAxis;
+  minimum: number;
+  maximum: number;
+  periodMs: number;
+  phase: number;
+}
+
+export interface DialogueSceneConfig {
+  /** Exact, case-sensitive animation name embedded in the model. */
+  animation: string;
+  /** Plain-text sentence library. HTML is never interpreted. */
+  lines: readonly string[];
+  /** How long the selected sentence remains visible. */
+  durationMs?: number;
+}
+
+export interface EnterDialogueSceneConfig extends DialogueSceneConfig {
+  /** Delay after the model's first successfully rendered frame. */
+  delayMs?: number;
+}
+
+export interface IdleDialogueSceneConfig extends DialogueSceneConfig {
+  /** Inclusive lower bound for the randomized idle interval. */
+  intervalMinMs?: number;
+  /** Inclusive upper bound for the randomized idle interval. */
+  intervalMaxMs?: number;
+}
+
+export interface DialogueConfig {
+  enter?: false | EnterDialogueSceneConfig;
+  idle?: false | IdleDialogueSceneConfig;
+  click?: false | DialogueSceneConfig;
+}
+
+export type DialogueSceneName = "enter" | "idle" | "click";
+
+export interface ResolvedDialogueScene {
+  animation: string;
+  lines: readonly string[];
+  durationMs: number;
+}
+
+export interface ResolvedEnterDialogueScene extends ResolvedDialogueScene {
+  delayMs: number;
+}
+
+export interface ResolvedIdleDialogueScene extends ResolvedDialogueScene {
+  intervalMinMs: number;
+  intervalMaxMs: number;
 }
 
 /** Maps one semantic motion channel to a puppet parameter. */
@@ -113,6 +217,10 @@ export interface WidgetConfig {
     fps?: number;
     maxDevicePixelRatio?: number;
     initialScale?: number;
+    /** Center and contain the neutral SDK draw bounds inside the widget. */
+    autoFit?: boolean;
+    /** Fraction of the widget available to the fitted model. */
+    fitPadding?: number;
   };
   mobile?: {
     show?: boolean;
@@ -120,6 +228,10 @@ export interface WidgetConfig {
   };
   /** Validated clips emitted by inochi2d-pipeline; do not hand-author in production. */
   animations?: readonly AnimationClip[];
+  /** Model-authored clips played continuously underneath foreground actions. */
+  ambient?: AmbientAnimationConfig;
+  /** Configurable sentence/action scenes rendered above the model. */
+  dialogue?: DialogueConfig;
   parameters?: Partial<ParameterIds>;
   interactions?: {
     pointer?: boolean;
@@ -149,12 +261,23 @@ export interface ResolvedWidgetConfig {
     fps: number;
     maxDevicePixelRatio: number;
     initialScale: number;
+    autoFit: boolean;
+    fitPadding: number;
   };
   mobile: {
     show: boolean;
     breakpoint: number;
   };
   animations: ReadonlyMap<string, AnimationClip>;
+  ambient: {
+    animations: readonly string[];
+    parameters: readonly ResolvedAmbientParameterOscillator[];
+  };
+  dialogue: {
+    enter: false | ResolvedEnterDialogueScene;
+    idle: false | ResolvedIdleDialogueScene;
+    click: false | ResolvedDialogueScene;
+  };
   parameters: ResolvedParameterBindings;
   interactions: {
     pointer: boolean;
@@ -168,6 +291,12 @@ export interface WidgetController {
   readonly status: WidgetStatus;
   pause(): void;
   resume(): void;
+  getAnimations(): readonly ModelAnimationInfo[];
+  playAnimation(
+    name: string,
+    options?: AnimationPlaybackOptions,
+  ): Promise<AnimationPlaybackResult>;
+  stopAnimation(): void;
   setParameter(id: string, value: number | readonly [number, number]): void;
   resetCamera(): void;
   destroy(): void;

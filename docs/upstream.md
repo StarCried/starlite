@@ -12,18 +12,23 @@
 - LLD: 20.x (locally 20.1.8)
 - Binaryen: version 120
 - Raw WASM SHA-256:
-  `d906480b9c3abfac960b507fed034cc745490b90ed45198a453ba36055e29e4a`
+  `47520f0e494f2a6836c7d1783756fc115920b18e71cfd3c366f41d5a2f6ef852`
 - Optimized WASM SHA-256:
-  `c5ce69973cfe5169a4787627420da3ed721d1571b6ae753f29a64c1abd25f903`
+  `e19dc3e63315242e5f0a6040db4606d0e92c90ae86f05785158ee9efe58ddce5`
 
 The machine-readable source of truth is `tools/official-sdk/pin.json`; D
 dependency versions are in `tools/official-sdk/dub.selections.json`.
 
 The build applies local compatibility patches for legacy Creator parameter
 bindings and ranges, fixed-vector composite/physics fields,
-deformation/property storage, stable draw allocations, finite binding
-diagnostics, and a minimal browser export surface. Browser texture upload keeps
-the official SDK's decoded orientation. These patches are project
+deformation/property storage, legacy `SimplePhysics` enum member names, stable
+draw allocations, finite binding diagnostics, Creator 0.8 shared-property
+composition and frame resets, and a minimal browser export surface. Browser
+texture upload keeps the official SDK's decoded orientation. The physics
+compatibility patches map Creator 0.8 spellings such as `SpringPendulum` and
+`XY`, skip the previous-frame value of physics-driven parameters, and explicitly
+invert the affine XY basis because pinned `numath` 0.5.0 does not provide a
+working matrix inverse. The model file is not altered. These patches are project
 implementation, not claims about official browser support.
 
 ## Historical Rust investigation

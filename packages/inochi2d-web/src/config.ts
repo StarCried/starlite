@@ -1,8 +1,16 @@
 import type {
+  AmbientParameterOscillatorConfig,
   AnimationClip,
   AnimationInterpolation,
+  DialogueConfig,
+  DialogueSceneConfig,
+  EnterDialogueSceneConfig,
+  IdleDialogueSceneConfig,
   ParameterBinding,
   ParameterIds,
+  ResolvedDialogueScene,
+  ResolvedEnterDialogueScene,
+  ResolvedIdleDialogueScene,
   ResolvedParameterBindings,
   ResolvedParameterTarget,
   ResolvedWidgetConfig,
@@ -36,10 +44,21 @@ const DEFAULTS: Omit<
     fps: 30,
     maxDevicePixelRatio: 1.25,
     initialScale: 0.15,
+    autoFit: false,
+    fitPadding: 0.9,
   },
   mobile: {
     show: false,
     breakpoint: 768,
+  },
+  ambient: {
+    animations: [],
+    parameters: [],
+  },
+  dialogue: {
+    enter: false,
+    idle: false,
+    click: false,
   },
   interactions: {
     pointer: true,
@@ -50,14 +69,41 @@ const DEFAULTS: Omit<
 };
 
 export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
-  if (config.model.trim().length === 0) {
+  if (typeof config !== "object" || config === null || Array.isArray(config)) {
+    throw new Error("widget config must be an object");
+  }
+  for (const field of [
+    "network",
+    "display",
+    "render",
+    "mobile",
+    "interactions",
+    "parameters",
+  ] as const) {
+    assertOptionalRecord(config[field], field);
+  }
+  if (typeof config.model !== "string" || config.model.trim().length === 0) {
     throw new Error("model URL must not be empty");
   }
-  if (config.fallback.trim().length === 0) {
+  if (
+    typeof config.fallback !== "string" ||
+    config.fallback.trim().length === 0
+  ) {
     throw new Error("fallback URL must not be empty");
   }
   const animations = resolveAnimations(config.animations);
+  const ambient = resolveAmbient(config.ambient, animations);
+  const dialogue = resolveDialogue(config.dialogue, animations);
   const click = resolveClick(config.interactions?.click, animations);
+  if (
+    click &&
+    dialogue.click &&
+    click.animation !== dialogue.click.animation
+  ) {
+    throw new Error(
+      "interactions.click.animation and dialogue.click.animation must match when both are enabled",
+    );
+  }
 
   return {
     model: config.model,
@@ -96,9 +142,25 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
         DEFAULTS.render.initialScale,
         "render.initialScale",
       ),
+      autoFit: booleanValue(
+        config.render?.autoFit,
+        DEFAULTS.render.autoFit,
+        "render.autoFit",
+      ),
+      fitPadding: bounded(
+        config.render?.fitPadding,
+        DEFAULTS.render.fitPadding,
+        0.1,
+        1,
+        "render.fitPadding",
+      ),
     },
     mobile: {
-      show: config.mobile?.show ?? DEFAULTS.mobile.show,
+      show: booleanValue(
+        config.mobile?.show,
+        DEFAULTS.mobile.show,
+        "mobile.show",
+      ),
       breakpoint: positive(
         config.mobile?.breakpoint,
         DEFAULTS.mobile.breakpoint,
@@ -106,11 +168,21 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
       ),
     },
     animations,
+    ambient,
+    dialogue,
     parameters: resolveParameterBindings(config.parameters),
     interactions: {
-      pointer: config.interactions?.pointer ?? DEFAULTS.interactions.pointer,
+      pointer: booleanValue(
+        config.interactions?.pointer,
+        DEFAULTS.interactions.pointer,
+        "interactions.pointer",
+      ),
       click,
-      drag: config.interactions?.drag ?? DEFAULTS.interactions.drag,
+      drag: booleanValue(
+        config.interactions?.drag,
+        DEFAULTS.interactions.drag,
+        "interactions.drag",
+      ),
       dragModelUnitsPerPixel: bounded(
         config.interactions?.dragModelUnitsPerPixel,
         DEFAULTS.interactions.dragModelUnitsPerPixel,
@@ -120,6 +192,261 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
       ),
     },
   };
+}
+
+/**
+ * Validates a complete widget configuration without retaining its resolved
+ * representation. This pure entry point is safe for build-time adapters.
+ */
+export function validateInochi2DWidgetConfig(config: WidgetConfig): void {
+  resolveConfig(config);
+}
+
+function resolveAmbient(
+  input: WidgetConfig["ambient"],
+  animations: ReadonlyMap<string, AnimationClip>,
+): ResolvedWidgetConfig["ambient"] {
+  if (input === undefined) {
+    return DEFAULTS.ambient;
+  }
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new Error("ambient must be an animation configuration");
+  }
+  const names = input.animations ?? [];
+  if (!Array.isArray(names) || names.length > 8) {
+    throw new Error("ambient.animations must contain at most 8 names");
+  }
+
+  const resolved: string[] = [];
+  const nameSet = new Set<string>();
+  const targets: Array<{ id: string; axis?: "x" | "y" }> = [];
+  for (const [index, value] of names.entries()) {
+    const field = `ambient.animations[${index}]`;
+    if (typeof value !== "string" || value.trim().length === 0) {
+      throw new Error(`${field} must be a non-empty animation name`);
+    }
+    const name = value.trim();
+    if (nameSet.has(name)) {
+      throw new Error(`${field} duplicates animation ${JSON.stringify(name)}`);
+    }
+    const clip = animations.get(name);
+    if (!clip) {
+      throw new Error(
+        `${field} ${JSON.stringify(name)} is not present in the validated model animations`,
+      );
+    }
+    const loopBegin = hasLeadIn(clip) ? clip.leadIn : 0;
+    const loopEnd = hasLeadOut(clip) ? clip.leadOut : clip.length;
+    if (loopEnd <= loopBegin) {
+      throw new Error(
+        `${field} has an invalid Creator loop range ${loopBegin}..${loopEnd}`,
+      );
+    }
+    for (const lane of clip.lanes) {
+      const target = {
+        id: lane.parameter,
+        ...(lane.axis ? { axis: lane.axis } : {}),
+      };
+      if (targets.some((existing) => ambientTargetsOverlap(existing, target))) {
+        throw new Error(
+          `${field} overlaps another ambient animation on ${JSON.stringify(lane.parameter)}${lane.axis ? ` axis ${lane.axis}` : ""}`,
+        );
+      }
+      targets.push(target);
+    }
+    nameSet.add(name);
+    resolved.push(name);
+  }
+
+  const parameters = input.parameters ?? [];
+  if (!Array.isArray(parameters) || parameters.length > 16) {
+    throw new Error("ambient.parameters must contain at most 16 oscillators");
+  }
+  const resolvedParameters = parameters.map((value, index) =>
+    resolveAmbientParameter(value, index, targets),
+  );
+  return { animations: resolved, parameters: resolvedParameters };
+}
+
+function resolveAmbientParameter(
+  input: AmbientParameterOscillatorConfig,
+  index: number,
+  targets: Array<{ id: string; axis?: "x" | "y" }>,
+): ResolvedWidgetConfig["ambient"]["parameters"][number] {
+  const field = `ambient.parameters[${index}]`;
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new Error(`${field} must be a parameter oscillator`);
+  }
+  const id = typeof input.id === "string" ? input.id.trim() : "";
+  if (id.length === 0 || new TextEncoder().encode(id).byteLength > 256) {
+    throw new Error(`${field}.id must contain 1..=256 UTF-8 bytes`);
+  }
+  if (input.axis !== undefined && input.axis !== "x" && input.axis !== "y") {
+    throw new Error(`${field}.axis must be x or y`);
+  }
+  finiteRange(input.minimum, -1_000, 1_000, `${field}.minimum`);
+  finiteRange(input.maximum, -1_000, 1_000, `${field}.maximum`);
+  if (input.maximum <= input.minimum) {
+    throw new Error(`${field}.maximum must be greater than minimum`);
+  }
+  finiteRange(input.periodMs, 500, 120_000, `${field}.periodMs`);
+  const phase = input.phase ?? 0;
+  finiteRange(phase, 0, 1, `${field}.phase`);
+  const target = { id, ...(input.axis ? { axis: input.axis } : {}) };
+  if (targets.some((existing) => ambientTargetsOverlap(existing, target))) {
+    throw new Error(
+      `${field} overlaps another ambient source on ${JSON.stringify(id)}${input.axis ? ` axis ${input.axis}` : ""}`,
+    );
+  }
+  targets.push(target);
+  return {
+    id,
+    ...(input.axis ? { axis: input.axis } : {}),
+    minimum: input.minimum,
+    maximum: input.maximum,
+    periodMs: input.periodMs,
+    phase,
+  };
+}
+
+function ambientTargetsOverlap(
+  left: { id: string; axis?: "x" | "y" },
+  right: { id: string; axis?: "x" | "y" },
+): boolean {
+  return (
+    left.id === right.id &&
+    (left.axis === undefined ||
+      right.axis === undefined ||
+      left.axis === right.axis)
+  );
+}
+
+function resolveDialogue(
+  input: DialogueConfig | undefined,
+  animations: ReadonlyMap<string, AnimationClip>,
+): ResolvedWidgetConfig["dialogue"] {
+  if (input === undefined) {
+    return DEFAULTS.dialogue;
+  }
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new Error("dialogue must be a scene configuration");
+  }
+  const enter = resolveDialogueScene(
+    input.enter,
+    "dialogue.enter",
+    animations,
+  );
+  const idle = resolveDialogueScene(
+    input.idle,
+    "dialogue.idle",
+    animations,
+  );
+  const click = resolveDialogueScene(
+    input.click,
+    "dialogue.click",
+    animations,
+  );
+  return {
+    enter:
+      enter &&
+      ({
+        ...enter,
+        delayMs: bounded(
+          (input.enter as EnterDialogueSceneConfig).delayMs,
+          0,
+          0,
+          120_000,
+          "dialogue.enter.delayMs",
+        ),
+      } satisfies ResolvedEnterDialogueScene),
+    idle:
+      idle &&
+      resolveIdleDialogueScene(
+        idle,
+        input.idle as IdleDialogueSceneConfig,
+      ),
+    click,
+  };
+}
+
+function resolveDialogueScene(
+  input: false | DialogueSceneConfig | undefined,
+  field: string,
+  animations: ReadonlyMap<string, AnimationClip>,
+): false | ResolvedDialogueScene {
+  if (input === false || input === undefined) {
+    return false;
+  }
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new Error(`${field} must be false or a scene configuration`);
+  }
+  const animation =
+    typeof input.animation === "string" ? input.animation.trim() : "";
+  if (!animation) {
+    throw new Error(`${field}.animation must not be empty`);
+  }
+  if (!animations.has(animation)) {
+    throw new Error(
+      `${field}.animation ${JSON.stringify(animation)} is not present in the validated model animations`,
+    );
+  }
+  if (
+    !Array.isArray(input.lines) ||
+    input.lines.length < 1 ||
+    input.lines.length > 128
+  ) {
+    throw new Error(`${field}.lines must contain 1..=128 sentences`);
+  }
+  const lines = input.lines.map((line, index) => {
+    if (typeof line !== "string") {
+      throw new Error(`${field}.lines[${index}] must be a string`);
+    }
+    const resolved = line.trim();
+    const bytes = new TextEncoder().encode(resolved).byteLength;
+    if (bytes < 1 || bytes > 1_024) {
+      throw new Error(
+        `${field}.lines[${index}] must contain 1..=1024 UTF-8 bytes`,
+      );
+    }
+    return resolved;
+  });
+  return {
+    animation,
+    lines,
+    durationMs: bounded(
+      input.durationMs,
+      5_000,
+      500,
+      60_000,
+      `${field}.durationMs`,
+    ),
+  };
+}
+
+function resolveIdleDialogueScene(
+  scene: ResolvedDialogueScene,
+  input: IdleDialogueSceneConfig,
+): ResolvedIdleDialogueScene {
+  const intervalMinMs = bounded(
+    input.intervalMinMs,
+    30_000,
+    5_000,
+    3_600_000,
+    "dialogue.idle.intervalMinMs",
+  );
+  const intervalMaxMs = bounded(
+    input.intervalMaxMs,
+    60_000,
+    5_000,
+    3_600_000,
+    "dialogue.idle.intervalMaxMs",
+  );
+  if (intervalMaxMs < intervalMinMs) {
+    throw new Error(
+      "dialogue.idle.intervalMaxMs must be greater than or equal to intervalMinMs",
+    );
+  }
+  return { ...scene, intervalMinMs, intervalMaxMs };
 }
 
 function resolveClick(
@@ -145,11 +472,19 @@ function resolveClick(
   return { animation };
 }
 
+function hasLeadIn(clip: AnimationClip): boolean {
+  return clip.leadIn > 0 && clip.leadIn + 1 < clip.length;
+}
+
+function hasLeadOut(clip: AnimationClip): boolean {
+  return clip.leadOut > 0 && clip.leadOut + 1 < clip.length;
+}
+
 function resolveAnimations(
   input: readonly AnimationClip[] | undefined,
 ): ReadonlyMap<string, AnimationClip> {
   const clips = input ?? [];
-  if (clips.length > 64) {
+  if (!Array.isArray(clips) || clips.length > 64) {
     throw new Error("animations must contain at most 64 clips");
   }
   const result = new Map<string, AnimationClip>();
@@ -311,7 +646,15 @@ function normalizeParameterTarget(
   input: string | import("./types.js").ParameterTarget,
   field: string,
 ): ResolvedParameterTarget {
-  const target = typeof input === "string" ? { id: input } : input;
+  const target =
+    typeof input === "string"
+      ? { id: input }
+      : typeof input === "object" && input !== null && !Array.isArray(input)
+        ? input
+        : undefined;
+  if (!target || typeof target.id !== "string") {
+    throw new Error(`parameters.${field}.id must be a string`);
+  }
   const id = target.id.trim();
   if (id.length === 0) {
     throw new Error(`parameters.${field}.id must not be empty`);
@@ -348,4 +691,25 @@ function bounded(
     throw new Error(`${field} must be between ${minimum} and ${maximum}`);
   }
   return resolved;
+}
+
+function booleanValue(
+  value: boolean | undefined,
+  fallback: boolean,
+  field: string,
+): boolean {
+  const resolved = value ?? fallback;
+  if (typeof resolved !== "boolean") {
+    throw new Error(`${field} must be a boolean`);
+  }
+  return resolved;
+}
+
+function assertOptionalRecord(value: unknown, field: string): void {
+  if (
+    value !== undefined &&
+    (typeof value !== "object" || value === null || Array.isArray(value))
+  ) {
+    throw new Error(`${field} must be an object`);
+  }
 }
