@@ -20,17 +20,48 @@
     "render": {
       "fps": 30,
       "maxDevicePixelRatio": 1.25,
-      "initialScale": 0.15
+      "autoFit": true,
+      "fitPadding": 0.9
     },
     "mobile": {
       "show": false,
       "breakpoint": 768
     },
+    "ambient": {
+      "animations": [
+        "TailIdle"
+      ]
+    },
+    "dialogue": {
+      "enter": {
+        "animation": "Greeting",
+        "lines": [
+          "Welcome!"
+        ],
+        "delayMs": 0,
+        "durationMs": 5000
+      },
+      "idle": {
+        "animation": "IdleTalk",
+        "lines": [
+          "Still here?",
+          "Take your time."
+        ],
+        "intervalMinMs": 30000,
+        "intervalMaxMs": 60000,
+        "durationMs": 5000
+      },
+      "click": {
+        "animation": "Click",
+        "lines": [
+          "Hello!",
+          "You found me."
+        ],
+        "durationMs": 5000
+      }
+    },
     "interactions": {
       "pointer": true,
-      "click": {
-        "animation": "Click"
-      },
       "drag": true
     }
   }

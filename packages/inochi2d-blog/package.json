@@ -22,6 +22,7 @@
     "THIRD_PARTY_NOTICES.md",
     "THIRD_PARTY_LICENSES.txt",
     "inochi2d-blog.config.example.json",
+    "inochi2d-blog.config.wsl.example.json",
     "vendor"
   ],
   "scripts": {
@@ -30,6 +31,6 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   }
 }

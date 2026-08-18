@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "blogRoot": "E:\\path\\to\\my-hexo-blog",
+  "model": "E:\\path\\to\\models\\public-puppet.inx",
+  "fallback": "E:\\path\\to\\models\\public-puppet.png",
+  "pipeline": {
+    "backend": "wsl",
+    "distribution": "Ubuntu",
+    "binary": "/home/USER/path/to/inochi2d-pipeline"
+  },
+  "publication": {
+    "confirm": true,
+    "allowRedistribution": true,
+    "sourceSha256": "REPLACE_WITH_THE_64_CHARACTER_SHA256_FROM_INSPECT",
+    "attribution": "Replace when the model license requires attribution"
+  },
+  "hexoConfig": "_config.yml",
+  "previewPort": 4192,
+  "previewPath": "/",
+  "widget": {
+    "display": {
+      "width": 390,
+      "height": 540
+    },
+    "render": {
+      "fps": 30,
+      "maxDevicePixelRatio": 1.25,
+      "autoFit": true,
+      "fitPadding": 0.9
+    },
+    "mobile": {
+      "show": false,
+      "breakpoint": 768
+    },
+    "dialogue": {
+      "click": {
+        "animation": "Click",
+        "lines": [
+          "Hello!"
+        ],
+        "durationMs": 5000
+      }
+    },
+    "interactions": {
+      "pointer": true,
+      "drag": true
+    }
+  }
+}
