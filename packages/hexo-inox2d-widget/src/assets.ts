@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type { ModelAssetBundle, RuntimeAsset, RuntimeAssetBundle } from "./types";
@@ -7,9 +7,15 @@ import type {
   AnimationClip,
   ParameterIds,
   ParameterTarget,
+  WidgetConfig,
 } from "inochi2d-web" with { "resolution-mode": "import" };
 
 const PUBLISHABLE_EXTENSIONS = new Set([".css", ".js", ".wasm"]);
+const MAX_MANIFEST_BYTES = 32 * 1024 * 1024;
+const MAX_MODEL_BYTES = 8 * 1024 * 1024;
+const MAX_FALLBACK_BYTES = 8 * 1024 * 1024;
+const MAX_PARAMETERS = 4_096;
+const MAX_ANIMATIONS = 64;
 
 export function collectRuntimeAssets(runtimeDist = resolveRuntimeDist()): RuntimeAssetBundle {
   const assets = walk(runtimeDist)
@@ -53,6 +59,7 @@ interface PipelineModelArtifact extends PipelineArtifact {
 
 interface PipelineManifest {
   schemaVersion: number;
+  tool: string;
   model: PipelineModelArtifact;
   fallback?: PipelineArtifact;
   compatibility: {
@@ -80,12 +87,17 @@ interface PipelineParameter {
 export function collectModelAssets(
   bundleLocation: string,
   baseDirectory = process.cwd(),
+  options: { localPreview?: boolean } = {},
 ): ModelAssetBundle {
   const bundleDirectory = isAbsolute(bundleLocation)
     ? bundleLocation
     : resolve(baseDirectory, bundleLocation);
   const manifestPath = join(bundleDirectory, "manifest.json");
-  const manifestContents = readFileSync(manifestPath);
+  const manifestContents = readBoundedRegularFile(
+    manifestPath,
+    MAX_MANIFEST_BYTES,
+    "manifest",
+  );
   const manifest = parsePipelineManifest(manifestContents, manifestPath);
   if (!manifest.compatibility.supported) {
     throw new Error(`Inochi2D bundle is not browser-compatible: ${manifestPath}`);
@@ -93,15 +105,25 @@ export function collectModelAssets(
   const publicationBlocker = manifest.publication.issues.find(
     (issue) => issue.severity === "error",
   );
-  if (publicationBlocker) {
+  if (publicationBlocker && !options.localPreview) {
     throw new Error(
       `Inochi2D bundle is not publishable (${publicationBlocker.code}): ${manifestPath}`,
     );
   }
 
-  const model = readVerifiedArtifact(bundleDirectory, manifest.model, "model");
+  const model = readVerifiedArtifact(
+    bundleDirectory,
+    manifest.model,
+    "model",
+    MAX_MODEL_BYTES,
+  );
   const fallback = manifest.fallback
-    ? readVerifiedArtifact(bundleDirectory, manifest.fallback, "fallback")
+    ? readVerifiedArtifact(
+        bundleDirectory,
+        manifest.fallback,
+        "fallback",
+        MAX_FALLBACK_BYTES,
+      )
     : undefined;
   const assets: RuntimeAsset[] = [
     { relativePath: manifest.model.file, contents: model },
@@ -118,6 +140,9 @@ export function collectModelAssets(
     digest.update(asset.contents);
   }
   const hash = digest.digest("hex").slice(0, 12);
+  const suggestedAmbient = manifest.parameters
+    ? inferAmbientConfig(manifest.parameters)
+    : undefined;
   return {
     hash,
     routePrefix: `inochi2d-model/${hash}`,
@@ -127,7 +152,9 @@ export function collectModelAssets(
     ...(manifest.parameters
       ? { suggestedParameters: inferParameterBindings(manifest.parameters) }
       : {}),
+    ...(suggestedAmbient ? { suggestedAmbient } : {}),
     animations: manifest.animations ?? [],
+    ...(options.localPreview ? { localPreview: true } : {}),
     assets,
   };
 }
@@ -139,7 +166,11 @@ function parsePipelineManifest(contents: Buffer, path: string): PipelineManifest
   } catch (error) {
     throw new Error(`Invalid Inochi2D pipeline manifest JSON: ${path}`, { cause: error });
   }
-  if (!isRecord(input) || input.schemaVersion !== 1) {
+  if (
+    !isRecord(input) ||
+    input.schemaVersion !== 1 ||
+    input.tool !== "inochi2d-pipeline"
+  ) {
     throw new Error(`Unsupported Inochi2D pipeline manifest schema: ${path}`);
   }
   if (!isModelArtifact(input.model)) {
@@ -161,13 +192,25 @@ function parsePipelineManifest(contents: Buffer, path: string): PipelineManifest
   }
   if (
     input.parameters !== undefined &&
-    (!Array.isArray(input.parameters) || !input.parameters.every(isPipelineParameter))
+    (!Array.isArray(input.parameters) ||
+      input.parameters.length > MAX_PARAMETERS ||
+      !input.parameters.every(isPipelineParameter))
   ) {
     throw new Error(`Inochi2D pipeline manifest has invalid parameters: ${path}`);
   }
+  if (input.parameters !== undefined) {
+    const names = new Set(
+      (input.parameters as PipelineParameter[]).map((parameter) => parameter.name),
+    );
+    if (names.size !== input.parameters.length) {
+      throw new Error(`Inochi2D pipeline manifest has duplicate parameters: ${path}`);
+    }
+  }
   if (
     input.animations !== undefined &&
-    (!Array.isArray(input.animations) || !input.animations.every(isAnimationClip))
+    (!Array.isArray(input.animations) ||
+      input.animations.length > MAX_ANIMATIONS ||
+      !input.animations.every(isAnimationClip))
   ) {
     throw new Error(`Inochi2D pipeline manifest has invalid animations: ${path}`);
   }
@@ -212,16 +255,35 @@ function inferParameterBindings(parameters: readonly PipelineParameter[]): Parti
   ): ParameterTarget => ({ id: parameter.name, axis, scale });
 
   const breath = find("Breath");
+  const mannequinBreath = find("Body - Up/Down");
   const headYawPitch = find("Head:: Yaw-Pitch", "HeadYawPitch");
+  const mannequinHeadPitchYaw = find("Head - Pitch/Yaw");
   const bodyYawPitch = find("Body:: Yaw-Pitch", "BodyYawPitch");
+  const mannequinBodyYaw = find("Body - Yaw");
   const bodyRoll = find("Body:: Roll", "BodyRoll", "BodyX", "Body:: X:: Move");
-  const leftBlink = find("Eye:: Left:: Blink", "EyeBlinkL", "EyeOpenL");
-  const rightBlink = find("Eye:: Right:: Blink", "EyeBlinkR", "EyeOpenR");
+  const leftBlink = find(
+    "Eye:: Left:: Blink",
+    "EyeBlinkL",
+    "EyeOpenL",
+    "Left Eye - Blink",
+  );
+  const rightBlink = find(
+    "Eye:: Right:: Blink",
+    "EyeBlinkR",
+    "EyeOpenR",
+    "Right Eye - Blink",
+  );
   const leftEyeMove = find("Eye:: Left:: Move", "EyeXLeft");
   const rightEyeMove = find("Eye:: Right:: Move", "EyeXRight");
+  const leftEyeGaze = find("Left Eye - Gaze");
+  const rightEyeGaze = find("Right Eye - Gaze");
   const result: Partial<ParameterIds> = {};
 
-  if (breath) result.breath = breath.name;
+  if (breath) {
+    result.breath = breath.name;
+  } else if (mannequinBreath) {
+    result.breath = { id: mannequinBreath.name, scale: 0.08 };
+  }
   if (leftBlink) {
     result.eyeOpenLeft = { id: leftBlink.name, scale: -1, offset: 1 };
   }
@@ -234,6 +296,24 @@ function inferParameterBindings(parameters: readonly PipelineParameter[]): Parti
   if (eyeMoves.length > 0) {
     result.eyeX = eyeMoves;
     result.eyeY = null;
+  } else {
+    const eyeGazes = [leftEyeGaze, rightEyeGaze].filter(
+      (parameter): parameter is PipelineParameter =>
+        parameter?.isVector === true,
+    );
+    if (eyeGazes.length > 0) {
+      // Mannequin exports standard horizontal/vertical vector axes despite
+      // naming its related head parameter "Pitch/Yaw". Its gaze Y direction
+      // is opposite to the widget's normalized vertical pointer channel.
+      // Horizontal gaze is intentionally lower than the vertical scale:
+      // generated Mannequin rigs often bind both irises strongly on X.
+      result.eyeX = eyeGazes.map((parameter) =>
+        vectorTarget(parameter, "x", 0.4),
+      );
+      result.eyeY = eyeGazes.map((parameter) =>
+        vectorTarget(parameter, "y", -0.55),
+      );
+    }
   }
   if (headYawPitch?.isVector) {
     result.headX = [
@@ -244,9 +324,57 @@ function inferParameterBindings(parameters: readonly PipelineParameter[]): Parti
       vectorTarget(headYawPitch, "y"),
       ...(bodyYawPitch?.isVector ? [vectorTarget(bodyYawPitch, "y", 0.2)] : []),
     ];
+  } else if (mannequinHeadPitchYaw?.isVector) {
+    // Parameter names are descriptive labels, not storage-order declarations:
+    // the exported binding grid still stores horizontal X before vertical Y.
+    // Keep the generated rig's strongly bound horizontal face motion below
+    // its vertical response; explicit per-model configuration still wins.
+    result.headX = [
+      vectorTarget(mannequinHeadPitchYaw, "x", 0.35),
+      ...(mannequinBodyYaw
+        ? [{ id: mannequinBodyYaw.name, scale: 0.12 }]
+        : []),
+    ];
+    result.headY = [vectorTarget(mannequinHeadPitchYaw, "y", 0.5)];
   }
   if (bodyRoll) result.bodyX = bodyRoll.name;
   return result;
+}
+
+function inferAmbientConfig(
+  parameters: readonly PipelineParameter[],
+): NonNullable<WidgetConfig["ambient"]> | undefined {
+  const find = (name: string): PipelineParameter | undefined =>
+    parameters.find(
+      (parameter) =>
+        normalizedParameterName(parameter.name) === normalizedParameterName(name),
+    );
+  const tail = find("Tail - Left/Right Swing");
+  const tailTip = find("Tail - Left/Right Tip Swing");
+  if (!tail || tail.isVector) {
+    return undefined;
+  }
+  return {
+    parameters: [
+      {
+        id: tail.name,
+        minimum: -0.55,
+        maximum: 0.55,
+        periodMs: 4_200,
+      },
+      ...(tailTip && !tailTip.isVector
+        ? [
+            {
+              id: tailTip.name,
+              minimum: -0.35,
+              maximum: 0.35,
+              periodMs: 4_200,
+              phase: 1 / 6,
+            },
+          ]
+        : []),
+    ],
+  };
 }
 
 function isAnimationClip(input: unknown): input is AnimationClip {
@@ -335,6 +463,7 @@ function isPipelineParameter(input: unknown): input is PipelineParameter {
     isRecord(input) &&
     typeof input.name === "string" &&
     input.name.trim().length > 0 &&
+    Buffer.byteLength(input.name, "utf8") <= 256 &&
     typeof input.isVector === "boolean"
   );
 }
@@ -347,11 +476,21 @@ function readVerifiedArtifact(
   directory: string,
   artifact: PipelineArtifact,
   label: "fallback" | "model",
+  maximumBytes: number,
 ): Buffer {
-  if (!safeFileName(artifact.file)) {
-    throw new Error(`Inochi2D ${label} artifact must use a plain file name`);
+  if (!validArtifactFile(artifact.file, artifact.sha256, label)) {
+    throw new Error(`Inochi2D ${label} artifact has a non-canonical file name`);
   }
-  const contents = readFileSync(join(directory, artifact.file));
+  if (artifact.bytes > maximumBytes) {
+    throw new Error(
+      `Inochi2D ${label} exceeds the ${maximumBytes}-byte publication limit`,
+    );
+  }
+  const contents = readBoundedRegularFile(
+    join(directory, artifact.file),
+    maximumBytes,
+    label,
+  );
   if (contents.byteLength !== artifact.bytes) {
     throw new Error(
       `Inochi2D ${label} size mismatch: expected ${artifact.bytes}, got ${contents.byteLength}`,
@@ -371,7 +510,7 @@ function isArtifact(input: unknown): input is PipelineArtifact {
     typeof input.sha256 === "string" &&
     /^[a-f0-9]{64}$/u.test(input.sha256) &&
     Number.isSafeInteger(input.bytes) &&
-    Number(input.bytes) >= 0
+    Number(input.bytes) > 0
   );
 }
 
@@ -379,8 +518,34 @@ function isRecord(input: unknown): input is Record<string, unknown> {
   return typeof input === "object" && input !== null && !Array.isArray(input);
 }
 
-function safeFileName(file: string): boolean {
-  return file.length > 0 && file !== "." && file !== ".." && basename(file) === file;
+function validArtifactFile(
+  file: string,
+  sha256: string,
+  label: "fallback" | "model",
+): boolean {
+  if (basename(file) !== file) {
+    return false;
+  }
+  const expression =
+    label === "model"
+      ? /^model\.([a-f0-9]{12})\.inp$/u
+      : /^fallback\.([a-f0-9]{12})\.png$/u;
+  return expression.exec(file)?.[1] === sha256.slice(0, 12);
+}
+
+function readBoundedRegularFile(
+  path: string,
+  maximumBytes: number,
+  label: string,
+): Buffer {
+  const metadata = lstatSync(path);
+  if (!metadata.isFile() || metadata.isSymbolicLink()) {
+    throw new Error(`Inochi2D ${label} must be a regular non-symlink file`);
+  }
+  if (metadata.size > maximumBytes) {
+    throw new Error(`Inochi2D ${label} exceeds the ${maximumBytes}-byte limit`);
+  }
+  return readFileSync(path);
 }
 
 function resolveRuntimeDist(): string {

@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= config.title %></title>
+    <title>{{ config.title | escape }}</title>
     <style>
       body { margin: 3rem auto; width: min(42rem, calc(100% - 3rem)); font-family: system-ui, sans-serif; }
     </style>
   </head>
   <body>
-    <main><%- body %></main>
+    <main>{{ body }}</main>
   </body>
 </html>

@@ -21,12 +21,22 @@ export interface HexoWidgetConfig extends Omit<WidgetConfig, "fallback" | "model
     /** Explicit attestation that redistribution through the public blog is allowed. */
     allowRedistribution?: boolean;
   };
+  /**
+   * Internal capability used only by `inochi2d-blog preview`.
+   * It is accepted only when Hexo writes below `.inochi2d/preview` and the
+   * matching one-time token is present in the child process environment.
+   */
+  localPreview?: {
+    token?: string;
+  };
 }
 
 export interface HexoLike {
   base_dir?: string;
+  public_dir?: string;
   config: {
     root?: string;
+    public_dir?: string;
     inochi2d_widget?: HexoWidgetConfig;
   };
   extend: {
@@ -64,7 +74,11 @@ export interface ModelAssetBundle {
   sourceSha256: string;
   /** Parameter bindings inferred from the pipeline manifest. */
   suggestedParameters?: NonNullable<WidgetConfig["parameters"]>;
+  /** Safe procedural ambient motion inferred from conventional rig names. */
+  suggestedAmbient?: NonNullable<WidgetConfig["ambient"]>;
   /** Strictly validated clips extracted from the same immutable model. */
   animations: readonly AnimationClip[];
+  /** True only for an isolated, CLI-authorized local preview output. */
+  localPreview?: boolean;
   assets: RuntimeAsset[];
 }

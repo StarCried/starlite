@@ -13,15 +13,26 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   return `
 (async (options) => {
   const mobileQuery = \`(max-width: \${Math.max(0, options.breakpoint - 1)}px)\`;
-  if (!options.showOnMobile && globalThis.matchMedia(mobileQuery).matches) {
-    document.querySelectorAll("[data-inochi2d-widget-host]").forEach((node) => node.remove());
-    return;
-  }
-
   const stateKey = "__hexoInox2dWidgetState";
   const state = (globalThis[stateKey] ??= {});
+  const nextGeneration = () => {
+    state.generation = Number.isSafeInteger(state.generation)
+      ? state.generation + 1
+      : 1;
+    return state.generation;
+  };
   const ensureMounted = async () => {
     const hosts = Array.from(document.querySelectorAll("[data-inochi2d-widget-host]"));
+    if (!options.showOnMobile && globalThis.matchMedia(mobileQuery).matches) {
+      nextGeneration();
+      state.controller?.destroy();
+      state.controller = undefined;
+      state.host = undefined;
+      state.mountHost = undefined;
+      hosts.forEach((node) => node.remove());
+      return;
+    }
+
     let host = hosts.find((candidate) => candidate.isConnected);
     if (!host) {
       host = document.createElement("div");
@@ -32,19 +43,35 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       if (duplicate !== host) duplicate.remove();
     }
 
-    if (state.controller && state.host?.isConnected) return;
-    if (state.mounting) return state.mounting;
+    if (state.controller && state.host === host && host.isConnected) return;
+    if (state.mounting && state.mountHost === host) return state.mounting;
+    const generation = nextGeneration();
     state.controller?.destroy();
     state.controller = undefined;
     state.host = host;
-    state.mounting = import(options.entryUrl)
+    state.mountHost = host;
+    const mounting = import(options.entryUrl)
       .then(async (runtime) => {
-        state.controller = await runtime.mountInochi2DWidget(host, options.config);
+        const controller = await runtime.mountInochi2DWidget(host, options.config);
+        if (
+          state.generation !== generation ||
+          state.host !== host ||
+          !host.isConnected ||
+          (!options.showOnMobile && globalThis.matchMedia(mobileQuery).matches)
+        ) {
+          controller.destroy();
+          return;
+        }
+        state.controller = controller;
       })
       .finally(() => {
-        state.mounting = undefined;
+        if (state.mounting === mounting) {
+          state.mounting = undefined;
+          state.mountHost = undefined;
+        }
       });
-    return state.mounting;
+    state.mounting = mounting;
+    return mounting;
   };
 
   if (!state.listenerBound) {

@@ -23,9 +23,35 @@ inochi2d_widget:
   render:
     fps: 30
     maxDevicePixelRatio: 1.25
+    autoFit: true
+    fitPadding: 0.9
   mobile:
     show: false
     breakpoint: 768
+  ambient:
+    parameters:
+      - id: Tail - Left/Right Swing
+        minimum: -0.55
+        maximum: 0.55
+        periodMs: 4200
+  dialogue:
+    enter:
+      animation: Greeting
+      lines:
+        - Welcome!
+    idle:
+      animation: IdleTalk
+      lines:
+        - Still here?
+      intervalMinMs: 30000
+      intervalMaxMs: 60000
+    click:
+      animation: Click
+      lines:
+        - Hello!
+  interactions:
+    pointer: true
+    drag: true
 ```
 
 Then run `npx hexo clean && npx hexo generate`. The adapter does not patch the
@@ -33,6 +59,17 @@ theme or `node_modules`. Disable it by setting `enable: false` and regenerating.
 Use `inochi2d-blog deploy --dry-run` for the guarded model-to-blog workflow;
 the adapter by itself does not inspect an original Creator file or grant model
 redistribution rights.
+
+All configured animation names are exact and case-sensitive. A missing ambient
+or dialogue clip, invalid sentence library, or conflicting legacy click
+configuration stops Hexo generation instead of silently dropping the feature.
+Verified local bundles default to automatic SDK-bound fitting. Conventional
+Mannequin motion channels and its two tail-swing parameters are inferred from
+the manifest with conservative pointer amplitudes; explicit Hexo
+`parameters` values override each semantic channel. A neutral value near zero,
+a useful `-1..1` range, and conventional names are recommended for zero-config
+models, but are not required. Per-model descriptors can select an axis, scale,
+offset, multiple targets, or `null` to disable an inferred channel.
 
 This unofficial alpha is AI-assisted, human-reviewed, BSD-2-Clause licensed,
 and not affiliated with the Inochi2D project. Read the full

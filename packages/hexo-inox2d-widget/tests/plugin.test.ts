@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -36,6 +43,29 @@ const pipelineClick = {
   ],
 };
 
+function animation(name: string, parameter: string) {
+  return {
+    ...structuredClone(pipelineClick),
+    name,
+    lanes: [
+      {
+        ...structuredClone(pipelineClick.lanes[0]),
+        parameter,
+      },
+    ],
+  };
+}
+
+const defaultPipelineParameters = [
+  { name: "Breath", isVector: false },
+  { name: "Head:: Yaw-Pitch", isVector: true },
+  { name: "Body:: Yaw-Pitch", isVector: true },
+  { name: "Eye:: Left:: Blink", isVector: false },
+  { name: "Eye:: Right:: Blink", isVector: false },
+  { name: "Arm:: Left:: Move", isVector: false },
+  { name: "Arm:: Right:: Move", isVector: false },
+];
+
 function fakeHexo(
   config: HexoLike["config"],
   baseDirectory = process.cwd(),
@@ -66,6 +96,8 @@ function fakeHexo(
 function withPipelineBundle(
   callback: (directory: string, modelFile: string, fallbackFile: string) => void,
   animations: unknown = [pipelineClick],
+  parameters: unknown = defaultPipelineParameters,
+  publicationIssues: unknown = [],
 ): void {
   const directory = mkdtempSync(join(tmpdir(), "inochi2d-widget-bundle-"));
   try {
@@ -81,6 +113,8 @@ function withPipelineBundle(
       join(directory, "manifest.json"),
       `${JSON.stringify({
         schemaVersion: 1,
+        tool: "inochi2d-pipeline",
+        toolVersion: "0.1.0-alpha.1",
         model: {
           file: modelFile,
           sha256: modelHash,
@@ -90,16 +124,8 @@ function withPipelineBundle(
         },
         fallback: { file: fallbackFile, sha256: fallbackHash, bytes: fallback.byteLength },
         compatibility: { supported: true },
-        publication: { requiresConfirmation: true, issues: [] },
-        parameters: [
-          { name: "Breath", isVector: false },
-          { name: "Head:: Yaw-Pitch", isVector: true },
-          { name: "Body:: Yaw-Pitch", isVector: true },
-          { name: "Eye:: Left:: Blink", isVector: false },
-          { name: "Eye:: Right:: Blink", isVector: false },
-          { name: "Arm:: Left:: Move", isVector: false },
-          { name: "Arm:: Right:: Move", isVector: false },
-        ],
+        publication: { requiresConfirmation: true, issues: publicationIssues },
+        parameters,
         animations,
       })}\n`,
     );
@@ -184,7 +210,208 @@ describe("Hexo adapter", () => {
       expect(html).toContain('"scale":-1');
       expect(html).toContain('"animation":"Click"');
       expect(html).toContain('"parameter":"Arm:: Right:: Move"');
+      expect(html).toContain('"autoFit":true');
       expect(html).not.toContain('"clickAmplitude"');
+    });
+  });
+
+  it("allows an explicit bundle configuration to disable automatic fitting", () => {
+    withPipelineBundle((directory) => {
+      const sourceSha256 = createHash("sha256")
+        .update("synthetic-model")
+        .digest("hex");
+      const { hexo, registrations } = fakeHexo(
+        {
+          inochi2d_widget: {
+            enable: true,
+            bundle: ".",
+            publication: {
+              confirm: true,
+              allowRedistribution: true,
+              sourceSha256,
+            },
+            render: { autoFit: false, initialScale: 0.2 },
+          },
+        },
+        directory,
+      );
+      registerHexoWidget(hexo);
+
+      expect(registrations.injector?.()).toContain('"autoFit":false');
+    });
+  });
+
+  it("infers Mannequin motion channels and procedural tail loops", () => {
+    withPipelineBundle(
+      (directory) => {
+        const bundle = collectModelAssets(directory);
+        expect(bundle.suggestedParameters).toEqual({
+          breath: { id: "Body - Up/Down", scale: 0.08 },
+          eyeOpenLeft: {
+            id: "Left Eye - Blink",
+            scale: -1,
+            offset: 1,
+          },
+          eyeOpenRight: {
+            id: "Right Eye - Blink",
+            scale: -1,
+            offset: 1,
+          },
+          eyeX: [
+            { id: "Left Eye - Gaze", axis: "x", scale: 0.4 },
+            { id: "Right Eye - Gaze", axis: "x", scale: 0.4 },
+          ],
+          eyeY: [
+            { id: "Left Eye - Gaze", axis: "y", scale: -0.55 },
+            { id: "Right Eye - Gaze", axis: "y", scale: -0.55 },
+          ],
+          headX: [
+            { id: "Head - Pitch/Yaw", axis: "x", scale: 0.35 },
+            { id: "Body - Yaw", scale: 0.12 },
+          ],
+          headY: [
+            { id: "Head - Pitch/Yaw", axis: "y", scale: 0.5 },
+          ],
+          bodyX: "Body - Roll",
+        });
+        expect(bundle.suggestedAmbient).toEqual({
+          parameters: [
+            {
+              id: "Tail - Left/Right Swing",
+              minimum: -0.55,
+              maximum: 0.55,
+              periodMs: 4_200,
+            },
+            {
+              id: "Tail - Left/Right Tip Swing",
+              minimum: -0.35,
+              maximum: 0.35,
+              periodMs: 4_200,
+              phase: 1 / 6,
+            },
+          ],
+        });
+      },
+      [],
+      [
+        { name: "Body - Up/Down", isVector: false },
+        { name: "Body - Roll", isVector: false },
+        { name: "Body - Yaw", isVector: false },
+        { name: "Head - Pitch/Yaw", isVector: true },
+        { name: "Left Eye - Blink", isVector: false },
+        { name: "Right Eye - Blink", isVector: false },
+        { name: "Left Eye - Gaze", isVector: true },
+        { name: "Right Eye - Gaze", isVector: true },
+        { name: "Tail - Left/Right Swing", isVector: false },
+        { name: "Tail - Left/Right Tip Swing", isVector: false },
+      ],
+    );
+  });
+
+  it("injects ambient and three dialogue scenes from validated model clips", () => {
+    const clips = [
+      pipelineClick,
+      animation("TailIdle", "Tail:: Swing"),
+      animation("Greeting", "Head:: Greeting"),
+      animation("Idle", "Head:: Idle"),
+    ];
+    withPipelineBundle(
+      (directory) => {
+        const sourceSha256 = createHash("sha256")
+          .update("synthetic-model")
+          .digest("hex");
+        const { hexo, registrations } = fakeHexo(
+          {
+            inochi2d_widget: {
+              enable: true,
+              bundle: ".",
+              publication: {
+                confirm: true,
+                allowRedistribution: true,
+                sourceSha256,
+              },
+              ambient: { animations: ["TailIdle"] },
+              dialogue: {
+                enter: {
+                  animation: "Greeting",
+                  lines: ["Welcome </script><img src=x>"],
+                },
+                idle: {
+                  animation: "Idle",
+                  lines: ["Still here"],
+                  intervalMinMs: 5_000,
+                  intervalMaxMs: 5_000,
+                },
+                click: {
+                  animation: "Click",
+                  lines: ["Hello"],
+                },
+              },
+            },
+          },
+          directory,
+        );
+        registerHexoWidget(hexo);
+
+        expect(registrations.generator?.()).toBeDefined();
+        const html = registrations.injector?.();
+        expect(html).toContain('"animations":["TailIdle"]');
+        expect(html).toContain('"animation":"Greeting"');
+        expect(html).toContain('"animation":"Idle"');
+        expect(html).toContain('"animation":"Click"');
+        expect(html).toContain("\\u003c/script>");
+        expect(html).not.toContain("</script><img");
+        expect(html).toContain('"click":false');
+      },
+      clips,
+    );
+  });
+
+  it("stops Hexo generation for missing loop/scene clips or invalid lines", () => {
+    withPipelineBundle((directory) => {
+      const sourceSha256 = createHash("sha256")
+        .update("synthetic-model")
+        .digest("hex");
+      const base = {
+        enable: true,
+        bundle: ".",
+        publication: {
+          confirm: true,
+          allowRedistribution: true,
+          sourceSha256,
+        },
+        interactions: { click: false as const },
+      };
+
+      const missing = fakeHexo(
+        {
+          inochi2d_widget: {
+            ...base,
+            ambient: { animations: ["Missing"] },
+          },
+        },
+        directory,
+      );
+      registerHexoWidget(missing.hexo);
+      expect(() => missing.registrations.generator?.()).toThrow(
+        /Missing.*not present/u,
+      );
+
+      const invalidLines = fakeHexo(
+        {
+          inochi2d_widget: {
+            ...base,
+            dialogue: {
+              click: { animation: "Click", lines: [] },
+            },
+          },
+        },
+        directory,
+      );
+      registerHexoWidget(invalidLines.hexo);
+      expect(() => invalidLines.registrations.generator?.()).toThrow(
+        /lines.*1\.\.=128/u,
+      );
     });
   });
 
@@ -207,6 +434,86 @@ describe("Hexo adapter", () => {
       expect(() => registrations.injector?.()).toThrow(
         /publication\.confirm/u,
       );
+    });
+  });
+
+  it("allows publication-only blockers in an isolated CLI-authorized preview", () => {
+    withPipelineBundle(
+      (directory, modelFile) => {
+        const token = "a".repeat(64);
+        const previous = process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN;
+        process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN = token;
+        try {
+          const { hexo, registrations } = fakeHexo(
+            {
+              public_dir: join(
+                directory,
+                ".inochi2d",
+                "preview",
+                "run-test",
+                "public",
+              ),
+              inochi2d_widget: {
+                enable: true,
+                bundle: ".",
+                localPreview: { token },
+              },
+            },
+            directory,
+          );
+          registerHexoWidget(hexo);
+
+          expect(
+            registrations
+              .generator?.()
+              ?.some((route) => route.path.endsWith(`/${modelFile}`)),
+          ).toBe(true);
+          expect(registrations.injector?.()).toContain(`/${modelFile}`);
+          expect(hexo.log.warn).toHaveBeenCalledWith(
+            expect.stringMatching(/local preview.*deploy is disabled/iu),
+          );
+        } finally {
+          if (previous === undefined) {
+            delete process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN;
+          } else {
+            process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN = previous;
+          }
+        }
+      },
+      [pipelineClick],
+      defaultPipelineParameters,
+      [{ code: "rights-unknown", severity: "error" }],
+    );
+  });
+
+  it("refuses a preview token when Hexo targets the normal public directory", () => {
+    withPipelineBundle((directory) => {
+      const token = "b".repeat(64);
+      const previous = process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN;
+      process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN = token;
+      try {
+        const { hexo, registrations } = fakeHexo(
+          {
+            public_dir: join(directory, "public"),
+            inochi2d_widget: {
+              enable: true,
+              bundle: ".",
+              localPreview: { token },
+            },
+          },
+          directory,
+        );
+        registerHexoWidget(hexo);
+        expect(() => registrations.generator?.()).toThrow(
+          /public_dir below \.inochi2d\/preview/u,
+        );
+      } finally {
+        if (previous === undefined) {
+          delete process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN;
+        } else {
+          process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN = previous;
+        }
+      }
     });
   });
 
@@ -237,6 +544,39 @@ describe("Hexo adapter", () => {
     withPipelineBundle((directory, modelFile) => {
       writeFileSync(join(directory, modelFile), "tampered");
       expect(() => collectModelAssets(".", directory)).toThrow(/size mismatch|SHA-256 mismatch/u);
+    });
+  });
+
+  it("rejects non-pipeline, oversized, and non-canonical bundle artifacts", () => {
+    withPipelineBundle((directory) => {
+      const manifestPath = join(directory, "manifest.json");
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+
+      manifest.tool = "other-tool";
+      writeFileSync(manifestPath, JSON.stringify(manifest));
+      expect(() => collectModelAssets(".", directory)).toThrow(/schema/u);
+
+      manifest.tool = "inochi2d-pipeline";
+      manifest.model.file = "model:alternate.inp";
+      writeFileSync(manifestPath, JSON.stringify(manifest));
+      expect(() => collectModelAssets(".", directory)).toThrow(/non-canonical/u);
+
+      manifest.model.file = `model.${manifest.model.sha256.slice(0, 12)}.inp`;
+      manifest.model.bytes = 8 * 1024 * 1024 + 1;
+      writeFileSync(manifestPath, JSON.stringify(manifest));
+      expect(() => collectModelAssets(".", directory)).toThrow(
+        /publication limit/u,
+      );
+    });
+  });
+
+  it("refuses model artifacts reached through symbolic links", () => {
+    withPipelineBundle((directory, modelFile, fallbackFile) => {
+      rmSync(join(directory, modelFile));
+      symlinkSync(fallbackFile, join(directory, modelFile));
+      expect(() => collectModelAssets(".", directory)).toThrow(
+        /non-symlink/u,
+      );
     });
   });
 
@@ -298,5 +638,46 @@ describe("Hexo adapter", () => {
     expect(source.indexOf("matchMedia")).toBeLessThan(source.indexOf("import(options.entryUrl)"));
     expect(source).toContain("__hexoInox2dWidgetState");
     expect(source).toContain("listenerBound");
+    expect(source).toContain("state.generation !== generation");
+    expect(source.match(/matchMedia\(mobileQuery\)/gu)).toHaveLength(2);
+  });
+
+  it("refuses a local-preview output path containing a symbolic link", () => {
+    withPipelineBundle((directory) => {
+      const token = "c".repeat(64);
+      const previous = process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN;
+      process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN = token;
+      mkdirSync(join(directory, "real-state", "preview", "run-test"), {
+        recursive: true,
+      });
+      symlinkSync("real-state", join(directory, ".inochi2d"), "dir");
+      try {
+        const { hexo, registrations } = fakeHexo(
+          {
+            public_dir: join(
+              directory,
+              ".inochi2d",
+              "preview",
+              "run-test",
+              "public",
+            ),
+            inochi2d_widget: {
+              enable: true,
+              bundle: ".",
+              localPreview: { token },
+            },
+          },
+          directory,
+        );
+        registerHexoWidget(hexo);
+        expect(() => registrations.generator?.()).toThrow(/symbolic-link/u);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN;
+        } else {
+          process.env.INOCHI2D_LOCAL_PREVIEW_TOKEN = previous;
+        }
+      }
+    });
   });
 });

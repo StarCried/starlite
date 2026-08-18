@@ -2,6 +2,10 @@ import type { WidgetConfig } from "inochi2d-web" with { "resolution-mode": "impo
 
 import type { HexoLike, HexoWidgetConfig, ModelAssetBundle } from "./types";
 
+const { validateInochi2DWidgetConfig } = require("inochi2d-web/config") as {
+  validateInochi2DWidgetConfig(config: WidgetConfig): void;
+};
+
 export interface EnabledConfig {
   widget: WidgetConfig;
   breakpoint: number;
@@ -25,9 +29,11 @@ export function readEnabledConfig(
     input,
     artifactUrls,
     modelBundle?.suggestedParameters,
+    modelBundle?.suggestedAmbient,
     modelBundle?.animations,
+    modelBundle !== undefined,
   );
-  validateConfiguredAnimation(widget);
+  validateInochi2DWidgetConfig(widget);
   return {
     widget,
     breakpoint,
@@ -44,18 +50,22 @@ function resolveArtifactUrls(
     if (!modelBundle) {
       throw new Error("inochi2d_widget.bundle could not be loaded");
     }
-    if (input.publication?.confirm !== true) {
+    if (!modelBundle.localPreview && input.publication?.confirm !== true) {
       throw new Error(
         "inochi2d_widget.publication.confirm must be true before a local model bundle is published",
       );
     }
-    if (input.publication.allowRedistribution !== true) {
+    if (
+      !modelBundle.localPreview &&
+      input.publication?.allowRedistribution !== true
+    ) {
       throw new Error(
         "inochi2d_widget.publication.allowRedistribution must be true before a local model bundle is published",
       );
     }
     if (
-      input.publication.sourceSha256?.toLowerCase() !==
+      !modelBundle.localPreview &&
+      input.publication?.sourceSha256?.toLowerCase() !==
       modelBundle.sourceSha256.toLowerCase()
     ) {
       throw new Error(
@@ -88,43 +98,57 @@ function toWidgetConfig(
   input: HexoWidgetConfig,
   artifactUrls: Pick<WidgetConfig, "fallback" | "model">,
   suggestedParameters?: NonNullable<WidgetConfig["parameters"]>,
+  suggestedAmbient?: NonNullable<WidgetConfig["ambient"]>,
   bundleAnimations?: NonNullable<WidgetConfig["animations"]>,
+  autoFitBundle = false,
 ): WidgetConfig {
+  const dialogueClickEnabled =
+    input.dialogue?.click !== undefined && input.dialogue.click !== false;
+  const ambientAnimations =
+    input.ambient?.animations ?? suggestedAmbient?.animations;
+  const ambientParameters =
+    input.ambient?.parameters ?? suggestedAmbient?.parameters;
+  const render =
+    input.render || autoFitBundle
+      ? {
+          ...input.render,
+          ...(autoFitBundle && input.render?.autoFit === undefined
+            ? { autoFit: true }
+            : {}),
+        }
+      : undefined;
   return {
     ...artifactUrls,
     ...(input.network ? { network: input.network } : {}),
     ...(input.display ? { display: input.display } : {}),
-    ...(input.render ? { render: input.render } : {}),
+    ...(render ? { render } : {}),
     ...(input.mobile ? { mobile: input.mobile } : {}),
     ...(bundleAnimations || input.animations
       ? { animations: bundleAnimations ?? input.animations }
       : {}),
+    ...(ambientAnimations !== undefined || ambientParameters !== undefined
+      ? {
+          ambient: {
+            ...(ambientAnimations !== undefined
+              ? { animations: ambientAnimations }
+              : {}),
+            ...(ambientParameters !== undefined
+              ? { parameters: ambientParameters }
+              : {}),
+          },
+        }
+      : {}),
+    ...(input.dialogue ? { dialogue: input.dialogue } : {}),
     ...(suggestedParameters || input.parameters
       ? { parameters: { ...suggestedParameters, ...input.parameters } }
       : {}),
     interactions: {
       ...input.interactions,
-      click: input.interactions?.click ?? { animation: "Click" },
+      click:
+        input.interactions?.click ??
+        (dialogueClickEnabled ? false : { animation: "Click" }),
     },
   };
-}
-
-function validateConfiguredAnimation(config: WidgetConfig): void {
-  const click = config.interactions?.click;
-  if (click === false) {
-    return;
-  }
-  if (click !== undefined && (typeof click !== "object" || click === null)) {
-    throw new Error(
-      "inochi2d_widget.interactions.click must be false or contain an animation name",
-    );
-  }
-  const name = click?.animation?.trim() || "Click";
-  if (!config.animations?.some((animation) => animation.name === name)) {
-    throw new Error(
-      `inochi2d_widget.interactions.click.animation ${JSON.stringify(name)} is not present in the validated model bundle`,
-    );
-  }
 }
 
 export function resolveUrl(root: string, value: string): string {

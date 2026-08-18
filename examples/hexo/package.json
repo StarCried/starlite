@@ -12,7 +12,6 @@
   "dependencies": {
     "hexo": "7.3.0",
     "hexo-inox2d-widget": "0.1.0-alpha.1",
-    "hexo-renderer-ejs": "2.0.0",
     "hexo-renderer-marked": "7.0.1"
   }
 }
