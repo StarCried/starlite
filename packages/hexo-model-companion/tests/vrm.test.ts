@@ -21,9 +21,10 @@ it("ships only the VRM backend and resolves every hashed motion URL",async()=>{
  const runtime=collectRuntimeAssets(resolveRuntimeDist("vrm"),"vrm");
  expect(runtime.assets.map(a=>a.relativePath)).toEqual(["index.js","widget.css"]);
  expect(assets.assets.some(a=>a.relativePath==="motions/0.vrma")).toBe(true);
- const enabled=readEnabledConfig({config:{root:"/blog/",inochi2d_widget:{backend:"vrm",enable:true,bundle:directory,fallback:"fallback.png",publication:{confirm:true,allowRedistribution:true,sourceSha256:assets.sourceSha256},ambient:{animations:["Idle"]}}},extend:{generator:{register:vi.fn()},injector:{register:vi.fn()}},log:{warn:vi.fn()}},assets)!;
+ const enabled=readEnabledConfig({config:{root:"/blog/",inochi2d_widget:{backend:"vrm",enable:true,bundle:directory,fallback:"fallback.png",publication:{confirm:true,allowRedistribution:true,sourceSha256:assets.sourceSha256},ambient:{animations:["Idle"]},gaze:{maxYawDegrees:20,maxPitchDegrees:12},dialogue:{click:{animation:"Idle",lines:["Hello"]}}}},extend:{generator:{register:vi.fn()},injector:{register:vi.fn()}},log:{warn:vi.fn()}},assets)!;
  expect(enabled.widget).toMatchObject({backend:"vrm",render:{fps:30,maxDevicePixelRatio:1.5},animations:[{name:"Idle",url:`/blog/${assets.routePrefix}/motions/0.vrma`}]});
  expect(enabled.showOnMobile).toBe(false);
+ expect(enabled.widget).toMatchObject({gaze:{maxYawDegrees:20,maxPitchDegrees:12},dialogue:{click:{animation:"Idle",lines:["Hello"]}}});
 });
 it("keeps redistribution and source identity gates for VRM",async()=>{
  const directory=await bundle(false);expect(()=>collectVrmModelAssets(directory)).toThrow("redistribution");

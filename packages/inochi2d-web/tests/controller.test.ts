@@ -402,7 +402,7 @@ describe("mountWithDependencies", () => {
       deps,
     );
     const bubble = element.querySelector<HTMLElement>(
-      ".inochi2d-widget__bubble",
+      ".model-widget__bubble",
     );
     expect(bubble?.hidden).toBe(true);
 
@@ -412,7 +412,7 @@ describe("mountWithDependencies", () => {
     expect(bubble?.hidden).toBe(false);
     expect(bubble?.textContent).toBe("<img src=x onerror=alert(1)>");
     expect(bubble?.querySelector("img")).toBeNull();
-    expect(bubble?.dataset.inochi2dScene).toBe("enter");
+    expect(bubble?.dataset.modelScene).toBe("enter");
   });
 
   it("triggers the configured click animation and sentence without a fallback", async () => {
@@ -447,10 +447,10 @@ describe("mountWithDependencies", () => {
     const canvas = element.querySelector("canvas")!;
     canvas.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     const bubble = element.querySelector<HTMLElement>(
-      ".inochi2d-widget__bubble",
+      ".model-widget__bubble",
     );
     expect(bubble?.textContent).toBe("You clicked me.");
-    expect(bubble?.dataset.inochi2dScene).toBe("click");
+    expect(bubble?.dataset.modelScene).toBe("click");
 
     callbacks.shift()!(400);
     expect(runtime.setParameterScalar).toHaveBeenCalledWith(
@@ -528,12 +528,12 @@ describe("mountWithDependencies", () => {
     callbacks.shift()!(0);
     callbacks.shift()!(4_999);
     expect(
-      element.querySelector<HTMLElement>(".inochi2d-widget__bubble")?.hidden,
+      element.querySelector<HTMLElement>(".model-widget__bubble")?.hidden,
     ).toBe(true);
 
     callbacks.shift()!(5_017);
     expect(
-      element.querySelector<HTMLElement>(".inochi2d-widget__bubble")
+      element.querySelector<HTMLElement>(".model-widget__bubble")
         ?.textContent,
     ).toBe("Idle line");
   });
@@ -565,7 +565,7 @@ describe("mountWithDependencies", () => {
     );
 
     expect(
-      element.querySelector<HTMLElement>(".inochi2d-widget__bubble")
+      element.querySelector<HTMLElement>(".model-widget__bubble")
         ?.textContent,
     ).toBe("Welcome");
     expect(runtime.setParameterScalar).not.toHaveBeenCalledWith(
@@ -575,11 +575,11 @@ describe("mountWithDependencies", () => {
     expect(deps.requestFrame).not.toHaveBeenCalled();
     vi.advanceTimersByTime(4_999);
     expect(
-      element.querySelector<HTMLElement>(".inochi2d-widget__bubble")?.hidden,
+      element.querySelector<HTMLElement>(".model-widget__bubble")?.hidden,
     ).toBe(false);
     vi.advanceTimersByTime(1);
     expect(
-      element.querySelector<HTMLElement>(".inochi2d-widget__bubble")?.hidden,
+      element.querySelector<HTMLElement>(".model-widget__bubble")?.hidden,
     ).toBe(true);
     controller.destroy();
     vi.useRealTimers();

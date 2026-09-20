@@ -23,6 +23,7 @@ export interface VrmWidgetConfig {
   display?: { width?: number; height?: number };
   render?: { fps?: number; maxDevicePixelRatio?: number; initialScale?: number; autoFit?: boolean; fitPadding?: number };
   camera?: { yawDegrees?: number; pitchDegrees?: number; fovDegrees?: number; targetHeight?: number };
+  gaze?: { maxYawDegrees?: number; maxPitchDegrees?: number; smoothingMs?: number };
   mobile?: { show?: boolean; breakpoint?: number };
   network?: { requestTimeoutMs?: number; modelMaxBytes?: number };
   interactions?: { pointer?: boolean; click?: false | { animation?: string }; drag?: boolean };

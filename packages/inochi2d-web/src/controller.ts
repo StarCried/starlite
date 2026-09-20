@@ -4,6 +4,7 @@ import { resolveConfig } from "./config.js";
 import {
   type DialogueAction,
   DialogueScheduler,
+  DialogueBubble,
 } from "./dialogue.js";
 import { MissingModelParameterError } from "./errors.js";
 import { idleBreathValue, MotionMixer } from "./motion.js";
@@ -103,8 +104,7 @@ class ActiveController implements WidgetController {
   readonly #dependencies: WidgetDependencies;
   readonly #canvas: HTMLCanvasElement;
   readonly #fallback: HTMLImageElement;
-  readonly #bubble: HTMLDivElement;
-  readonly #bubbleText: HTMLSpanElement;
+  readonly #bubble: DialogueBubble;
   readonly #motion: MotionMixer;
   readonly #animations: AnimationPlayer;
   readonly #dialogue: DialogueScheduler;
@@ -123,8 +123,6 @@ class ActiveController implements WidgetController {
   #usesFallbackBreathing = false;
   #modelRendered = false;
   #cameraTransform: CameraTransform;
-  #bubbleVisibleUntil = 0;
-  #bubbleTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
   #dragOrigin:
     | {
         pointerId: number;
@@ -147,8 +145,7 @@ class ActiveController implements WidgetController {
     this.#dependencies = dependencies;
     this.#canvas = document.createElement("canvas");
     this.#fallback = document.createElement("img");
-    this.#bubble = document.createElement("div");
-    this.#bubbleText = document.createElement("span");
+    this.#bubble = new DialogueBubble(element);
     this.#cameraTransform = {
       x: 0,
       y: 0,
@@ -350,17 +347,10 @@ class ActiveController implements WidgetController {
     this.#fallback.className = "inochi2d-widget__fallback";
     this.#fallback.alt = "Character illustration";
     this.#fallback.hidden = true;
-    this.#bubble.className = "inochi2d-widget__bubble";
-    this.#bubble.hidden = true;
-    this.#bubble.setAttribute("role", "status");
-    this.#bubble.setAttribute("aria-live", "polite");
-    this.#bubble.setAttribute("aria-atomic", "true");
-    this.#bubbleText.className = "inochi2d-widget__bubble-text";
-    this.#bubble.append(this.#bubbleText);
     this.#element.replaceChildren(
       this.#canvas,
       this.#fallback,
-      this.#bubble,
+      this.#bubble.element,
     );
     this.#setStatus("loading");
   }
@@ -735,66 +725,13 @@ class ActiveController implements WidgetController {
   }
 
   #activateDialogue(action: DialogueAction, timestamp: number): void {
-    this.#clearBubbleTimeout();
     this.#animations.trigger(action.animation, timestamp);
-    this.#bubbleText.textContent = action.line;
-    this.#bubble.dataset.inochi2dScene = action.scene;
-    this.#bubble.hidden = false;
-    this.#bubbleVisibleUntil = timestamp + action.durationMs;
-    this.#positionBubble();
-    if (this.#dependencies.prefersReducedMotion()) {
-      this.#bubbleTimeoutHandle = setTimeout(
-        () => this.#hideBubble(),
-        action.durationMs,
-      );
-    }
+    this.#bubble.show(action, timestamp, this.#dependencies.prefersReducedMotion());
   }
 
-  #updateBubble(timestamp: number): void {
-    if (!this.#bubble.hidden && timestamp >= this.#bubbleVisibleUntil) {
-      this.#hideBubble();
-    }
-  }
-
-  #hideBubble(): void {
-    this.#clearBubbleTimeout();
-    this.#bubble.hidden = true;
-    this.#bubbleText.textContent = "";
-    delete this.#bubble.dataset.inochi2dScene;
-    this.#bubbleVisibleUntil = 0;
-  }
-
-  #clearBubbleTimeout(): void {
-    if (this.#bubbleTimeoutHandle !== undefined) {
-      clearTimeout(this.#bubbleTimeoutHandle);
-      this.#bubbleTimeoutHandle = undefined;
-    }
-  }
-
-  #positionBubble(): void {
-    if (this.#bubble.hidden) {
-      return;
-    }
-    const widget = this.#element.getBoundingClientRect();
-    const bubble = this.#bubble.getBoundingClientRect();
-    const viewportWidth = Math.max(
-      1,
-      document.documentElement.clientWidth || window.innerWidth,
-    );
-    const margin = 12;
-    const placement =
-      widget.top >= bubble.height + margin * 2 ? "above" : "below";
-    this.#bubble.dataset.inochi2dPlacement = placement;
-
-    const centeredLeft = widget.left + widget.width / 2 - bubble.width / 2;
-    const minimumLeft = margin;
-    const maximumLeft = Math.max(minimumLeft, viewportWidth - bubble.width - margin);
-    const shift = clamp(centeredLeft, minimumLeft, maximumLeft) - centeredLeft;
-    this.#bubble.style.setProperty(
-      "--inochi2d-bubble-shift-x",
-      `${Math.round(shift)}px`,
-    );
-  }
+  #updateBubble(timestamp: number): void { this.#bubble.update(timestamp); }
+  #hideBubble(): void { this.#bubble.hide(); }
+  #positionBubble(): void { this.#bubble.position(); }
 
   #configureBreathing(runtime: Inochi2dWasmRuntime): void {
     const targets = this.#config.parameters.breath;

@@ -93,3 +93,5 @@ export async function fetchBounded(url: string, maximumBytes: number, signal: Ab
 }
 
 export { DialogueScheduler, type DialogueAction, type DialogueSchedule } from "./dialogue.js";
+
+export { DialogueBubble } from "./bubble.js";

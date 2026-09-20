@@ -1,1 +1,1 @@
-export { DialogueScheduler, type DialogueAction } from "model-widget-core";
+export { DialogueScheduler, DialogueBubble, type DialogueAction } from "model-widget-core";

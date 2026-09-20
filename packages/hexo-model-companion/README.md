@@ -114,7 +114,7 @@ selected renderer is emitted; VRM pages do not ship the Inochi2D WASM.
 The bootstrap waits for document load, then an idle opportunity (up to 2 seconds
 on browsers with requestIdleCallback). Mobile exits before dynamic import or
 model fetch. PJAX keeps one instance and aborts detached pending mounts. Both
-backend entries implement `mountModelWidget`; pure dialogue scheduling and the
+backend entries implement `mountModelWidget`; dialogue scheduling, bubble presentation and the
 controller contract are shared, while parameter tracks remain Inochi2D-only.
 
 Use `examples/hexo-vrm` for isolated validation with synthetic VRM 1.0 geometry.
@@ -128,3 +128,7 @@ and `img-src` (image loader). Keep all other directives unchanged. The plugin
 does not rewrite the site's policy. A texture decoding/loading failure raises
 `model-error` and displays the configured fallback instead of an untextured
 white model. Validate the result in the target browser before acceptance.
+
+For VRM, `camera` and `gaze` pass through to the renderer. See `vrm-web` for
+angle limits. Enter/idle/click sentences use the same `dialogue` configuration
+for both backends; defining a click animation alone does not enable sentences.

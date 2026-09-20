@@ -38,13 +38,13 @@ beforeEach(()=>{
  vi.stubGlobal("fetch",async(url:string)=>new Response(url.endsWith('.vrma')?new Uint8Array([1]):model()));
 });
 afterEach(()=>{for(const c of resources.splice(0))c.destroy();vi.restoreAllMocks();vi.unstubAllGlobals()});
-async function mount(backend:string,signal?:AbortSignal){
+async function mount(backend:string,signal?:AbortSignal,dialogue?:any){
  const host=document.createElement("div");document.body.append(host);
  let c:ModelController;
- if(backend==='vrm')c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],mobile:{show:true},interactions:{pointer:false,click:false,drag:false}},{...(signal?{signal}:{})});
+ if(backend==='vrm')c=await mountModelWidget(host,{dialogue,model:'test.vrm',fallback:'fallback.png',animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],mobile:{show:true},interactions:{pointer:false,click:false,drag:false}},{...(signal?{signal}:{})});
  else{
   const clip={timestepMs:100,length:10,leadIn:0,leadOut:8,weight:1,lanes:[{parameter:'move',defaultValues:[0,0],interpolation:'linear',keyframes:[{frame:0,value:0,tension:0},{frame:5,value:1,tension:0},{frame:10,value:0,tension:0}]}]};
-  c=await mountWithDependencies(host,{model:'test.inp',fallback:'fallback.png',animations:[{...clip,name:'Action'},{...clip,name:'Other'}] as any,mobile:{show:true},interactions:{pointer:false,click:false,drag:false}},{fetchModel:async()=>new Uint8Array([1]),createRuntime:async()=>({loadModel(){},setParameterScalar(){},setParameterVector(){},setCameraTransform(){},resize(){},renderFrame(){},destroy(){}}),requestFrame,cancelFrame,isMobile:()=>false,prefersReducedMotion:()=>false,isWebGl2Available:()=>true,devicePixelRatio:()=>1,createResizeObserver:()=>undefined,random:()=>.5},signal);
+  c=await mountWithDependencies(host,{dialogue,model:'test.inp',fallback:'fallback.png',animations:[{...clip,name:'Action'},{...clip,name:'Other'}] as any,mobile:{show:true},interactions:{pointer:false,click:false,drag:false}},{fetchModel:async()=>new Uint8Array([1]),createRuntime:async()=>({loadModel(){},setParameterScalar(){},setParameterVector(){},setCameraTransform(){},resize(){},renderFrame(){},destroy(){}}),requestFrame,cancelFrame,isMobile:()=>false,prefersReducedMotion:()=>false,isWebGl2Available:()=>true,devicePixelRatio:()=>1,createResizeObserver:()=>undefined,random:()=>.5},signal);
  }
  resources.push(c);return c;
 }
@@ -52,6 +52,18 @@ for(const backend of ['inochi2d','vrm'])describe(`${backend} public controller c
  it('lists real clips and completes a single clip',async()=>{const c=await mount(backend);expect(c.status).toBe('running');expect(c.getAnimations()).toEqual([{name:'Action',durationMs:1000},{name:'Other',durationMs:1000}]);const result=c.playAnimation('Action');advance(1200);await expect(result).resolves.toBe('completed')});
  it('keeps loops pending until interrupted or stopped',async()=>{const c=await mount(backend);const loop=c.playAnimation('Action',{mode:'loop'});const settled=vi.fn();void loop.then(settled);advance(2000);await Promise.resolve();expect(settled).not.toHaveBeenCalled();const next=c.playAnimation('Other',{mode:'loop'});await expect(loop).resolves.toBe('interrupted');c.stopAnimation();await expect(next).resolves.toBe('stopped')});
  it('pauses, resumes and destroys idempotently',async()=>{const c=await mount(backend);const result=c.playAnimation('Action');advance(200);c.pause();expect(c.status).toBe('paused');expect(frames.size).toBe(0);advance(5000);c.resume();expect(c.status).toBe('running');advance(1000);await expect(result).resolves.toBe('completed');const loop=c.playAnimation('Other',{mode:'loop'});c.destroy();c.destroy();await expect(loop).resolves.toBe('stopped');expect(document.querySelectorAll('canvas')).toHaveLength(0);expect(frames.size).toBe(0)});
+ it('uses the same accessible bubble for entry, click, expiry and pause',async()=>{
+  const c=await mount(backend,undefined,{enter:{animation:'Action',lines:['Hello'],delayMs:0,durationMs:1000},click:{animation:'Other',lines:['Clicked'],durationMs:1000}});
+  advance(100);const bubble=document.querySelector<HTMLElement>('.model-widget__bubble')!;
+  expect(bubble.hidden).toBe(false);expect(bubble.textContent).toBe('Hello');expect(bubble.getAttribute('role')).toBe('status');
+  const canvas=document.querySelector('canvas')!;
+  if(backend==='vrm'){canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));}
+  else canvas.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+  expect(bubble.textContent).toBe('Clicked');advance(1100);expect(bubble.hidden).toBe(true);
+  if(backend==='vrm'){canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));}
+  else canvas.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+  c.pause();expect(bubble.hidden).toBe(true);c.destroy();expect(document.querySelector('.model-widget__bubble')).toBeNull();
+ });
  it('cancels an owned mounted instance through AbortSignal',async()=>{const abort=new AbortController();const c=await mount(backend,abort.signal);abort.abort();expect(c.status).toBe('destroyed');expect(document.querySelectorAll('canvas')).toHaveLength(0)});
 });
 
@@ -62,4 +74,14 @@ it('does not report a white untextured VRM as ready when an embedded image fails
  expect(c.status).toBe('fallback');expect(frames.size).toBe(0);
  expect(document.querySelector('canvas')?.hidden).toBe(true);
  expect(errors[0]).toContain('VRM texture loading failed');
+});
+
+it('shows reduced-motion VRM entry text without scheduling frames',async()=>{
+ vi.useFakeTimers();
+ vi.stubGlobal('matchMedia',()=>({matches:true,addEventListener(){},removeEventListener(){}}));
+ const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},animations:[{name:'Action',url:'a.vrma'}],dialogue:{enter:{animation:'Action',lines:['Hello'],durationMs:1000}}});resources.push(c);
+ expect(c.status).toBe('paused');expect(frames.size).toBe(0);expect(host.querySelector<HTMLElement>('.model-widget__bubble')?.hidden).toBe(false);
+ vi.advanceTimersByTime(1000);expect(host.querySelector<HTMLElement>('.model-widget__bubble')?.hidden).toBe(true);
+ c.destroy();expect(vi.getTimerCount()).toBe(0);vi.useRealTimers();
 });

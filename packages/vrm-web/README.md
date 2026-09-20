@@ -68,3 +68,18 @@ Fit uses the visible neutral pose once; hidden accessories do not affect the
 frame and viewport resizing does not recenter around the current gesture.
 `render.fitPadding` reserves space for hands. Check all clips visually when
 choosing padding; the neutral bounds cannot predict an arbitrary animation.
+
+### Pointer gaze and dialogue
+
+Pointer following uses the actual head position and the portrait camera, with
+VRM0/VRM1 coordinate conversion handled by three-vrm. Defaults are
+`gaze: { maxYawDegrees: 25, maxPitchDegrees: 15, smoothingMs: 100 }`.
+These bound the look-at input angles; the model's own eye range maps still apply.
+Authored look-at animation retains priority. Leaving the page returns gaze toward
+the camera; `interactions.pointer: false` disables following.
+
+Enter, click and idle dialogue use the same accessible bubble as Inochi2D.
+Configure `dialogue.click` and `dialogue.idle` to enable those sentences; an
+animation-only click configuration intentionally has no invented dialogue.
+Hidden/paused models dismiss bubbles. Reduced-motion entry still displays text
+and expires without starting a continuous render loop.

@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { copyFile, mkdir, rm } from "node:fs/promises";
+import { readFile, writeFile, copyFile, mkdir, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,7 +8,7 @@ const generatedSource = resolve(packageRoot, "src/generated");
 const generatedDestination = resolve(packageRoot, "dist/generated");
 
 await mkdir(resolve(packageRoot, "dist"), { recursive: true });
-await copyFile(resolve(packageRoot, "src/widget.css"), resolve(packageRoot, "dist/widget.css"));
+await writeFile(resolve(packageRoot, "dist/widget.css"), await readFile(resolve(packageRoot, "src/widget.css"), "utf8") + "\n" + await readFile(new URL(import.meta.resolve("model-widget-core/bubble.css")), "utf8"));
 await rm(generatedDestination, { force: true, recursive: true });
 await mkdir(generatedDestination, { recursive: true });
 for (const filename of ["inochi2d.wasm"]) {
