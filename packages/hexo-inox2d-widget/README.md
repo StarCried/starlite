@@ -76,3 +76,46 @@ and not affiliated with the Inochi2D project. Read the full
 [configuration guide](https://github.com/StarCried/inochi2d-web/blob/main/docs/configuration.md)
 and [model policy](https://github.com/StarCried/inochi2d-web/blob/main/docs/model-policy.md)
 before publishing a model.
+
+## VRM backend
+
+The configuration key remains `inochi2d_widget`. Omitting `backend` selects
+Inochi2D. Set `backend: vrm` for a bundle produced by `vrm-web/prepare`:
+
+```yaml
+inochi2d_widget:
+  enable: true
+  backend: vrm
+  bundle: ./private-prepared-blog-model
+  fallback: images/companion.png
+  publication:
+    confirm: true
+    allowRedistribution: true
+    sourceSha256: <reviewed source SHA-256 from manifest>
+  ambient:
+    animations: [Idle]
+  interactions:
+    pointer: true
+    click: { animation: Click }
+  mobile:
+    show: false
+  render:
+    fps: 30
+    maxDevicePixelRatio: 1.5
+```
+
+VRM bundles contain the model, named external VRMA files and an optional
+character profile. All declared files are checked against their SHA-256 and
+contained paths. The manifest must independently permit redistribution;
+configuration confirmation cannot override a private manifest. The blog model
+limit is 8 MiB. Static fallback URLs remain site-owned configuration. Only the
+selected renderer is emitted; VRM pages do not ship the Inochi2D WASM.
+
+The bootstrap waits for document load, then an idle opportunity (up to 2 seconds
+on browsers with requestIdleCallback). Mobile exits before dynamic import or
+model fetch. PJAX keeps one instance and aborts detached pending mounts. Both
+backend entries implement `mountModelWidget`; pure dialogue scheduling and the
+controller contract are shared, while parameter tracks remain Inochi2D-only.
+
+Use `examples/hexo-vrm` for isolated validation with synthetic VRM 1.0 geometry.
+The real blog and private character are not part of the example or package.

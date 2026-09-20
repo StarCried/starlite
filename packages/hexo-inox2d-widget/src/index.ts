@@ -1,7 +1,7 @@
 import { lstatSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { collectModelAssets, collectRuntimeAssets } from "./assets";
+import { collectModelAssets, collectVrmModelAssets, collectRuntimeAssets, resolveRuntimeDist } from "./assets";
 import { createBootstrapSource } from "./bootstrap";
 import { normalizeRoot, readEnabledConfig } from "./config";
 import type { HexoLike, ModelAssetBundle, RuntimeAssetBundle } from "./types";
@@ -14,14 +14,14 @@ export function registerHexoWidget(instance: HexoLike): void {
   let cachedBundle: RuntimeAssetBundle | undefined;
   let cachedModelBundle: ModelAssetBundle | undefined;
   let localPreviewWarningLogged = false;
-  const bundle = (): RuntimeAssetBundle => (cachedBundle ??= collectRuntimeAssets());
+  const bundle = (): RuntimeAssetBundle => (cachedBundle ??= collectRuntimeAssets(resolveRuntimeDist(instance.config.inochi2d_widget?.backend), instance.config.inochi2d_widget?.backend));
   const enabled = () => {
     const input = instance.config.inochi2d_widget;
     const bundleLocation = typeof input?.bundle === "string" ? input.bundle.trim() : "";
     const localPreview = input?.enable ? authorizeLocalPreview(instance) : false;
     const modelBundle =
       input?.enable && bundleLocation
-        ? (cachedModelBundle ??= collectModelAssets(
+        ? (cachedModelBundle ??= (input.backend === "vrm" ? collectVrmModelAssets : collectModelAssets)(
             bundleLocation,
             instance.base_dir,
             { localPreview },
@@ -70,6 +70,7 @@ export function registerHexoWidget(instance: HexoLike): void {
 
     return [
       '<div data-inochi2d-widget-host></div>',
+      '<style>[data-inochi2d-widget-host],[data-inochi2d-widget-host].model-vrm-widget{position:fixed;right:16px;bottom:0;z-index:20}</style>',
       `<link rel="stylesheet" href="${escapeHtmlAttribute(assetBase)}/widget.css">`,
       `<script type="module">${bootstrap}</script>`,
     ].join("");

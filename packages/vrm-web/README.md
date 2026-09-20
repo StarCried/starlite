@@ -36,3 +36,9 @@ Build `model-widget-core` and this package, then run the private example with
 Only loopback is served. Assets remain outside the repository and package.
 The preview has eight-action, repeated mount and 15-minute idle checks; reports
 are written under the explicitly supplied private asset directory's `qa` folder.
+
+`readPreparedBundleSync` exposes the same manifest validation for synchronous
+build systems such as Hexo. `readPreparedBundle` remains the Promise-based entry.
+The version tests load actual artwork-free VRM0 and VRM1 GLBs and retarget an
+actual VRMA clip through the pinned Pixiv loader; they do not replace the loader
+with a mock. WebGL appearance and character behavior still need browser checks.

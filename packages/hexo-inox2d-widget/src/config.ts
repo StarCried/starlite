@@ -1,13 +1,13 @@
 import type { WidgetConfig } from "inochi2d-web" with { "resolution-mode": "import" };
 
-import type { HexoLike, HexoWidgetConfig, ModelAssetBundle } from "./types";
+import type { BrowserWidgetConfig, HexoLike, HexoWidgetConfig, ModelAssetBundle } from "./types";
 
 const { validateInochi2DWidgetConfig } = require("inochi2d-web/config") as {
   validateInochi2DWidgetConfig(config: WidgetConfig): void;
 };
 
 export interface EnabledConfig {
-  widget: WidgetConfig;
+  widget: BrowserWidgetConfig;
   breakpoint: number;
   showOnMobile: boolean;
 }
@@ -21,10 +21,27 @@ export function readEnabledConfig(
     return undefined;
   }
 
+  if (input.backend !== undefined && input.backend !== "inochi2d" && input.backend !== "vrm") throw new Error("unknown model backend");
   const root = normalizeRoot(hexo.config.root);
   const artifactUrls = resolveArtifactUrls(input, root, modelBundle);
   const breakpoint = input.mobile?.breakpoint ?? 768;
   const showOnMobile = input.mobile?.show ?? false;
+  if (input.backend === "vrm") {
+    const base = modelBundle ? `${root}${modelBundle.routePrefix}/` : root;
+    const animations = modelBundle?.vrm?.animations.map(a => ({...a,url:base+a.url})) ?? input.animations?.map(a => ({...a,url:resolveUrl(root,a.url)}));
+    const profile = modelBundle?.vrm?.profile ? base + modelBundle.vrm.profile : typeof input.profile === "string" ? resolveUrl(root,input.profile) : input.profile;
+    const widget = {
+      backend:"vrm" as const, ...artifactUrls,
+      ...(animations ? {animations} : {}), ...(profile ? {profile} : {}),
+      ...(input.display ? {display:input.display} : {}), ...(input.mobile ? {mobile:input.mobile} : {}),
+      render:{fps:30,maxDevicePixelRatio:1.5,autoFit:true,...input.render},
+      ...(input.network ? {network:input.network} : {}),
+      ...(input.ambient ? {ambient:input.ambient} : {}), ...(input.dialogue ? {dialogue:input.dialogue} : {}),
+      interactions:{...input.interactions,click:input.interactions?.click ?? false},
+    };
+    (require("vrm-web/config") as typeof import("vrm-web/config", {with:{"resolution-mode":"import"}})).validateVrmWidgetConfig(widget);
+    return {widget,breakpoint,showOnMobile};
+  }
   const widget = toWidgetConfig(
     input,
     artifactUrls,
@@ -72,13 +89,13 @@ function resolveArtifactUrls(
         "inochi2d_widget.publication.sourceSha256 must match the reviewed source model",
       );
     }
-    if (!modelBundle.fallbackFile) {
+    if (!modelBundle.fallbackFile && !(input.backend === "vrm" && nonEmpty(input.fallback))) {
       throw new Error("the Inochi2D pipeline bundle has no fallback image");
     }
     const base = `${root}${modelBundle.routePrefix}`;
     return {
       model: `${base}/${modelBundle.modelFile}`,
-      fallback: `${base}/${modelBundle.fallbackFile}`,
+      fallback: modelBundle.fallbackFile ? `${base}/${modelBundle.fallbackFile}` : resolveUrl(root, input.fallback!),
     };
   }
 
@@ -95,7 +112,7 @@ function resolveArtifactUrls(
 }
 
 function toWidgetConfig(
-  input: HexoWidgetConfig,
+  input: Extract<HexoWidgetConfig, {backend?: "inochi2d"}>,
   artifactUrls: Pick<WidgetConfig, "fallback" | "model">,
   suggestedParameters?: NonNullable<WidgetConfig["parameters"]>,
   suggestedAmbient?: NonNullable<WidgetConfig["ambient"]>,

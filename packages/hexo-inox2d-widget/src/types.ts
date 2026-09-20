@@ -3,7 +3,13 @@ import type {
   WidgetConfig,
 } from "inochi2d-web" with { "resolution-mode": "import" };
 
-export interface HexoWidgetConfig extends Omit<WidgetConfig, "fallback" | "model"> {
+import type { VrmWidgetConfig, VrmAnimationSource } from "vrm-web" with {"resolution-mode":"import"};
+export type BrowserWidgetConfig = WidgetConfig | VrmWidgetConfig;
+export type HexoWidgetConfig = HexoWidgetOptions & (
+  Omit<WidgetConfig, "fallback" | "model"> |
+  (Omit<VrmWidgetConfig, "fallback" | "model" | "backend"> & {backend:"vrm"})
+);
+export interface HexoWidgetOptions {
   enable?: boolean;
   model?: string;
   fallback?: string;
@@ -67,6 +73,8 @@ export interface RuntimeAssetBundle {
 }
 
 export interface ModelAssetBundle {
+  backend?: "inochi2d" | "vrm";
+  vrm?: {animations: VrmAnimationSource[]; profile?: string};
   hash: string;
   routePrefix: string;
   modelFile: string;

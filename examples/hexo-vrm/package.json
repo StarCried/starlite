@@ -1,0 +1,14 @@
+{
+  "name": "@inochi2d-web/hexo-vrm-example",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "serve": "vite preview --outDir .generated/public --host 127.0.0.1 --port 4182 --strictPort"
+  },
+  "dependencies": {
+    "hexo": "7.3.0",
+    "hexo-inox2d-widget": "0.1.0-alpha.1"
+  }
+}

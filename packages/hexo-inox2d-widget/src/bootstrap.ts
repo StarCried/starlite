@@ -1,8 +1,8 @@
-import type { WidgetConfig } from "inochi2d-web" with { "resolution-mode": "import" };
+import type { BrowserWidgetConfig } from "./types";
 
 interface BootstrapOptions {
   entryUrl: string;
-  config: WidgetConfig;
+  config: BrowserWidgetConfig;
   breakpoint: number;
   showOnMobile: boolean;
 }
@@ -25,6 +25,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     const hosts = Array.from(document.querySelectorAll("[data-inochi2d-widget-host]"));
     if (!options.showOnMobile && globalThis.matchMedia(mobileQuery).matches) {
       nextGeneration();
+      state.abort?.abort();
       state.controller?.destroy();
       state.controller = undefined;
       state.host = undefined;
@@ -46,13 +47,17 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     if (state.controller && state.host === host && host.isConnected) return;
     if (state.mounting && state.mountHost === host) return state.mounting;
     const generation = nextGeneration();
+    state.abort?.abort();
+    const abort = new AbortController();
+    state.abort = abort;
     state.controller?.destroy();
     state.controller = undefined;
     state.host = host;
     state.mountHost = host;
     const mounting = import(options.entryUrl)
       .then(async (runtime) => {
-        const controller = await runtime.mountInochi2DWidget(host, options.config);
+        abort.signal.throwIfAborted();
+        const controller = await runtime.mountModelWidget(host, options.config, {signal:abort.signal});
         if (
           state.generation !== generation ||
           state.host !== host ||
@@ -64,6 +69,15 @@ export function createBootstrapSource(options: BootstrapOptions): string {
         }
         state.controller = controller;
       })
+      .catch(() => {
+        if (state.generation !== generation || abort.signal.aborted || !host.isConnected) return;
+        host.replaceChildren();
+        host.style.width = (options.config.display?.width ?? 320) + "px";
+        host.style.height = (options.config.display?.height ?? 480) + "px";
+        const image = document.createElement("img"); image.src = options.config.fallback; image.alt = "角色暂时无法加载";
+        image.style.cssText = "width:100%;height:100%;object-fit:contain";
+        host.append(image);
+      })
       .finally(() => {
         if (state.mounting === mounting) {
           state.mounting = undefined;
@@ -74,11 +88,20 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     return mounting;
   };
 
+  const scheduleMount = () => {
+    if (state.scheduled) return;
+    state.scheduled = true;
+    const run = () => { state.scheduled = false; void ensureMounted(); };
+    if (globalThis.requestIdleCallback) globalThis.requestIdleCallback(run, {timeout:2000});
+    else globalThis.setTimeout(run, 0);
+  };
+  state.scheduleMount = scheduleMount;
   if (!state.listenerBound) {
-    document.addEventListener("pjax:complete", () => void ensureMounted());
+    document.addEventListener("pjax:complete", () => state.scheduleMount());
     state.listenerBound = true;
   }
-  await ensureMounted();
+  if (document.readyState === "complete") scheduleMount();
+  else globalThis.addEventListener("load", scheduleMount, {once:true});
 })(${serialized});`;
 }
 

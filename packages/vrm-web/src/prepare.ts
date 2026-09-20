@@ -1,5 +1,6 @@
+import {lstatSync,readFileSync,realpathSync} from "node:fs";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { inspectVrm, inspectVrma, MAX_MODEL_BYTES, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { validateCharacterProfile } from "./config.js";
@@ -55,28 +56,33 @@ export async function prepareModel(request: PrepareRequest): Promise<VrmManifest
  } catch(error) { await rm(stage,{recursive:true,force:true}); throw error; }
 }
 /** Read only declared, hashed files contained in the prepared bundle. */
-export async function readPreparedBundle(directory: string): Promise<{manifest:VrmManifest;files:Map<string,Buffer>}> {
- const root = await realpath(directory), raw = await bounded(join(root,"manifest.json"),1024*1024);
+export async function readPreparedBundle(directory:string): Promise<{manifest:VrmManifest;files:Map<string,Buffer>}> { return readPreparedBundleSync(directory); }
+function boundedSync(path:string, maximum:number): Buffer {
+ const info=lstatSync(path); if (!info.isFile() || info.size>maximum) throw new Error("invalid asset size or file type");
+ const bytes=readFileSync(path); if(bytes.byteLength>maximum) throw new Error("asset exceeds byte limit"); return bytes;
+}
+export function readPreparedBundleSync(directory: string): {manifest:VrmManifest;files:Map<string,Buffer>} {
+ const root = realpathSync(directory), raw = boundedSync(join(root,"manifest.json"),1024*1024);
  const manifest = JSON.parse(raw.toString("utf8")) as VrmManifest;
  if (manifest.schemaVersion !== 1 || manifest.tool !== "vrm-companion-assets" || manifest.backend !== "vrm" || typeof manifest.publication?.allowRedistribution !== "boolean" || !/^[a-f0-9]{64}$/.test(manifest.model?.sourceSha256)) throw new Error("invalid VRM manifest");
  animationNames(manifest.animations);
  const files = new Map<string,Buffer>();
- const load = async (item:AssetRecord, maximum:number) => {
+ const load = (item:AssetRecord, maximum:number) => {
   if (!item || typeof item.file !== "string" || !item.file || isAbsolute(item.file) || /[\\:?%#]/.test(item.file) || item.file.split("/").some(p => !p || p === "." || p === "..") || files.has(item.file) || !/^[a-f0-9]{64}$/.test(item.sha256) || !Number.isSafeInteger(item.bytes) || item.bytes < 1 || item.bytes > maximum) throw new Error("invalid manifest asset");
-  const path = await realpath(join(root,item.file)), part = relative(root,path);
+  const path = realpathSync(join(root,item.file)), part = relative(root,path);
   if (isAbsolute(part) || part === ".." || part.startsWith("../") || part.startsWith("..\\")) throw new Error("manifest asset leaves bundle");
-  const bytes = await bounded(path,maximum);
+  const bytes = boundedSync(path,maximum);
   if (bytes.byteLength !== item.bytes || hash(bytes) !== item.sha256) throw new Error("manifest asset hash mismatch");
   files.set(item.file,bytes); return bytes;
  };
- inspectVrm(arrayBuffer(await load(manifest.model,MAX_MODEL_BYTES)));
+ inspectVrm(arrayBuffer(load(manifest.model,MAX_MODEL_BYTES)));
  let total = 0;
  for (const item of manifest.animations) {
-  const bytes = await load(item,MAX_ANIMATION_BYTES); total += bytes.byteLength;
+  const bytes = load(item,MAX_ANIMATION_BYTES); total += bytes.byteLength;
   if (total > 64*1024*1024) throw new Error("animation collection exceeds 64 MiB");
   const inspected = inspectVrma(arrayBuffer(bytes));
   if (!Number.isFinite(item.durationMs) || Math.abs(inspected.durationMs-item.durationMs) > 1) throw new Error("manifest animation duration mismatch");
  }
- if (manifest.profile) { const bytes = await load(manifest.profile,1024*1024); const profile:unknown = JSON.parse(bytes.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,manifest.animations); }
+ if (manifest.profile) { const bytes = load(manifest.profile,1024*1024); const profile:unknown = JSON.parse(bytes.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,manifest.animations); }
  return {manifest,files};
 }
