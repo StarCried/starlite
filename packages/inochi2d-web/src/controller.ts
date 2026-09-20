@@ -38,7 +38,9 @@ export async function mountWithDependencies(
   element: HTMLElement,
   input: WidgetConfig,
   dependencies: WidgetDependencies,
+  signal?: AbortSignal,
 ): Promise<WidgetController> {
+  signal?.throwIfAborted();
   const config = resolveConfig(input);
   const mobileQuery = `(max-width: ${Math.max(0, config.mobile.breakpoint - 1)}px)`;
   if (!config.mobile.show && dependencies.isMobile(mobileQuery)) {
@@ -46,7 +48,7 @@ export async function mountWithDependencies(
     return new DisabledController(element, animationInfo(config));
   }
 
-  const controller = new ActiveController(element, config, dependencies);
+  const controller = new ActiveController(element, config, dependencies, signal);
   await controller.mount();
   return controller;
 }
@@ -138,6 +140,7 @@ class ActiveController implements WidgetController {
     element: HTMLElement,
     config: ResolvedWidgetConfig,
     dependencies: WidgetDependencies,
+    signal?: AbortSignal,
   ) {
     this.#element = element;
     this.#config = config;
@@ -160,6 +163,11 @@ class ActiveController implements WidgetController {
       config.ambient.animations,
     );
     this.#dialogue = new DialogueScheduler(config.dialogue, dependencies.random);
+    if (signal) {
+      const abort = () => this.destroy();
+      signal.addEventListener("abort", abort, { once: true });
+      this.#removeListeners.push(() => signal.removeEventListener("abort", abort));
+    }
   }
 
   get status(): WidgetStatus {

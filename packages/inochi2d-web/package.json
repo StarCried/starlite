@@ -41,5 +41,11 @@
   },
   "engines": {
     "node": ">=22.12"
+  },
+  "dependencies": {
+    "model-widget-core": "0.1.0-alpha.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

@@ -36,6 +36,10 @@ export type {
 export async function mountInochi2DWidget(
   element: HTMLElement,
   config: import("./types.js").WidgetConfig,
+  options: import("model-widget-core").MountOptions = {},
 ): Promise<import("./types.js").WidgetController> {
-  return mountWithDependencies(element, config, createDefaultDependencies());
+  return mountWithDependencies(element, config, createDefaultDependencies(), options.signal);
 }
+
+/** Common component entry point; the existing Inochi2D API remains supported. */
+export const mountModelWidget = mountInochi2DWidget;

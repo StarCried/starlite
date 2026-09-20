@@ -16,6 +16,8 @@ for (const lifecycle of ["preinstall", "install", "postinstall"]) {
 }
 
 const expectations = new Map([
+ ["model-widget-core", ["dist/index.js", "LICENSE", "README.md"]],
+ ["vrm-web", ["dist/index.js", "dist/widget.css", "dist/inspect.cjs", "dist/config.cjs", "LICENSE", "README.md", "THIRD_PARTY_LICENSES.txt"]],
   [
     "inochi2d-web",
     [
@@ -58,7 +60,7 @@ for (const [workspace, required] of expectations) {
       throw new Error(`${workspace} package is missing ${requiredPath}`);
     }
   }
-  if ([...paths].some((path) => path.endsWith(".inp") || path.endsWith(".inx"))) {
+  if ([...paths].some((path) => /\.(inp|inx|vrm|vrma|blend)$/i.test(path))) {
     throw new Error(`${workspace} package contains a puppet file`);
   }
   if (

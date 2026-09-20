@@ -12,7 +12,7 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "npm run fixtures && npm run build:wasm && npm run build --workspace inochi2d-web && npm run build --workspace hexo-inox2d-widget && npm run build --workspace @inochi2d-web/vanilla-example && npm run build --workspace @inochi2d-web/hexo-example",
+    "build": "npm run fixtures && npm run build:wasm && npm run build --workspace model-widget-core && npm run build --workspace inochi2d-web && npm run build --workspace vrm-web && npm run build --workspace hexo-inox2d-widget && npm run build --workspace @inochi2d-web/vanilla-example && npm run build --workspace @inochi2d-web/hexo-example",
     "build:wasm": "node tools/build-official-sdk.mjs",
     "check:runtime-budget": "node tools/verify-runtime-budget.mjs",
     "check:licenses": "node tools/generate-third-party-licenses.mjs --check",

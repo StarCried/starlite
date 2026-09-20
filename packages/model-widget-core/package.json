@@ -1,0 +1,13 @@
+{
+  "name": "model-widget-core",
+  "version": "0.1.0-alpha.1",
+  "type": "module",
+  "license": "BSD-2-Clause",
+  "files": ["dist"],
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test": "vitest run"
+  }
+}

@@ -191,7 +191,12 @@ function renderLicenseBundle(title, components) {
   );
 }
 
+function vrmComponents() {
+ const names=["three",...Object.keys(readJson(resolve(repositoryRoot,"node_modules/@pixiv/three-vrm/package.json")).dependencies),"@pixiv/three-vrm","@pixiv/three-vrm-animation"];
+ return [...new Set(names)].sort().map(name=>{const root=resolve(repositoryRoot,"node_modules",name), pkg=readJson(resolve(root,"package.json"));return {name,version:pkg.version,license:pkg.license,source:typeof pkg.repository==="string"?pkg.repository:pkg.repository?.url,files:collectLicenseFiles(root)}});
+}
 const outputs = [
+ {path:resolve(repositoryRoot,"packages/vrm-web/THIRD_PARTY_LICENSES.txt"),contents:renderLicenseBundle("THIRD-PARTY LICENSES FOR vrm-web",vrmComponents())},
   {
     path: resolve(
       repositoryRoot,

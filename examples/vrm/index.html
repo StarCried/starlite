@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>微光 · 动作预览</title>
+<link rel="stylesheet" href="/runtime/widget.css"><style>
+*{box-sizing:border-box}body{margin:0;background:#101c2a;color:#e5edf7;font:15px/1.6 system-ui,sans-serif;display:flex;min-height:100vh}main{flex:1;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 25%,#344b63,#1d2c40 70%)}aside{width:320px;padding:40px 28px;border-left:1px solid #ffffff10}h1{font-size:24px;margin:0 0 8px}p{color:#a6b8ca}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:24px 0}button,select{font:inherit;background:#243b52;color:inherit;border:1px solid #ffffff20;border-radius:8px;padding:9px;cursor:pointer}button:hover{background:#375a7a}output{display:block}#model{filter:drop-shadow(0 12px 18px #0003)}#status{font-size:13px;color:#9eb8cd}pre{white-space:pre-wrap;font-size:12px;color:#a6b8ca}
+</style><main><div id="model"></div></main><aside><h1>微光</h1><p>安静陪伴 · 动作预览</p><select id="variant"><option value="desktop">桌面版</option><option value="blog">博客版 · 1024 纹理</option><option value="original">原始 Warudo 模型</option></select><select id="fps"><option>30</option><option>60</option></select><div class="actions" id="actions"></div><button id="pause">暂停／继续</button> <button id="neutral">自然站姿</button><p id="status">正在载入…</p><label>表情 <select id="expression"><option value="">自然</option></select></label><p><button id="check">完整检查（约 20 分钟）</button></p><p><button id="long">15 分钟待机检查</button></p><p><button id="gallery-button">生成动作图集</button></p><output id="qa"></output><pre id="metrics"></pre></aside>
+<script type="module">
+import {mountModelWidget} from '/runtime/index.js';
+let controller,abort,generation=0;
+const labels={Idle:'待机',Thinking:'思考',Working:'工作',Blocked:'阻塞',Approval:'等待批准',Completed:'完成',Error:'错误',Click:'打招呼'};
+const loops=new Set(['Idle','Thinking','Working','Blocked','Approval']);
+async function mount(variant=document.querySelector('#variant').value,fps=Number(document.querySelector('#fps').value)) {
+ const current=++generation;abort?.abort();controller?.destroy();abort=new AbortController();
+ const config=await(await fetch(`/config.json?variant=${variant}&fps=${fps}`)).json();
+ const next=await mountModelWidget(document.querySelector('#model'),config,{signal:abort.signal});
+ if(current!==generation){next.destroy();return}controller=next;
+ document.querySelector('#status').textContent=next.status==='running'?'模型已就绪':'模型状态：'+next.status;
+ document.querySelector('#actions').replaceChildren(...next.getAnimations().map(a=>{const b=document.createElement('button');b.textContent=labels[a.name]??a.name;b.onclick=()=>void next.playAnimation(a.name,{mode:loops.has(a.name)?'loop':'once',restart:true});return b}));
+ document.querySelector("#expression").replaceChildren(...["",...next.getExpressions()].map(name=>new Option(name||"自然",name)));
+ if(next.status==='running') void next.playAnimation('Idle',{mode:'loop'});
+ return next;
+}
+document.querySelector('#model').addEventListener('model-error',e=>{document.querySelector('#status').textContent=e.detail;console.error(e.detail)});
+document.querySelector('#pause').onclick=()=>controller?.status==='paused'?controller.resume():controller?.pause();
+document.querySelector('#neutral').onclick=()=>controller?.stopAnimation();
+document.querySelector('#variant').onchange=()=>mount();document.querySelector('#fps').onchange=()=>mount();
+document.querySelector("#expression").onchange=e=>e.target.value?controller?.setExpression(e.target.value,1):controller?.stopAnimation();
+window.preview={mount,get controller(){return controller}};
+setInterval(()=>{if(controller){const d=controller.diagnostics();document.querySelector('#metrics').textContent=`绘制 ${d.calls} 次 · ${d.triangles.toLocaleString()} 三角面\n加载 ${(d.loadMs/1000).toFixed(2)} 秒\n${d.renderer}`}},1000);
+await mount();
+await import("/qa.js");
+</script></html>

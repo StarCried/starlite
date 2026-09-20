@@ -1,3 +1,4 @@
+import type { ModelController } from "model-widget-core";
 export type WidgetStatus =
   | "disabled"
   | "loading"
@@ -203,6 +204,7 @@ export type ResolvedParameterBindings = {
 };
 
 export interface WidgetConfig {
+  backend?: "inochi2d";
   model: string;
   fallback: string;
   network?: {
@@ -287,19 +289,8 @@ export interface ResolvedWidgetConfig {
   };
 }
 
-export interface WidgetController {
-  readonly status: WidgetStatus;
-  pause(): void;
-  resume(): void;
-  getAnimations(): readonly ModelAnimationInfo[];
-  playAnimation(
-    name: string,
-    options?: AnimationPlaybackOptions,
-  ): Promise<AnimationPlaybackResult>;
-  stopAnimation(): void;
+export interface WidgetController extends ModelController {
   setParameter(id: string, value: number | readonly [number, number]): void;
-  resetCamera(): void;
-  destroy(): void;
 }
 
 export interface WidgetDependencies {
