@@ -6,6 +6,7 @@ import { DialogueScheduler, fetchBounded, type DialogueAction, type MountOptions
 import { validateCharacterProfile, validateVrmWidgetConfig } from "./config.js";
 import { parseGlb, inspectVrma, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { VrmAnimationPlayer } from "./playback.js";
+import { visibleModelBounds, framePortrait } from "./camera.js";
 import { CharacterBehavior } from "./character.js";
 import type { CharacterProfile, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
@@ -43,6 +44,7 @@ class Controller implements VrmController {
   #character: CharacterBehavior | undefined;
   #profile: CharacterProfile | undefined;
   #neutral: VRMPose | undefined;
+  #portraitBounds: THREE.Box3 | undefined;
   #resizeObserver: ResizeObserver | undefined;
   #frame: number | undefined;
   #lastTime: number | undefined;
@@ -144,6 +146,7 @@ class Controller implements VrmController {
       this.#scene.add(new THREE.HemisphereLight(0xffffff, 0xb6c6d5, 2.2));
       const light = new THREE.DirectionalLight(0xffffff, 2.4); light.position.set(-1, 3, 4); this.#scene.add(light);
       this.#lookTarget.position.set(0, 1.5, 4); this.#scene.add(this.#lookTarget);
+      vrm.humanoid.update(); this.#portraitBounds = visibleModelBounds(vrm.scene);
       this.#resize(); this.#bind(); this.#startAmbient();
       this.#tick(0); this.#stats.loadMs = performance.now() - started;
       this.#dialogue.start(0); this.#sync();
@@ -245,14 +248,9 @@ class Controller implements VrmController {
     const rect = this.#host.getBoundingClientRect(), width = rect.width || 320, height = rect.height || 480;
     this.#renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.#config.render?.maxDevicePixelRatio ?? 1.5));
     this.#renderer.setSize(width, height, false);
-    this.#vrm.humanoid.update(); this.#vrm.scene.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(this.#vrm.scene);
-    const size = bounds.getSize(new THREE.Vector3()), center = bounds.getCenter(new THREE.Vector3());
-    if (![...size, ...center].every(Number.isFinite) || size.length() === 0) throw new Error("invalid model bounds");
-    this.#camera.aspect = width / height;
-    const distance = Math.max(size.y, size.x / this.#camera.aspect) / (2 * Math.tan(THREE.MathUtils.degToRad(this.#camera.fov / 2))) / (this.#config.render?.fitPadding ?? .9) / (this.#config.render?.initialScale ?? 1);
-    this.#camera.position.set(center.x, center.y, center.z + distance + size.z / 2);
-    this.#camera.lookAt(center); this.#camera.updateProjectionMatrix();
+    if (!this.#portraitBounds) return;
+    const center = framePortrait(this.#camera, this.#portraitBounds, width / height, this.#config.render, this.#config.camera);
+    const size = this.#portraitBounds.getSize(new THREE.Vector3());
     this.#lookTarget.position.set(center.x, center.y + size.y * .3, center.z + 4);
   }
   #bind(): void {
@@ -300,7 +298,7 @@ class Controller implements VrmController {
       });
       VRMUtils.deepDispose(this.#vrm.scene); this.#scene.remove(this.#vrm.scene);
     }
-    this.#clips.clear(); this.#character = undefined; this.#vrm = undefined; this.#profile = undefined;
+    this.#clips.clear(); this.#character = undefined; this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined;
     this.#renderer?.dispose(); this.#renderer?.forceContextLoss(); this.#renderer = undefined;
   }
 }

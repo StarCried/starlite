@@ -58,3 +58,13 @@ and `img-src` (image loader). Keep all other directives unchanged. The plugin
 does not rewrite the site's policy. A texture decoding/loading failure raises
 `model-error` and displays the configured fallback instead of an untextured
 white model. Validate the result in the target browser before acceptance.
+
+### Portrait framing
+
+`camera: { yawDegrees: -12, pitchDegrees: 3, fovDegrees: 20, targetHeight: 0.53 }`
+configures a mild three-quarter portrait with a longer lens. Omit it for the
+standard frontal camera. `targetHeight` is a fraction of visible model height.
+Fit uses the visible neutral pose once; hidden accessories do not affect the
+frame and viewport resizing does not recenter around the current gesture.
+`render.fitPadding` reserves space for hands. Check all clips visually when
+choosing padding; the neutral bounds cannot predict an arbitrary animation.

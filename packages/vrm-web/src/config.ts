@@ -10,6 +10,8 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   const checks: [unknown, number, number][] = [
     [config.render?.maxDevicePixelRatio ?? 1.5, 1, 1.5], [config.render?.initialScale ?? 1, .25, 3],
     [config.render?.fitPadding ?? .9, .1, 1], [config.display?.width ?? 320, 1, 4096], [config.display?.height ?? 480, 1, 4096],
+    [config.camera?.yawDegrees ?? 0, -45, 45], [config.camera?.pitchDegrees ?? 0, -20, 20],
+    [config.camera?.fovDegrees ?? 30, 15, 50], [config.camera?.targetHeight ?? .5, .35, .65],
     [config.mobile?.breakpoint ?? 768, 1, 4096], [config.network?.requestTimeoutMs ?? 30000, 100, 120000],
     [config.network?.modelMaxBytes ?? 64 * 1024 * 1024, 1, 64 * 1024 * 1024],
   ];

@@ -22,6 +22,7 @@ export interface VrmWidgetConfig {
   profile?: CharacterProfile | string;
   display?: { width?: number; height?: number };
   render?: { fps?: number; maxDevicePixelRatio?: number; initialScale?: number; autoFit?: boolean; fitPadding?: number };
+  camera?: { yawDegrees?: number; pitchDegrees?: number; fovDegrees?: number; targetHeight?: number };
   mobile?: { show?: boolean; breakpoint?: number };
   network?: { requestTimeoutMs?: number; modelMaxBytes?: number };
   interactions?: { pointer?: boolean; click?: false | { animation?: string }; drag?: boolean };

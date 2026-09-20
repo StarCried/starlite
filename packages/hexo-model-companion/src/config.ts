@@ -34,6 +34,7 @@ export function readEnabledConfig(
       backend:"vrm" as const, ...artifactUrls,
       ...(animations ? {animations} : {}), ...(profile ? {profile} : {}),
       ...(input.display ? {display:input.display} : {}), ...(input.mobile ? {mobile:input.mobile} : {}),
+      ...(input.camera ? {camera:input.camera} : {}),
       render:{fps:30,maxDevicePixelRatio:1.5,autoFit:true,...input.render},
       ...(input.network ? {network:input.network} : {}),
       ...(input.ambient ? {ambient:input.ambient} : {}), ...(input.dialogue ? {dialogue:input.dialogue} : {}),
