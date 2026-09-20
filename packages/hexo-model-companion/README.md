@@ -113,7 +113,12 @@ selected renderer is emitted; VRM pages do not ship the Inochi2D WASM.
 
 The bootstrap waits for document load, then an idle opportunity (up to 2 seconds
 on browsers with requestIdleCallback). Mobile exits before dynamic import or
-model fetch. PJAX keeps one instance and aborts detached pending mounts. Both
+model fetch. PJAX reattaches the original host even when a theme replaces its
+parent, preserving the canvas, pending load and controller. Switching to a mobile
+viewport cancels loading and removes the model; returning to desktop can mount it.
+Entry dialogue plays once per model per tab session, including across full page
+navigation (when sessionStorage is available). Ordinary PJAX does not reload the
+model or restart dialogue. Both
 backend entries implement `mountModelWidget`; dialogue scheduling, bubble presentation and the
 controller contract are shared, while parameter tracks remain Inochi2D-only.
 

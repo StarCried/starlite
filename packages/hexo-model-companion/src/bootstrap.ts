@@ -15,6 +15,16 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   const mobileQuery = \`(max-width: \${Math.max(0, options.breakpoint - 1)}px)\`;
   const stateKey = "__hexoInox2dWidgetState";
   const state = (globalThis[stateKey] ??= {});
+  const media = globalThis.matchMedia(mobileQuery);
+  const entryKey = "model-companion:entered:" + (options.config.backend ?? "inochi2d") + ":" + options.config.model;
+  const hasEntered = () => {
+    try { return state.entered === entryKey || globalThis.sessionStorage.getItem(entryKey) === "1"; }
+    catch { return state.entered === entryKey; }
+  };
+  const rememberEntry = () => {
+    state.entered = entryKey;
+    try { globalThis.sessionStorage.setItem(entryKey, "1"); } catch { /* Storage can be disabled. */ }
+  };
   const nextGeneration = () => {
     state.generation = Number.isSafeInteger(state.generation)
       ? state.generation + 1
@@ -23,7 +33,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   };
   const ensureMounted = async () => {
     const hosts = Array.from(document.querySelectorAll("[data-inochi2d-widget-host]"));
-    if (!options.showOnMobile && globalThis.matchMedia(mobileQuery).matches) {
+    if (!options.showOnMobile && media.matches) {
       nextGeneration();
       state.abort?.abort();
       state.controller?.destroy();
@@ -34,12 +44,14 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       return;
     }
 
-    let host = hosts.find((candidate) => candidate.isConnected);
+    // PJAX may replace the containing fragment. Reattach our original DOM node,
+    // including its canvas, pending load, bubble and controller, before deduplicating.
+    let host = state.host ?? hosts.find((candidate) => candidate.isConnected);
     if (!host) {
       host = document.createElement("div");
       host.dataset.inochi2dWidgetHost = "";
-      document.body.append(host);
     }
+    if (!host.isConnected) document.body.append(host);
     for (const duplicate of hosts) {
       if (duplicate !== host) duplicate.remove();
     }
@@ -57,17 +69,24 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     const mounting = import(options.entryUrl)
       .then(async (runtime) => {
         abort.signal.throwIfAborted();
-        const controller = await runtime.mountModelWidget(host, options.config, {signal:abort.signal});
+        const config = hasEntered()
+          ? {...options.config, dialogue:{...options.config.dialogue, enter:false}}
+          : options.config;
+        const controller = await runtime.mountModelWidget(host, config, {signal:abort.signal});
+        // A load can finish between fragment replacement and pjax:complete.
+        if (state.generation === generation && state.host === host &&
+            (options.showOnMobile || !media.matches) && !host.isConnected) document.body.append(host);
         if (
           state.generation !== generation ||
           state.host !== host ||
           !host.isConnected ||
-          (!options.showOnMobile && globalThis.matchMedia(mobileQuery).matches)
+          (!options.showOnMobile && media.matches)
         ) {
           controller.destroy();
           return;
         }
         state.controller = controller;
+        if (controller.status !== "fallback" && controller.status !== "disabled") rememberEntry();
       })
       .catch(() => {
         if (state.generation !== generation || abort.signal.aborted || !host.isConnected) return;
@@ -98,6 +117,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   state.scheduleMount = scheduleMount;
   if (!state.listenerBound) {
     document.addEventListener("pjax:complete", () => state.scheduleMount());
+    media.addEventListener("change", () => state.scheduleMount());
     state.listenerBound = true;
   }
   if (document.readyState === "complete") scheduleMount();

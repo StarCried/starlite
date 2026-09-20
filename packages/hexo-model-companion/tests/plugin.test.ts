@@ -639,7 +639,7 @@ describe("Hexo adapter", () => {
     expect(source).toContain("__hexoInox2dWidgetState");
     expect(source).toContain("listenerBound");
     expect(source).toContain("state.generation !== generation");
-    expect(source.match(/matchMedia\(mobileQuery\)/gu)).toHaveLength(2);
+    expect(source.indexOf("media.matches")).toBeLessThan(source.indexOf("import(options.entryUrl)"));
   });
 
   it("refuses a local-preview output path containing a symbolic link", () => {
