@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnimationClip, NumberKeyframeTrack, Object3D } from "three";
+import { AnimationClip, NumberKeyframeTrack, QuaternionKeyframeTrack, Quaternion, Object3D } from "three";
 import { VrmAnimationPlayer } from "../src/playback.js";
 import { sampleCurve } from "../src/character.js";
 
@@ -29,6 +29,39 @@ describe("VRM animation contract", () => {
     const first=player.play("Idle", {mode:"loop"}); expect(player.play("Idle", {mode:"loop"})).toBe(first);
     const next=player.play("Idle", {mode:"loop",restart:true}); expect(await first).toBe("interrupted");
     player.stop(); expect(await next).toBe("stopped");
+  });
+  it("keeps the visible pose continuous when a raised gesture is interrupted", async () => {
+    const { player, root } = harness();
+    const idle = player.play("Idle", {mode:"loop"}); player.update(.5);
+    expect(root.position.x).toBeCloseTo(1);
+    const click = player.play("Click");
+    expect(await idle).toBe("interrupted"); expect(root.position.x).toBeCloseTo(1);
+    player.update(.1); expect(root.position.x).toBeCloseTo(.6);
+    player.update(.1); expect(root.position.x).toBeCloseTo(.4);
+    player.stop(); expect(await click).toBe("stopped"); expect(root.position.x).toBe(0);
+  });
+  it("blends bone rotations as quaternions without a neutral rotation snap", () => {
+    const root = new Object3D();
+    const raised = new Quaternion(0, Math.SQRT1_2, 0, Math.SQRT1_2);
+    const clip = new AnimationClip("gesture", 1, [new QuaternionKeyframeTrack(".quaternion", [0,.5,1], [0,0,0,1,...raised.toArray(),0,0,0,1])]);
+    const player = new VrmAnimationPlayer(root, new Map([["first",clip],["second",clip.clone()]]),()=>root.quaternion.identity());
+    void player.play("first"); player.update(.5);
+    void player.play("second"); expect(root.quaternion.angleTo(raised)).toBeCloseTo(0);
+    player.update(.1); expect(root.quaternion.angleTo(new Quaternion())).toBeCloseTo(Math.PI*.3);
+    player.destroy(); expect(root.quaternion.angleTo(new Quaternion())).toBe(0);
+  });
+  it("captures rapid transitions without accumulating outgoing actions", () => {
+    const { player, root } = harness();
+    void player.play("Idle", {mode:"loop"}); player.update(.5);
+    for(let i=0;i<20;i++) {
+      const position = root.position.x;
+      void player.play(i%2 ? "Idle" : "Click", {restart:true,mode:"loop"});
+      expect(root.position.x).toBeCloseTo(position);
+      player.update(.025);
+      expect(player.mixer.stats.actions.inUse).toBeLessThanOrEqual(2);
+    }
+    player.update(.3); expect(player.mixer.stats.actions.inUse).toBe(1);
+    player.destroy(); expect(player.mixer.stats.actions.inUse).toBe(0);
   });
   it("samples the authored blink closure and reopening", () => {
     const curve: [number, number][]=[[0,0],[3.4,0],[3.48,1],[3.52,1],[3.65,0],[4.7,0]];

@@ -1,13 +1,15 @@
-import { AnimationMixer, LoopOnce, LoopRepeat, type AnimationAction, type AnimationClip, type Object3D } from "three";
+import { AnimationMixer, AnimationClip, PropertyBinding, QuaternionKeyframeTrack, VectorKeyframeTrack, NumberKeyframeTrack, LoopOnce, LoopRepeat, type KeyframeTrack, type AnimationAction, type Object3D } from "three";
 import type { AnimationPlaybackOptions, AnimationPlaybackResult } from "model-widget-core";
 
-/** One real clip at a time. Names never synthesize a missing animation. */
+/** One semantic clip, with a short captured-pose transition on interruption. */
 export class VrmAnimationPlayer {
   readonly mixer: AnimationMixer;
   readonly #clips: ReadonlyMap<string, AnimationClip>;
   readonly #restore: () => void;
   #active: { name: string; action: AnimationAction; promise: Promise<AnimationPlaybackResult>; resolve: (result: AnimationPlaybackResult) => void } | undefined;
   #finished = false;
+  #transition: { clip: AnimationClip; action: AnimationAction; elapsed: number } | undefined;
+  static readonly transitionSeconds = .2;
   constructor(root: Object3D, clips: ReadonlyMap<string, AnimationClip>, restore: () => void) {
     this.mixer = new AnimationMixer(root); this.#clips = clips; this.#restore = restore;
     this.mixer.addEventListener("finished", (event) => { if (event.action === this.#active?.action) this.#finished = true; });
@@ -19,6 +21,7 @@ export class VrmAnimationPlayer {
     const clip = this.#clips.get(name);
     if (!clip) return Promise.reject(new Error(`animation does not exist: ${name}`));
     if (this.#active?.name === name && !options.restart) return this.#active.promise;
+    const pose = this.#active ? this.#capturePose() : undefined;
     this.stop("interrupted");
     const action = this.mixer.clipAction(clip).reset();
     action.setLoop(options.mode === "loop" ? LoopRepeat : LoopOnce, options.mode === "loop" ? Infinity : 1);
@@ -26,18 +29,62 @@ export class VrmAnimationPlayer {
     let resolve!: (result: AnimationPlaybackResult) => void;
     const promise = new Promise<AnimationPlaybackResult>((done) => { resolve = done; });
     this.#active = { name, action, promise, resolve };
-    action.play(); this.mixer.update(0);
+    action.play();
+    if (pose) {
+      const outgoing = this.mixer.clipAction(pose);
+      outgoing.setLoop(LoopOnce, 1); outgoing.clampWhenFinished = true;
+      outgoing.play().fadeOut(VrmAnimationPlayer.transitionSeconds);
+      action.fadeIn(VrmAnimationPlayer.transitionSeconds);
+      this.#transition = { clip: pose, action: outgoing, elapsed: 0 };
+    }
+    this.mixer.update(0);
     return promise;
   }
   update(delta: number): void {
     this.mixer.update(delta);
+    if (this.#transition) {
+      this.#transition.elapsed += delta;
+      if (this.#transition.elapsed >= VrmAnimationPlayer.transitionSeconds) this.#clearTransition();
+    }
     if (this.#finished) this.stop("completed");
   }
   stop(result: AnimationPlaybackResult = "stopped"): void {
     const active = this.#active;
     this.#active = undefined; this.#finished = false;
-    this.mixer.stopAllAction(); this.#restore();
+    this.#clearTransition(); this.mixer.stopAllAction(); this.#restore();
     active?.resolve(result);
+  }
+  #capturePose(): AnimationClip {
+    // Capture the currently mixed pose, including an interrupted transition.
+    // Freezing this snapshot avoids a neutral-frame snap or unbounded outgoing
+    // actions when DSH changes state several times inside the transition.
+    const tracks = new Map<string, KeyframeTrack>();
+    for (const clip of this.#clips.values()) {
+      for (const source of clip.tracks) {
+        if (tracks.has(source.name)) continue;
+        const Track = source.ValueTypeName === "quaternion" ? QuaternionKeyframeTrack
+          : source.ValueTypeName === "vector" ? VectorKeyframeTrack : NumberKeyframeTrack;
+        const size = source.ValueTypeName === "quaternion" ? 4 : source.ValueTypeName === "vector" ? 3 : 1;
+        const value = new Float32Array(size);
+        const binding = new PropertyBinding(this.mixer.getRoot() as Object3D, source.name);
+        // Three assigns this getter dynamically when the binding is bound;
+        // its type declarations only expose bind/unbind.
+        binding.bind();
+        (binding as PropertyBinding & { getValue(buffer: Float32Array, offset: number): void }).getValue(value, 0);
+        binding.unbind();
+        // A snapshot is always constant, even if the source used GLTF cubic
+        // splines with tangent triplets and a custom interpolant factory.
+        const track = new Track(source.name, [0, VrmAnimationPlayer.transitionSeconds], [...value, ...value]);
+        tracks.set(track.name, track);
+      }
+    }
+    return new AnimationClip("transition-pose", VrmAnimationPlayer.transitionSeconds, [...tracks.values()]);
+  }
+  #clearTransition(): void {
+    if (!this.#transition) return;
+    this.#transition.action.stop();
+    this.mixer.uncacheClip(this.#transition.clip);
+    this.#transition = undefined;
   }
   destroy(): void { this.stop(); this.mixer.uncacheRoot(this.mixer.getRoot()); }
 }

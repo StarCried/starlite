@@ -48,6 +48,9 @@
   compatibility profile. Do not add WebGL1, BC7, model automation,
   additive/Bezier/crossfade animation behavior, voice/camera input, or
   Firefox/Safari support without an approved scope change.
+- VRM state changes use a bounded 200 ms captured-pose blend for gesture continuity.
+  Explicit stop/destroy still restore neutral immediately; the Inochi2D animation
+  restrictions above are unchanged.
 - Keep official SDK source, toolchain, raw WASM, optimized WASM, LLD, and
   Binaryen versions synchronized with `tools/official-sdk/pin.json` and
   `docs/upstream.md`.

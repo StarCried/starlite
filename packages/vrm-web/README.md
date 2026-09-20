@@ -45,3 +45,7 @@ with a mock. WebGL appearance and character behavior still need browser checks.
 
 Preparation requires all standard humanoid bones and rejects non-finite binary
 geometry, unknown VRM versions and buffer views outside the declared buffer.
+
+State interruptions settle the previous promise immediately and blend the current
+visible pose into the new clip for 200 ms. Rapid switches keep one pose snapshot,
+not a growing queue. Explicit stop/destroy restores neutral immediately.
