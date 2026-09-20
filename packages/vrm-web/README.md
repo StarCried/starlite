@@ -42,3 +42,6 @@ build systems such as Hexo. `readPreparedBundle` remains the Promise-based entry
 The version tests load actual artwork-free VRM0 and VRM1 GLBs and retarget an
 actual VRMA clip through the pinned Pixiv loader; they do not replace the loader
 with a mock. WebGL appearance and character behavior still need browser checks.
+
+Preparation requires all standard humanoid bones and rejects non-finite binary
+geometry, unknown VRM versions and buffer views outside the declared buffer.

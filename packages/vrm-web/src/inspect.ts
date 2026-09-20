@@ -24,6 +24,7 @@ export function parseGlb(bytes: ArrayBuffer, kind: "vrm" | "vrma"): Json {
   if (!json || json.asset?.version !== "2.0") throw new Error("glTF 2.0 is required");
   const expected = kind === "vrm" ? (json.extensions?.VRM ?? json.extensions?.VRMC_vrm) : json.extensions?.VRMC_vrm_animation;
   if (!expected) throw new Error(`missing ${kind} extension`);
+  if (kind === "vrm" && json.extensions?.VRM && json.extensions.VRM.specVersion !== "0.0") throw new Error("unsupported VRM version");
   if (kind === "vrm" && json.extensions?.VRMC_vrm && json.extensions.VRMC_vrm.specVersion !== "1.0") throw new Error("unsupported VRM version");
   if (kind === "vrma" && expected.specVersion !== "1.0") throw new Error("VRMA 1.0 is required");
   const allowed = new Set(["VRM", "VRMC_vrm", "VRMC_vrm_animation", "VRMC_materials_mtoon", "VRMC_springBone", "VRMC_node_constraint", "VRMC_materials_hdr_emissiveMultiplier", "KHR_materials_unlit", "KHR_texture_transform", "KHR_materials_emissive_strength"]);
@@ -43,7 +44,7 @@ export function parseGlb(bytes: ArrayBuffer, kind: "vrm" | "vrma"): Json {
   if ((json.buffers?.length ?? 0) > 1 || (json.buffers?.[0]?.byteLength ?? 0) > binSize) throw new Error("invalid GLB buffer");
   for (const buffer of json.bufferViews ?? []) {
     const start = buffer.byteOffset ?? 0, length = buffer.byteLength;
-    if (buffer.buffer !== 0 || !Number.isSafeInteger(start) || !Number.isSafeInteger(length) || start < 0 || length < 0 || start + length > binSize) throw new Error("invalid glTF buffer view");
+    if (buffer.buffer !== 0 || !Number.isSafeInteger(start) || !Number.isSafeInteger(length) || start < 0 || length < 0 || start + length > (json.buffers?.[0]?.byteLength ?? 0)) throw new Error("invalid glTF buffer view");
   }
   if ((json.nodes?.length ?? 0) > 4096 || (json.accessors?.length ?? 0) > 32768) throw new Error("glTF resource count exceeded");
   validateStructure(json, new DataView(bytes, binStart, binSize));
@@ -53,6 +54,15 @@ export function parseGlb(bytes: ArrayBuffer, kind: "vrm" | "vrma"): Json {
 export function inspectVrm(bytes: ArrayBuffer): { version: "0" | "1"; name?: string; expressions: string[] } {
   const json = parseGlb(bytes, "vrm");
   const v0 = json.extensions.VRM;
+  const humanoid = (v0 ?? json.extensions.VRMC_vrm).humanoid?.humanBones;
+  const bones = v0 ? Object.fromEntries((humanoid ?? []).map((b:Json) => [b.bone,b])) : humanoid;
+  const required = ["hips","spine","head", ...["left","right"].flatMap(side => ["UpperLeg","LowerLeg","Foot","UpperArm","LowerArm","Hand"].map(part=>side+part))];
+  const used = new Set<number>();
+  for (const name of required) {
+    const node = bones?.[name]?.node;
+    if (!Number.isSafeInteger(node) || !json.nodes?.[node] || used.has(node)) throw new Error("invalid required humanoid bone");
+    used.add(node);
+  }
   const meta = (v0 ?? json.extensions.VRMC_vrm).meta ?? {};
   const name = v0 ? meta.title : meta.name;
   return {
@@ -109,12 +119,20 @@ function validateStructure(json: Json, binary: DataView): void {
     const element = dimension ? Math.ceil(dimension * width / 4) * 4 * dimension : width * componentsCount;
     decoded += element * count;
     if (decoded > 256 * 1024 * 1024) throw new Error("decoded geometry exceeds 256 MiB");
-    if (a.bufferView !== undefined) span(a.bufferView, a.byteOffset ?? 0, count, element, width, true);
+    const checkFloats = (at:number,n:number,stride:number) => {
+      if(a.componentType!==5126) return;
+      for(let k=0;k<n;k++)for(let c=0;c<componentsCount;c++)if(!Number.isFinite(binary.getFloat32(at+k*stride+c*4,true)))throw new Error("non-finite accessor value");
+    };
+    if (a.bufferView !== undefined) {
+      const at=span(a.bufferView,a.byteOffset??0,count,element,width,true);
+      checkFloats(at,count,views[a.bufferView].byteStride??element);
+    }
     if (a.sparse) {
       const sparse = a.sparse, n = sparse.count, iw = sizes[sparse.indices?.componentType];
       if (!integer(n, 1, count) || ![5121, 5123, 5125].includes(sparse.indices?.componentType)) throw new Error("invalid sparse accessor");
       const at = span(sparse.indices.bufferView, sparse.indices.byteOffset ?? 0, n, iw!, iw!);
-      span(sparse.values?.bufferView, sparse.values?.byteOffset ?? 0, n, element, width);
+      const valuesAt=span(sparse.values?.bufferView, sparse.values?.byteOffset ?? 0, n, element, width);
+      checkFloats(valuesAt,n,element);
       let previous = -1;
       for (let k = 0; k < n; k++) {
         const offset = at + k * iw!; const next = iw === 1 ? binary.getUint8(offset) : iw === 2 ? binary.getUint16(offset, true) : binary.getUint32(offset, true);
