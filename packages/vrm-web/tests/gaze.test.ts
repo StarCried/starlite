@@ -51,3 +51,16 @@ it("keeps following across the page outside a corner canvas instead of pinning t
   expect(Math.abs(angles[1]!)).toBeGreaterThan(Math.abs(angles[2]!));
   expect(angles[3]).toBeCloseTo(0);
 });
+
+for (const version of ["0", "1"]) it(`turns the VRM${version} head visibly without accumulating or overwriting authored pose`,()=>{
+ const {camera}=fixture(version),root=new Object3D(),head=new Object3D();root.add(head);head.position.y=1.6;
+ root.rotation.y=version==="0"?Math.PI:0;root.updateMatrixWorld(true);
+ const gaze=new PointerGaze(),base=head.quaternion.clone(),rect={left:100,top:100,width:260,height:390};
+ gaze.move(10000,-10000,rect);
+ for(let i=0;i<100;i++){gaze.restoreHead();gaze.updateHead(head,camera,.033,false);}
+ expect(gaze.headAngles.yawDegrees).toBeCloseTo(15);expect(gaze.headAngles.pitchDegrees).toBeCloseTo(9);
+ expect(head.quaternion.angleTo(base)).toBeGreaterThan(.2);expect(head.quaternion.angleTo(base)).toBeLessThan(.4);
+ gaze.restoreHead();expect(head.quaternion.angleTo(base)).toBeCloseTo(0);
+ head.rotation.z=.1;const authored=head.quaternion.clone();gaze.updateHead(head,camera,.033,true);
+ expect(head.quaternion.angleTo(authored)).toBeCloseTo(0);
+});

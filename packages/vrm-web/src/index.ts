@@ -144,8 +144,10 @@ class Controller implements VrmController {
       const gl = this.#renderer.getContext();
       const debug = gl.getExtension("WEBGL_debug_renderer_info");
       this.#stats.renderer = String(gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
-      this.#scene.add(new THREE.HemisphereLight(0xffffff, 0xb6c6d5, 2.2));
-      const light = new THREE.DirectionalLight(0xffffff, 2.4); light.position.set(-1, 3, 4); this.#scene.add(light);
+      this.#scene.add(new THREE.HemisphereLight(0xffffff, 0xb6c6d5, .65));
+      const light = new THREE.DirectionalLight(0xffffff, 2.0);
+      // A side key exposes MToon shade bands instead of washing out both sides.
+      light.position.set(-3, 4, 2); this.#scene.add(light);
       vrm.humanoid.update(); this.#portraitBounds = visibleModelBounds(vrm.scene);
       this.#resize(); this.#bind(); this.#startAmbient();
       this.#dialogue.start(0, this.#reduced.matches);
@@ -160,7 +162,7 @@ class Controller implements VrmController {
   getAnimations(): readonly { name: string; durationMs: number }[] { return [...this.#clips].map(([name, clip]) => ({ name, durationMs: clip.duration * 1000 })); }
   playAnimation(name: string, options: AnimationPlaybackOptions = {}): Promise<AnimationPlaybackResult> {
     if (!this.#player || this.#status === "destroyed" || this.#status === "fallback" || this.#reduced.matches) return Promise.resolve("stopped");
-    this.#ambientSuppressed = false; this.#character?.reset();
+    this.#gaze.restoreHead(); this.#ambientSuppressed = false; this.#character?.reset();
     return this.#player.play(name, options);
   }
   getExpressions(): readonly string[] { return this.#vrm?.expressionManager?.expressions.map(e => e.expressionName) ?? []; }
@@ -169,7 +171,7 @@ class Controller implements VrmController {
     this.stopAnimation(); this.#vrm.expressionManager.setValue(name, weight);
     if (this.#status === "paused") this.#tick(0);
   }
-  stopAnimation(): void { this.#ambientSuppressed = true; this.#player?.stop(); }
+  stopAnimation(): void { this.#gaze.restoreHead(); this.#ambientSuppressed = true; this.#player?.stop(); }
   pause(): void { this.#paused = true; this.#bubble.hide(); this.#sync(); }
   resume(): void { this.#paused = false; this.#dialogue.deferIdle(this.#elapsed * 1000); this.#sync(); }
   resetCamera(): void { this.#resize(); if (this.#status === "paused") this.#tick(0); }
@@ -178,7 +180,7 @@ class Controller implements VrmController {
     this.#renderer.render(this.#scene, this.#camera);
     return this.#canvas.toDataURL("image/png");
   }
-  diagnostics(): VrmDiagnostics { return { ...this.#stats, activeAnimation: this.#player?.activeName ?? null, gaze: { yawDegrees: this.#vrm?.lookAt?.yaw ?? 0, pitchDegrees: this.#vrm?.lookAt?.pitch ?? 0 }, frameTimesMs: [...this.#stats.frameTimesMs], renderCostsMs: [...this.#stats.renderCostsMs] }; }
+  diagnostics(): VrmDiagnostics { return { ...this.#stats, activeAnimation: this.#player?.activeName ?? null, gaze: { headYawDegrees: this.#gaze.headAngles.yawDegrees, headPitchDegrees: this.#gaze.headAngles.pitchDegrees, yawDegrees: this.#vrm?.lookAt?.yaw ?? 0, pitchDegrees: this.#vrm?.lookAt?.pitch ?? 0 }, frameTimesMs: [...this.#stats.frameTimesMs], renderCostsMs: [...this.#stats.renderCostsMs] }; }
   destroy(): void {
     if (this.#status === "destroyed") return;
     this.#abort.abort(); this.#dispose();
@@ -188,6 +190,7 @@ class Controller implements VrmController {
     this.#setStatus("destroyed");
   }
   #restoreNeutral(): void {
+    this.#gaze.restoreHead();
     if (this.#neutral) this.#vrm?.humanoid.setNormalizedPose(this.#neutral);
     this.#vrm?.expressionManager?.resetValues(); this.#character?.reset();
   }
@@ -223,13 +226,17 @@ class Controller implements VrmController {
     const vrm = this.#vrm, renderer = this.#renderer;
     if (!vrm || !renderer) return;
     const started = performance.now(); this.#elapsed += delta;
+    this.#gaze.restoreHead();
     this.#player?.update(delta); this.#startAmbient();
     const action = this.#dialogue.poll(this.#elapsed * 1000, Boolean(this.#player?.activeName && this.#player.activeName !== this.#config.ambient?.animations?.[0]));
     if (action) this.#showDialogue(action);
     this.#bubble.update(this.#elapsed * 1000);
+    const authoredGaze = Boolean(this.#player?.hasLookAtTrack) || this.#config.interactions?.pointer === false;
+    const foreground = Boolean(this.#player?.activeName && this.#player.activeName !== (this.#config.ambient?.animations?.[0] ?? this.#profile?.neutralAnimation));
+    this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#camera, delta, authoredGaze || foreground);
     vrm.humanoid.update();
     if (vrm.lookAt) {
-      this.#gaze.update(vrm.lookAt, this.#camera, delta, Boolean(this.#player?.hasLookAtTrack) || this.#config.interactions?.pointer === false);
+      this.#gaze.update(vrm.lookAt, this.#camera, delta, authoredGaze);
       vrm.lookAt.update(delta);
     }
     this.#character?.beforeExpressions(delta, this.#player?.hasBlinkTrack); vrm.expressionManager?.update();
@@ -254,14 +261,14 @@ class Controller implements VrmController {
     framePortrait(this.#camera, this.#portraitBounds, width / height, this.#config.render, this.#config.camera);
   }
   #bind(): void {
-    const on = (target: EventTarget, event: string, handler: EventListener) => { target.addEventListener(event, handler); this.#listeners.push(() => target.removeEventListener(event, handler)); };
+    const on = (target: EventTarget, event: string, handler: EventListener, capture = false) => { target.addEventListener(event, handler, capture); this.#listeners.push(() => target.removeEventListener(event, handler, capture)); };
     on(document, "visibilitychange", () => this.#sync()); on(this.#reduced, "change", () => { this.#sync(); if (this.#reduced.matches) this.#tick(0); });
     on(this.#canvas, "webglcontextlost", (event) => { event.preventDefault(); if (this.#status === "destroyed" || this.#status === "fallback") return; this.#setStatus("fallback"); this.#dispose(); this.#canvas.hidden = true; this.#fallback.hidden = false; this.#setStatus("fallback"); });
     on(window, "pointermove", (event) => {
       if (!(this.#config.interactions?.pointer ?? true) || this.#status !== "running") return;
       const pointer = event as PointerEvent, rect = this.#host.getBoundingClientRect();
       if (pointer.pointerType !== "touch") this.#gaze.move(pointer.clientX, pointer.clientY, rect, { width: innerWidth, height: innerHeight });
-    });
+    }, true);
     on(document, "pointerout", (event) => { if (!(event as PointerEvent).relatedTarget) this.#gaze.reset(); });
     on(window, "blur", () => this.#gaze.reset());
     let down: { id: number; x: number; y: number; left: number; top: number; moved: boolean } | undefined;

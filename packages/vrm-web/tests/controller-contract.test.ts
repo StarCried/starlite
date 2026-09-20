@@ -18,7 +18,7 @@ vi.mock("three/addons/loaders/GLTFLoader.js",()=>({GLTFLoader:class {
   if(bytes.byteLength===1)return {userData:{vrmAnimations:[{}]}};
   if(rejectTexture)this.manager.itemError("blob:blocked-texture");
   scene=new THREE.Scene();const mesh=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial());mesh.name="body";scene.add(mesh);
-  return {scene,userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[],humanoid:{getNormalizedPose:()=>({}),setNormalizedPose:()=>{mesh.position.x=0},update:()=>{}},expressionManager:{resetValues(){},expressions:[],setValue(){},update(){}}}}};
+  return {scene,userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[],humanoid:{getNormalizedBoneNode:()=>null,getNormalizedPose:()=>({}),setNormalizedPose:()=>{mesh.position.x=0},update:()=>{}},expressionManager:{resetValues(){},expressions:[],setValue(){},update(){}}}}};
  }
 }}));
 vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));

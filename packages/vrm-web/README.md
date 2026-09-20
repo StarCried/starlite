@@ -77,6 +77,11 @@ VRM0/VRM1 coordinate conversion handled by three-vrm. Defaults are
 `gaze: { maxYawDegrees: 25, maxPitchDegrees: 15, smoothingMs: 100 }`.
 Pointer movement is normalized over the available viewport space on each side
 of the eyes, so a small corner widget keeps responding across the article area.
+The normalized head adds up to 60% of those limits (15° yaw / 9° pitch by
+default), then the eyes aim for the remaining angle. The additive head pose is
+removed before each animation sample, so it cannot accumulate or contaminate
+state transitions. Foreground gestures and authored look-at retain priority.
+Pointer events are captured before page handlers can stop bubbling.
 These bound the look-at input angles; the model's own eye range maps still apply.
 Authored look-at animation retains priority. Leaving the page returns gaze toward
 the camera; `interactions.pointer: false` disables following.

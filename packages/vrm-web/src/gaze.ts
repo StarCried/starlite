@@ -1,4 +1,4 @@
-import { Vector2, Vector3, MathUtils, type PerspectiveCamera } from "three";
+import { Vector2, Vector3, Quaternion, MathUtils, type Object3D, type PerspectiveCamera } from "three";
 import type { VRMLookAt } from "@pixiv/three-vrm";
 import type { VrmWidgetConfig } from "./types.js";
 
@@ -8,6 +8,13 @@ export class PointerGaze {
   readonly #head = new Vector3();
   readonly #target = new Vector3();
   readonly #scratch = new Vector3();
+  readonly #headBase = new Quaternion();
+  readonly #parent = new Quaternion();
+  readonly #rotation = new Quaternion();
+  readonly #pitchRotation = new Quaternion();
+  #posedHead: Object3D | undefined;
+  #headYaw = 0;
+  #headPitch = 0;
   #rect = { left: 0, top: 0, width: 1, height: 1 };
   #viewport = { width: 1, height: 1 };
   #tracking = false;
@@ -20,6 +27,42 @@ export class PointerGaze {
     this.#tracking = true;
   }
   reset(): void { this.#tracking = false; }
+  /** Remove the last additive correction before the animation mixer samples. */
+  restoreHead(): void {
+    if (this.#posedHead) this.#posedHead.quaternion.copy(this.#headBase);
+    this.#posedHead = undefined;
+  }
+  get headAngles(): { yawDegrees: number; pitchDegrees: number } {
+    return { yawDegrees: this.#headYaw, pitchDegrees: this.#headPitch };
+  }
+  #offset(camera: PerspectiveCamera, position: Vector3): Vector2 {
+    if (!this.#tracking) return new Vector2();
+    const projected = this.#scratch.copy(position).project(camera);
+    const eyeX = this.#rect.left + (projected.x + 1) * this.#rect.width / 2;
+    const eyeY = this.#rect.top + (1 - projected.y) * this.#rect.height / 2;
+    const dx = this.#pointer.x - eyeX, dy = eyeY - this.#pointer.y;
+    return new Vector2(
+      MathUtils.clamp(dx / Math.max(this.#rect.width / 2, dx < 0 ? eyeX : this.#viewport.width - eyeX), -1, 1),
+      MathUtils.clamp(dy / Math.max(this.#rect.height / 2, dy > 0 ? eyeY : this.#viewport.height - eyeY), -1, 1),
+    );
+  }
+  /** Normalized humanoid correction precedes the single humanoid update. */
+  updateHead(head: Object3D | null, camera: PerspectiveCamera, delta: number, authored: boolean): void {
+    this.restoreHead();
+    if (!head || authored) { this.#headYaw = 0; this.#headPitch = 0; return; }
+    head.getWorldPosition(this.#head);
+    const offset = this.#offset(camera, this.#head);
+    const blend = 1 - Math.exp(-Math.max(0, delta) / ((this.limits.smoothingMs ?? 100) / 1000));
+    this.#headYaw += (offset.x * (this.limits.maxYawDegrees ?? 25) * .6 - this.#headYaw) * blend;
+    this.#headPitch += (offset.y * (this.limits.maxPitchDegrees ?? 15) * .6 - this.#headPitch) * blend;
+    this.#headBase.copy(head.quaternion); this.#posedHead = head;
+    this.#rotation.setFromAxisAngle(this.#scratch.setFromMatrixColumn(camera.matrixWorld, 1), MathUtils.degToRad(this.#headYaw));
+    this.#pitchRotation.setFromAxisAngle(this.#scratch.setFromMatrixColumn(camera.matrixWorld, 0), -MathUtils.degToRad(this.#headPitch));
+    this.#rotation.multiply(this.#pitchRotation);
+    if (head.parent) head.parent.getWorldQuaternion(this.#parent); else this.#parent.identity();
+    this.#rotation.premultiply(this.#parent.clone().invert()).multiply(this.#parent);
+    head.quaternion.premultiply(this.#rotation);
+  }
   update(lookAt: VRMLookAt, camera: PerspectiveCamera, delta: number, authored: boolean): void {
     lookAt.autoUpdate = false;
     if (authored) {
@@ -31,14 +74,7 @@ export class PointerGaze {
     const yawLimit = this.limits.maxYawDegrees ?? 25, pitchLimit = this.limits.maxPitchDegrees ?? 15;
     this.#target.copy(camera.position);
     if (this.#tracking) {
-      const projected = this.#scratch.copy(this.#head).project(camera);
-      const eyeX = this.#rect.left + (projected.x + 1) * this.#rect.width / 2;
-      const eyeY = this.#rect.top + (1 - projected.y) * this.#rect.height / 2;
-      const dx = this.#pointer.x - eyeX, dy = eyeY - this.#pointer.y;
-      // Use the available page space on each side of the eyes. Normalizing only
-      // by a small corner canvas pins almost the entire page to the same limit.
-      const x = MathUtils.clamp(dx / Math.max(this.#rect.width / 2, dx < 0 ? eyeX : this.#viewport.width - eyeX), -1, 1);
-      const y = MathUtils.clamp(dy / Math.max(this.#rect.height / 2, dy > 0 ? eyeY : this.#viewport.height - eyeY), -1, 1);
+      const { x, y } = this.#offset(camera, this.#head);
       const distance = camera.position.distanceTo(this.#head);
       this.#target.addScaledVector(this.#scratch.setFromMatrixColumn(camera.matrixWorld, 0), distance * Math.tan(MathUtils.degToRad(x * yawLimit)));
       this.#target.addScaledVector(this.#scratch.setFromMatrixColumn(camera.matrixWorld, 1), distance / Math.cos(MathUtils.degToRad(x * yawLimit)) * Math.tan(MathUtils.degToRad(y * pitchLimit)));

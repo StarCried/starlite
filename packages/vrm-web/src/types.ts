@@ -39,7 +39,7 @@ export interface VrmDiagnostics {
   calls: number; triangles: number; geometries: number; textures: number;
   renderer: string; loadMs: number;
   activeAnimation?: string | null;
-  gaze?: { yawDegrees: number; pitchDegrees: number };
+  gaze?: { yawDegrees: number; pitchDegrees: number; headYawDegrees: number; headPitchDegrees: number };
 }
 export interface VrmController extends ModelController {
  diagnostics(): VrmDiagnostics;
