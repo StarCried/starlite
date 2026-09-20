@@ -49,3 +49,12 @@ geometry, unknown VRM versions and buffer views outside the declared buffer.
 State interruptions settle the previous promise immediately and blend the current
 visible pose into the new clip for 200 ms. Rapid switches keep one pose snapshot,
 not a growing queue. Explicit stop/destroy restores neutral immediately.
+
+### Embedded VRM textures and CSP
+
+Three.js decodes embedded VRM images via temporary `blob:` URLs. Sites with a
+Content Security Policy must allow `blob:` in `connect-src` (ImageBitmap fetch)
+and `img-src` (image loader). Keep all other directives unchanged. The plugin
+does not rewrite the site's policy. A texture decoding/loading failure raises
+`model-error` and displays the configured fallback instead of an untextured
+white model. Validate the result in the target browser before acceptance.

@@ -82,6 +82,10 @@ class Controller implements VrmController {
       const bytes = await fetchBounded(this.#config.model, this.#config.network?.modelMaxBytes ?? 64 * 1024 * 1024, this.#abort.signal);
       parseGlb(bytes, "vrm");
       const manager = new THREE.LoadingManager();
+      let imageLoadFailed = false;
+      // GLTFLoader tolerates texture failures and otherwise returns white materials.
+      // A blocked/invalid embedded image must use the existing fallback, not report ready.
+      manager.onError = () => { imageLoadFailed = true; };
       manager.setURLModifier((url) => { if (!url.startsWith("blob:") && !url.startsWith("data:")) throw new Error("external model resource rejected"); return url; });
       const loader = new GLTFLoader(manager);
       loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -90,6 +94,7 @@ class Controller implements VrmController {
       const vrm = gltf.userData.vrm as VRM | undefined;
       if (!vrm) throw new Error("model did not produce a VRM instance");
       this.#vrm = vrm;
+      if (imageLoadFailed) throw new Error("VRM texture loading failed; check image decoding and CSP connect-src/img-src blob: permissions");
       VRMUtils.rotateVRM0(vrm);
       VRMUtils.combineSkeletons(vrm.scene);
       VRMUtils.removeUnnecessaryVertices(vrm.scene);

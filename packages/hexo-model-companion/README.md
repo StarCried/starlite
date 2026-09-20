@@ -119,3 +119,12 @@ controller contract are shared, while parameter tracks remain Inochi2D-only.
 
 Use `examples/hexo-vrm` for isolated validation with synthetic VRM 1.0 geometry.
 The real blog and private character are not part of the example or package.
+
+### Embedded VRM textures and CSP
+
+Three.js decodes embedded VRM images via temporary `blob:` URLs. Sites with a
+Content Security Policy must allow `blob:` in `connect-src` (ImageBitmap fetch)
+and `img-src` (image loader). Keep all other directives unchanged. The plugin
+does not rewrite the site's policy. A texture decoding/loading failure raises
+`model-error` and displays the configured fallback instead of an untextured
+white model. Validate the result in the target browser before acceptance.
