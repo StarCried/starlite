@@ -178,7 +178,7 @@ class Controller implements VrmController {
     this.#renderer.render(this.#scene, this.#camera);
     return this.#canvas.toDataURL("image/png");
   }
-  diagnostics(): VrmDiagnostics { return { ...this.#stats, frameTimesMs: [...this.#stats.frameTimesMs], renderCostsMs: [...this.#stats.renderCostsMs] }; }
+  diagnostics(): VrmDiagnostics { return { ...this.#stats, activeAnimation: this.#player?.activeName ?? null, gaze: { yawDegrees: this.#vrm?.lookAt?.yaw ?? 0, pitchDegrees: this.#vrm?.lookAt?.pitch ?? 0 }, frameTimesMs: [...this.#stats.frameTimesMs], renderCostsMs: [...this.#stats.renderCostsMs] }; }
   destroy(): void {
     if (this.#status === "destroyed") return;
     this.#abort.abort(); this.#dispose();
@@ -260,7 +260,7 @@ class Controller implements VrmController {
     on(window, "pointermove", (event) => {
       if (!(this.#config.interactions?.pointer ?? true) || this.#status !== "running") return;
       const pointer = event as PointerEvent, rect = this.#host.getBoundingClientRect();
-      if (pointer.pointerType !== "touch") this.#gaze.move(pointer.clientX, pointer.clientY, rect);
+      if (pointer.pointerType !== "touch") this.#gaze.move(pointer.clientX, pointer.clientY, rect, { width: innerWidth, height: innerHeight });
     });
     on(document, "pointerout", (event) => { if (!(event as PointerEvent).relatedTarget) this.#gaze.reset(); });
     on(window, "blur", () => this.#gaze.reset());

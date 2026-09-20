@@ -35,3 +35,19 @@ it("rejects non-finite and excessive gaze limits",()=>{
   for(const gaze of [{maxYawDegrees:NaN},{maxPitchDegrees:90},{smoothingMs:0}])
     expect(()=>validateVrmWidgetConfig({model:"x.vrm",fallback:"x.png",gaze})).toThrow();
 });
+
+it("keeps following across the page outside a corner canvas instead of pinning to the angle limit", () => {
+  const { look, camera } = fixture("1"), gaze = new PointerGaze();
+  const rect = { left: 1014, top: 928, width: 260, height: 390 };
+  const angles: number[] = [];
+  for (const x of [240, 600, 950, 1144]) {
+    gaze.move(x, 1123, rect, { width: 1296, height: 1318 });
+    for (let i=0; i<100; i++) gaze.update(look, camera, .033, false);
+    angles.push(look.yaw);
+  }
+  expect(new Set(angles.map(angle => angle.toFixed(1))).size).toBe(4);
+  expect(Math.abs(angles[0]!)).toBeLessThan(25);
+  expect(Math.abs(angles[0]!)).toBeGreaterThan(Math.abs(angles[1]!));
+  expect(Math.abs(angles[1]!)).toBeGreaterThan(Math.abs(angles[2]!));
+  expect(angles[3]).toBeCloseTo(0);
+});

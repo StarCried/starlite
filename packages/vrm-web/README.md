@@ -27,7 +27,8 @@ have no dependency on that profile. Never merge custom morphs indiscriminately.
 The common interface does not emulate Inochi2D parameters for VRM bones.
 
 The backend additionally exposes expression inspection and selection, plus frame
-and renderer diagnostics for local validation. These are not performance claims.
+and renderer diagnostics for local validation, including active clip and bounded
+gaze angles. These are not performance claims.
 
 ## Private preview
 
@@ -74,6 +75,8 @@ choosing padding; the neutral bounds cannot predict an arbitrary animation.
 Pointer following uses the actual head position and the portrait camera, with
 VRM0/VRM1 coordinate conversion handled by three-vrm. Defaults are
 `gaze: { maxYawDegrees: 25, maxPitchDegrees: 15, smoothingMs: 100 }`.
+Pointer movement is normalized over the available viewport space on each side
+of the eyes, so a small corner widget keeps responding across the article area.
 These bound the look-at input angles; the model's own eye range maps still apply.
 Authored look-at animation retains priority. Leaving the page returns gaze toward
 the camera; `interactions.pointer: false` disables following.

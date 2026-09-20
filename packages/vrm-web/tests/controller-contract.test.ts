@@ -85,3 +85,11 @@ it('shows reduced-motion VRM entry text without scheduling frames',async()=>{
  vi.advanceTimersByTime(1000);expect(host.querySelector<HTMLElement>('.model-widget__bubble')?.hidden).toBe(true);
  c.destroy();expect(vi.getTimerCount()).toBe(0);vi.useRealTimers();
 });
+
+it('renders on every 60 Hz callback when configured for 60 FPS', async () => {
+ const host=document.createElement('div'); document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},render:{fps:60}}); resources.push(c);
+ advance(1000);
+ expect(c.diagnostics().renderedFrames).toBeGreaterThanOrEqual(60);
+ expect(c.diagnostics().frameTimesMs.every(value=>value<17)).toBe(true);
+});
