@@ -128,7 +128,7 @@ gates.
   may be present only when their exact animation names match; the dialogue
   scene owns the click in that compatibility case.
 
-The blog must install compatible `hexo`, `hexo-inox2d-widget`, and `playwright`
+The blog must install compatible `hexo`, `hexo-model-companion`, and `playwright`
 packages. Chrome and Edge must be installed for Windows release gates.
 
 Start the isolated local workflow with:

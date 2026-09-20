@@ -1,18 +1,39 @@
-# inochi2d-web
+# Model Companion Web
 
-An unofficial, framework-free Inochi2D WebGL2 runtime, Hexo widget, and
-fail-closed model-to-blog toolchain.
+Framework-free model companions for websites and desktop applications, with
+interchangeable Inochi2D and VRM WebGL2 components. DSH Companion consumes the
+same built runtime packages as the Hexo adapter.
 
 This repository is not affiliated with or endorsed by the Inochi2D project. It
 is AI-assisted and human-reviewed. It is licensed under BSD-2-Clause; model
 copyright and redistribution rights remain separate.
 
-## Packages
+## Component boundaries
+
+| Package | Owns | Does not own |
+| --- | --- | --- |
+| `model-widget-core` | Playback contract, mount cancellation, dialogue scheduling | Model format, DSH states, rendering |
+| `inochi2d-web` | Inochi2D loading, WASM, parameters, animation | VRM bones or expressions |
+| `vrm-web` | VRM0/1, VRMA playback, profile validation, bundle preparation | DSH protocol or character source art |
+| `hexo-model-companion` | Selected runtime assets, publication checks, page lifecycle | Rendering and motion authoring |
+| `inochi2d-pipeline` / `inochi2d-blog` | Inochi2D preparation and publishing workflow | VRM preparation or generic deployment |
+
+Choose a backend through `backend: "inochi2d" | "vrm"`. Character profiles and
+VRMA files are assets; they do not require changes to application status logic.
+See [architecture](docs/architecture.md) for ownership and dependency direction,
+and [VRM usage](packages/vrm-web/README.md) for private local previews.
+
+The repository remote remains `StarCried/inochi2d-web`; it has not been renamed
+or published by this local change. Existing Hexo configurations keep the
+`inochi2d_widget` key, which selects either backend. The npm adapter is now
+`hexo-model-companion`; no duplicate adapter package is installed.
+
+## Inochi2D toolchain
 
 - `inochi2d-web` loads Creator `.inp`/`.inx` bytes through a reproducible build
   of the official [Inochi2D D SDK](https://github.com/Inochi2D/inochi2d), draws
   its command list with WebGL2, and provides motion and interaction.
-- `hexo-inox2d-widget` injects a mobile-safe, PJAX-safe widget into Hexo 7 and
+- `hexo-model-companion` injects a mobile-safe, PJAX-safe widget into Hexo 7 and
   emits immutable JS, WASM, CSS, model, and fallback routes.
 - `inochi2d-pipeline` is a native Windows/Linux inspector and deterministic
   compressor. It first performs pixel-lossless PNG/TGA optimization, then
@@ -21,7 +42,7 @@ copyright and redistribution rights remain separate.
 - `inochi2d-blog` joins inspection, authorization, compression, Hexo generation,
   Chrome/Edge validation, and optional `hexo deploy`.
 
-The alpha supports current desktop Chrome and Edge with WebGL2. It includes
+The Inochi2D alpha supports current desktop Chrome and Edge with WebGL2. It includes
 blink, breath, pointer following, model-authored ambient loops and
 enter/idle/click scene animations, configurable plain-text dialogue libraries,
 procedural parameter loops for rigs without embedded animation clips,
@@ -48,7 +69,7 @@ Firefox/Safari compatibility promises are outside this release.
 
 ## Alpha channels and native executable
 
-`inochi2d-web` and `hexo-inox2d-widget` are the normal browser alpha. They run
+`inochi2d-web` and `hexo-model-companion` are the normal browser alpha. They run
 JavaScript, WebAssembly, and WebGL2 in the generated site and do not need a
 native executable.
 

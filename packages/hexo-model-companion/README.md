@@ -1,4 +1,4 @@
-# hexo-inox2d-widget
+# hexo-model-companion
 
 Hexo 7 adapter for `inochi2d-web`. It verifies local model bundles, emits
 content-hashed runtime/model assets, injects a mobile no-fetch bootstrap, and
@@ -7,7 +7,7 @@ keeps one widget across PJAX navigation.
 ## Install
 
 ```sh
-npm install hexo-inox2d-widget
+npm install hexo-model-companion
 ```
 
 For a bundle already produced by `inochi2d-blog` or `inochi2d-pipeline`, add:

@@ -55,7 +55,7 @@ dependency order, using the non-default `alpha` dist-tag:
 
 ```sh
 npm publish inochi2d-web-0.1.0-alpha.1.tgz --tag alpha
-npm publish hexo-inox2d-widget-0.1.0-alpha.1.tgz --tag alpha
+npm publish hexo-model-companion-0.1.0-alpha.1.tgz --tag alpha
 npm publish inochi2d-blog-0.1.0-alpha.1.tgz --tag alpha
 ```
 
@@ -219,7 +219,7 @@ candidate is a local, ignored release-candidate directory outside the repository
 with SHA-256 values:
 
 - `inochi2d-web`: `a406ec109aeb8af267090211f0e779f6961de822fabbfb9a1aa4353592b95860`;
-- `hexo-inox2d-widget`: `59ee023e4a349611bea03443094c8069147e722b2a13fb7c3645405a0aed7d9c`;
+- `hexo-model-companion`: `59ee023e4a349611bea03443094c8069147e722b2a13fb7c3645405a0aed7d9c`;
 - `inochi2d-blog`: `9856c67f1e001ae133559bcc03a6970661d21d82c225b7ba341c0d76a03b3956`.
 
 The packaged unsigned Windows helper was also deliberately exercised as a

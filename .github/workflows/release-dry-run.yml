@@ -88,7 +88,7 @@ jobs:
         run: |
           mkdir -p release-packages
           npm pack --workspace inochi2d-web --pack-destination release-packages
-          npm pack --workspace hexo-inox2d-widget --pack-destination release-packages
+          npm pack --workspace hexo-model-companion --pack-destination release-packages
           npm pack --workspace inochi2d-blog --pack-destination release-packages
       - uses: actions/upload-artifact@v4
         with:

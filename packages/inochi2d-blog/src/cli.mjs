@@ -1480,7 +1480,7 @@ async function verifyPackagedPipeline(packageRoot, binaryPath, executable) {
 }
 
 function assertHexoPlugin(blogRoot) {
-  resolveFromPackage(blogRoot, "hexo-inox2d-widget");
+  resolveFromPackage(blogRoot, "hexo-model-companion");
 }
 
 function resolveFromPackage(root, request) {

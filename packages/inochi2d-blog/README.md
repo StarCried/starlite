@@ -15,7 +15,7 @@ immutable Hexo bundle and optional deployment.
 Install it in the Hexo blog together with the adapter and browser validator:
 
 ```sh
-npm install inochi2d-blog hexo-inox2d-widget playwright
+npm install inochi2d-blog hexo-model-companion playwright
 ```
 
 Copy `inochi2d-blog.config.example.json`, set the original model, fallback, blog
@@ -89,7 +89,7 @@ Read the repository
 and
 [configuration](https://github.com/StarCried/inochi2d-web/blob/main/docs/configuration.md)
 guides. The blog must provide compatible Hexo,
-`hexo-inox2d-widget`, and Playwright installations; Windows gates use installed
+`hexo-model-companion`, and Playwright installations; Windows gates use installed
 Chrome and Edge.
 
 This package is unofficial, AI-assisted, human-reviewed, BSD-2-Clause licensed,

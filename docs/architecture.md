@@ -1,4 +1,35 @@
-# Architecture
+# Model Companion Web architecture
+
+```text
+Hexo page lifecycle                 DSH Companion state scheduler
+          |                                     |
+          +---- ModelController / mountModelWidget ----+
+                        |                              |
+                 inochi2d-web                       vrm-web
+                 WASM + parameters            Three.js + VRM + VRMA
+                        |                              |
+                prepared Inochi bundle        prepared VRM bundle + profile
+```
+
+`model-widget-core` is the dependency root. Applications select the backend
+before importing its renderer; a page never loads both renderers to display one
+model. Common animation metadata contains names and durations, not backend
+tracks. Pause/resume, completion results and cancellation are tested against
+both implementations. `setParameter` remains an Inochi2D API.
+
+For VRM, `inspect.ts` validates untrusted containers, `prepare.ts` verifies and
+builds immutable bundles, `playback.ts` owns clip scheduling, `character.ts`
+coordinates expression/blink/ear data, and `index.ts` owns the browser lifecycle.
+The character source project owns gesture design and motion export. Neither
+Hexo nor DSH synthesizes missing motions or silently chooses an Idle mapping.
+
+The Hexo package is `hexo-model-companion`. Its existing `inochi2d_widget`
+configuration key is retained for existing blogs and supports both backends.
+`inochi2d-blog` is still explicitly Inochi2D-only; generic naming must not imply
+that its native publishing workflow can prepare VRM.
+
+## Inochi2D implementation
+
 
 ```text
 Creator .inp/.inx
@@ -6,7 +37,7 @@ Creator .inp/.inx
      bounds + compatibility + rights report + bounded compression + manifest
   -> inochi2d-blog
      source attestation + immutable bundle + Hexo + browser gates + deploy
-  -> hexo-inox2d-widget
+  -> hexo-model-companion
      verified hashed routes + mobile-first bootstrap + PJAX singleton
   -> inochi2d-web
      fetch + motion/lifecycle + official D-SDK WASM + WebGL2 draw-list renderer

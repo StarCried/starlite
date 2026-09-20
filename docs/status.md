@@ -75,7 +75,7 @@ Status on 2026-07-27:
   production-dependency `npm audit` reports zero vulnerabilities. The reviewed
   local candidate hashes are `a406ec109aeb8af267090211f0e779f6961de822fabbfb9a1aa4353592b95860`
   (`inochi2d-web`), `59ee023e4a349611bea03443094c8069147e722b2a13fb7c3645405a0aed7d9c`
-  (`hexo-inox2d-widget`), and
+  (`hexo-model-companion`), and
   `9856c67f1e001ae133559bcc03a6970661d21d82c225b7ba341c0d76a03b3956`
   (`inochi2d-blog`).
 - Native Linux and Windows GNU release binaries were built locally, staged with

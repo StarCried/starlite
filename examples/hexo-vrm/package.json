@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "hexo": "7.3.0",
-    "hexo-inox2d-widget": "0.1.0-alpha.1"
+    "hexo-model-companion": "0.1.0-alpha.1"
   }
 }

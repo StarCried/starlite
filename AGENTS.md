@@ -1,6 +1,14 @@
-# Inochi2D Web project instructions
+# Model Companion Web project instructions
 
 ## Repository boundaries
+
+- `packages/model-widget-core` owns the format-neutral playback contract,
+  cancellable mounts and dialogue scheduling. It must not import a backend.
+- `packages/vrm-web` owns VRM inspection/preparation, Three.js/three-vrm
+  rendering, VRMA playback and data-only character profiles. Keep private
+  character models and animation-authoring projects outside this repository.
+- Product names are Model Companion Web and DSH Companion. Remote repository
+  URLs and Inochi2D-specific package names describe their actual identities.
 
 - `crates/inochi2d-pipeline` owns untrusted `.inp/.inx` inspection,
   compatibility and rights reports, deterministic texture optimization
@@ -12,7 +20,7 @@
 - `packages/inochi2d-web` owns model fetch, official WASM calls, WebGL2 command
   rendering, lifecycle, motion synthesis, interaction, DPR/FPS policy, and
   fallback presentation.
-- `packages/hexo-inox2d-widget` owns Hexo 7 configuration, manifest verification,
+- `packages/hexo-model-companion` owns Hexo 7 configuration, manifest verification,
   hashed asset routes, injection, and PJAX-safe singleton bootstrapping.
 - `packages/inochi2d-blog` owns fail-closed orchestration. No code path may call
   `hexo deploy` before rights, identity, preparation, generation, and browser
@@ -26,7 +34,7 @@
 - Committed fixtures must be synthetic, artwork-free, and redistributable.
 - Third-party puppets are ignored local test inputs only, with license and
   attribution recorded in `docs/validation.md`.
-- Package checks must reject `.inp` and `.inx` files.
+- Package checks must reject `.inp`, `.inx`, `.vrm`, `.vrma` and `.blend` files.
 
 ## Compatibility contract
 

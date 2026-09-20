@@ -29,7 +29,7 @@ const expectations = new Map([
       "THIRD_PARTY_LICENSES.txt",
     ],
   ],
-  ["hexo-inox2d-widget", ["dist/index.js", "LICENSE", "README.md"]],
+  ["hexo-model-companion", ["dist/index.js", "LICENSE", "README.md"]],
   [
     "inochi2d-blog",
     [

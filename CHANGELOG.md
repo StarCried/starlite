@@ -51,7 +51,7 @@ versioning once packages are published.
   compatibility fixture, and a full-range public Aka continuity regression.
 - Increased the default desktop bottom clearance so the widget does not
   overlap Volantis' fixed return-to-top control at 1440 x 900.
-- Defined `inochi2d-web` and `hexo-inox2d-widget` as the normal browser alpha,
+- Defined `inochi2d-web` and `hexo-model-companion` as the normal browser alpha,
   while `inochi2d-blog` and its bundled native pipeline are an explicitly
   invoked experimental unsigned alpha. Installation has no native lifecycle
   script; integrity, authorization, or execution failures remain fail-closed.

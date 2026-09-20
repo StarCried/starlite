@@ -1,14 +1,14 @@
 {
-  "name": "hexo-inox2d-widget",
+  "name": "hexo-model-companion",
   "version": "0.1.0-alpha.1",
-  "description": "Hexo 7 adapter for the inochi2d-web widget runtime",
+  "description": "Hexo adapter for Inochi2D and VRM model companion components",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "license": "BSD-2-Clause",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/StarCried/inochi2d-web.git",
-    "directory": "packages/hexo-inox2d-widget"
+    "directory": "packages/hexo-model-companion"
   },
   "homepage": "https://github.com/StarCried/inochi2d-web#readme",
   "bugs": "https://github.com/StarCried/inochi2d-web/issues",

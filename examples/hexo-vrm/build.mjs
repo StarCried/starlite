@@ -3,7 +3,7 @@ import {resolve} from "node:path";
 import {createRequire} from "node:module";
 import Hexo from "hexo";
 import {model,motion} from "../../tests/fixtures/vrm.mjs";
-const require=createRequire(import.meta.url), {prepareModel}=require("vrm-web/prepare"), {registerHexoWidget}=require("hexo-inox2d-widget");
+const require=createRequire(import.meta.url), {prepareModel}=require("vrm-web/prepare"), {registerHexoWidget}=require("hexo-model-companion");
 const root=resolve(import.meta.dirname,".generated");
 // Only this example's generated output is replaceable.
 await rm(root,{recursive:true,force:true});await mkdir(root,{recursive:true});
