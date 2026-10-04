@@ -57,6 +57,7 @@ for(const backend of ['inochi2d','vrm'])describe(`${backend} public controller c
   const c=await mount(backend,undefined,{enter:{animation:'Action',lines:['Hello'],delayMs:0,durationMs:1000},click:{animation:'Other',lines:['Clicked'],durationMs:1000}});
   advance(100);const bubble=document.querySelector<HTMLElement>('.model-widget__bubble')!;
   expect(bubble.hidden).toBe(false);expect(bubble.textContent).toBe('Hello');expect(bubble.getAttribute('role')).toBe('status');
+  advance(1100); // Let entry finish before requesting another foreground scene.
   const canvas=document.querySelector('canvas')!;
   if(backend==='vrm'){canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));}
   else canvas.dispatchEvent(new MouseEvent('click',{bubbles:true}));
@@ -105,6 +106,34 @@ it('samples the configured click dialogue pool and resumes the base loop',async(
  canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));
  expect(c.diagnostics().activeAnimation).toBe('Other');
  advance(1200);expect(c.status).toBe('running');expect(c.diagnostics().activeAnimation).toBe('Action');
+});
+
+it('finishes entry despite expired speech and repeated clicks, then returns to Idle',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},
+  animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],ambient:{animations:['Action']},
+  dialogue:{enter:{animation:'Other',lines:['Hello'],durationMs:50,delayMs:0},click:{animation:'Other',lines:['Hi']}}});resources.push(c);
+ expect(c.diagnostics().activeAnimation).toBe('Other');
+ advance(600);
+ expect(host.querySelector<HTMLElement>('.model-widget__bubble')?.hidden).toBe(true);
+ const canvas=host.querySelector('canvas')!;
+ for(let i=0;i<4;i++){
+  canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:i}));
+  window.dispatchEvent(new PointerEvent('pointerup',{pointerId:i}));
+ }
+ advance(200);expect(c.diagnostics().activeAnimation).toBe('Other');
+ advance(400);expect(c.diagnostics().activeAnimation).toBe('Action');
+});
+
+it('does not restart a click response when clicked again before it finishes',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},
+  animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],ambient:{animations:['Action']},
+  interactions:{click:{animation:'Other'}}});resources.push(c);
+ const canvas=host.querySelector('canvas')!;
+ const click=()=>{canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));};
+ click();advance(600);click();advance(600);
+ expect(c.diagnostics().activeAnimation).toBe('Action');
 });
 
 it('rejects missing, duplicate and empty animation pools before loading',()=>{

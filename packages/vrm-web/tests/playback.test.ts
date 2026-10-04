@@ -24,6 +24,25 @@ describe("VRM animation contract", () => {
     const click = player.play("Click"); expect(await loop).toBe("interrupted");
     player.destroy(); player.destroy(); expect(await click).toBe("stopped");
   });
+  it("plays the complete gesture and blends its final pose directly into the configured Idle", async () => {
+    const root = new Object3D();
+    const idle = new AnimationClip("Idle", 1, [new NumberKeyframeTrack(".position[x]", [0, 1], [0, 0])]);
+    const gesture = new AnimationClip("Gesture", 2, [new NumberKeyframeTrack(".position[x]", [0, 1, 2], [0, 2, 3])]);
+    const player = new VrmAnimationPlayer(root, new Map([["Idle", idle], ["Gesture", gesture]]), () => root.position.set(0, 0, 0), "Idle");
+    void player.play("Idle", {mode:"loop"});
+    const result = player.play("Gesture"); let settled = false;
+    void result.then(() => { settled = true; });
+    player.update(1.9); await Promise.resolve();
+    expect(settled).toBe(false); expect(player.activeName).toBe("Gesture");
+    player.update(.11);
+    expect(await result).toBe("completed"); expect(player.activeName).toBe("Idle");
+    expect(root.position.x).toBeCloseTo(3);
+    player.update(.1); expect(root.position.x).toBeCloseTo(1.5);
+    player.update(.11); expect(root.position.x).toBe(0);
+    expect(player.mixer.stats.actions.inUse).toBe(1);
+    player.stop(); expect(player.activeName).toBeUndefined(); expect(root.position.x).toBe(0);
+    player.destroy();
+  });
   it("shares an identical playback unless restart is explicit", async () => {
     const { player } = harness();
     const first=player.play("Idle", {mode:"loop"}); expect(player.play("Idle", {mode:"loop"})).toBe(first);

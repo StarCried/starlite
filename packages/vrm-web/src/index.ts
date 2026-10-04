@@ -137,7 +137,7 @@ class Controller implements VrmController {
         sampler.stopAllAction(); sampler.uncacheRoot(vrm.scene);
         vrm.humanoid.setNormalizedPose(this.#neutral);
       }
-      this.#player = new VrmAnimationPlayer(vrm.scene, this.#clips, () => this.#restoreNeutral());
+      this.#player = new VrmAnimationPlayer(vrm.scene, this.#clips, () => this.#restoreNeutral(), this.#config.ambient?.animations?.[0]);
       this.#renderer = new THREE.WebGLRenderer({ canvas: this.#canvas, alpha: true, antialias: true, premultipliedAlpha: true });
       this.#renderer.setClearColor(0x000000, 0);
       this.#renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -198,6 +198,9 @@ class Controller implements VrmController {
     const name = this.#config.ambient?.animations?.[0];
     if (name && !this.#player?.activeName && !this.#ambientSuppressed && !this.#reduced.matches) void this.#player?.play(name, { mode: "loop" });
   }
+  #foregroundActive(): boolean {
+    return Boolean(this.#player?.isOneShot || (this.#player?.activeName && this.#player.activeName !== this.#config.ambient?.animations?.[0]));
+  }
   #sync(): void {
     if (this.#status === "destroyed" || this.#status === "fallback" || this.#status === "disabled" || !this.#renderer) return;
     if (this.#paused || document.visibilityState !== "visible") { this.#bubble.hide(); this.#gaze.reset(); }
@@ -228,12 +231,13 @@ class Controller implements VrmController {
     const started = performance.now(); this.#elapsed += delta;
     this.#gaze.restoreHead();
     this.#player?.update(delta); this.#startAmbient();
-    const action = this.#dialogue.poll(this.#elapsed * 1000, Boolean(this.#player?.activeName && this.#player.activeName !== this.#config.ambient?.animations?.[0]));
+    const action = this.#dialogue.poll(this.#elapsed * 1000, this.#foregroundActive());
     if (action) this.#showDialogue(action);
     this.#bubble.update(this.#elapsed * 1000);
-    const authoredGaze = Boolean(this.#player?.hasLookAtTrack) || this.#config.interactions?.pointer === false;
-    const foreground = Boolean(this.#player?.activeName && this.#player.activeName !== (this.#config.ambient?.animations?.[0] ?? this.#profile?.neutralAnimation));
-    this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#camera, delta, authoredGaze || foreground);
+    // Pointer following is a bounded additive layer over every body animation.
+    // Exported look-at tracks (including constant ones) must not disable it.
+    const authoredGaze = this.#config.interactions?.pointer === false;
+    this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#camera, delta, authoredGaze);
     vrm.humanoid.update();
     if (vrm.lookAt) {
       this.#gaze.update(vrm.lookAt, this.#camera, delta, authoredGaze);
@@ -283,7 +287,7 @@ class Controller implements VrmController {
     on(window, "pointerup", (event) => {
       if (!down || down.id !== (event as PointerEvent).pointerId) return;
       const clicked = down && !down.moved; down = undefined;
-      if (!clicked) return;
+      if (!clicked || this.#foregroundActive()) return;
       const action = this.#dialogue.triggerClick(this.#elapsed * 1000);
       if (action) this.#showDialogue(action);
       else if (this.#config.interactions?.click) {

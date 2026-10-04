@@ -6,15 +6,18 @@ export class VrmAnimationPlayer {
   readonly mixer: AnimationMixer;
   readonly #clips: ReadonlyMap<string, AnimationClip>;
   readonly #restore: () => void;
+  readonly #returnTo: string | undefined;
   #active: { name: string; action: AnimationAction; promise: Promise<AnimationPlaybackResult>; resolve: (result: AnimationPlaybackResult) => void } | undefined;
   #finished = false;
   #transition: { clip: AnimationClip; action: AnimationAction; elapsed: number } | undefined;
   static readonly transitionSeconds = .2;
-  constructor(root: Object3D, clips: ReadonlyMap<string, AnimationClip>, restore: () => void) {
-    this.mixer = new AnimationMixer(root); this.#clips = clips; this.#restore = restore;
+  constructor(root: Object3D, clips: ReadonlyMap<string, AnimationClip>, restore: () => void, returnTo?: string) {
+    if (returnTo && !clips.has(returnTo)) throw new Error(`return animation does not exist: ${returnTo}`);
+    this.mixer = new AnimationMixer(root); this.#clips = clips; this.#restore = restore; this.#returnTo = returnTo;
     this.mixer.addEventListener("finished", (event) => { if (event.action === this.#active?.action) this.#finished = true; });
   }
   get activeName(): string | undefined { return this.#active?.name; }
+  get isOneShot(): boolean { return this.#active?.action.loop === LoopOnce; }
   get hasLookAtTrack(): boolean { return this.#clips.get(this.#active?.name ?? "")?.tracks.some((track) => track.name.includes("LookAt")) ?? false; }
   get hasBlinkTrack(): boolean { return this.#clips.get(this.#active?.name ?? "")?.tracks.some((track) => /VRMExpression_blink(?:Left|Right)?\.weight$/.test(track.name)) ?? false; }
   play(name: string, options: AnimationPlaybackOptions = {}): Promise<AnimationPlaybackResult> {
@@ -46,7 +49,14 @@ export class VrmAnimationPlayer {
       this.#transition.elapsed += delta;
       if (this.#transition.elapsed >= VrmAnimationPlayer.transitionSeconds) this.#clearTransition();
     }
-    if (this.#finished) this.stop("completed");
+    if (this.#finished) {
+      if (this.#returnTo) {
+        // Finish at the authored endpoint, then capture it before starting Idle.
+        // Restoring neutral first would erase the pose needed for the exit blend.
+        this.#active?.resolve("completed");
+        void this.play(this.#returnTo, { mode: "loop", restart: true });
+      } else this.stop("completed");
+    }
   }
   stop(result: AnimationPlaybackResult = "stopped"): void {
     const active = this.#active;

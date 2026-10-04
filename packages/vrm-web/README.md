@@ -80,11 +80,12 @@ of the eyes, so a small corner widget keeps responding across the article area.
 The normalized head adds up to 60% of those limits (15° yaw / 9° pitch by
 default), then the eyes aim for the remaining angle. The additive head pose is
 removed before each animation sample, so it cannot accumulate or contaminate
-state transitions. Foreground gestures and authored look-at retain priority.
+state transitions. Following remains active during foreground gestures, with the
+same smoothing and limits; it adds to the authored head pose.
 Pointer events are captured before page handlers can stop bubbling.
 These bound the look-at input angles; the model's own eye range maps still apply.
-Authored look-at animation retains priority. Leaving the page returns gaze toward
-the camera; `interactions.pointer: false` disables following.
+Leaving the page returns gaze toward the camera. `interactions.pointer: false`
+disables following and preserves authored look-at instead.
 
 Enter, click and idle dialogue use the same accessible bubble as Inochi2D.
 Configure `dialogue.click` and `dialogue.idle` to enable those sentences; an
@@ -97,5 +98,7 @@ gestures belong in `dialogue.idle`, with `animation: "Yawn"`, optional
 `animations: ["Yawn", "Stretch"]`, sentence lines and interval limits. Click
 dialogue uses the same pool selection. Without dialogue, use
 `interactions.click: { animations: ["Wave", "Nod"] }` for animation-only clicks.
-Each trigger plays one clip once, then the configured base loop resumes. A
+Each trigger plays the complete clip once, then blends its final pose directly
+into the configured base loop over 200 ms. Bubble duration does not shorten a
+clip. Clicks during an entry or another foreground gesture are ignored. A
 static clip remains a static pose; author entry/exit in its VRMA for a gesture.
