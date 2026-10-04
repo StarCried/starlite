@@ -96,6 +96,15 @@ it('renders on every 60 Hz callback when configured for 60 FPS', async () => {
  expect(c.diagnostics().frameTimesMs.every(value=>value<17)).toBe(true);
 });
 
+it('does not count a render stall before the trigger toward the new gesture',async()=>{
+ const c=await mount('vrm');advance(100);
+ time+=100; // The previous rendered frame is now older than the new trigger.
+ const result=c.playAnimation('Action',{mode:'once',restart:true}),settled=vi.fn();
+ void result.then(settled);
+ advance(950);await Promise.resolve();expect(settled).not.toHaveBeenCalled();
+ advance(100);await expect(result).resolves.toBe('completed');
+});
+
 it('samples the configured click dialogue pool and resumes the base loop',async()=>{
  const random=Math.random;let selection:number|undefined;
  vi.spyOn(Math,'random').mockImplementation(()=>selection??random());

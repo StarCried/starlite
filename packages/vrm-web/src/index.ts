@@ -50,6 +50,7 @@ class Controller implements VrmController {
   #frame: number | undefined;
   #lastTime: number | undefined;
   #lastFrameTime: number | undefined;
+  #playStartedAt: number | undefined;
   #paused = false;
   #elapsed = 0;
   #ambientSuppressed = false;
@@ -162,6 +163,8 @@ class Controller implements VrmController {
   getAnimations(): readonly { name: string; durationMs: number }[] { return [...this.#clips].map(([name, clip]) => ({ name, durationMs: clip.duration * 1000 })); }
   playAnimation(name: string, options: AnimationPlaybackOptions = {}): Promise<AnimationPlaybackResult> {
     if (!this.#player || this.#status === "destroyed" || this.#status === "fallback" || this.#reduced.matches) return Promise.resolve("stopped");
+    if (!this.#clips.has(name)) return Promise.reject(new Error(`animation does not exist: ${name}`));
+    if (this.#player.activeName !== name || options.restart) this.#playStartedAt = performance.now();
     this.#gaze.restoreHead(); this.#ambientSuppressed = false; this.#character?.reset();
     return this.#player.play(name, options);
   }
@@ -171,7 +174,7 @@ class Controller implements VrmController {
     this.stopAnimation(); this.#vrm.expressionManager.setValue(name, weight);
     if (this.#status === "paused") this.#tick(0);
   }
-  stopAnimation(): void { this.#gaze.restoreHead(); this.#ambientSuppressed = true; this.#player?.stop(); }
+  stopAnimation(): void { this.#playStartedAt = undefined; this.#gaze.restoreHead(); this.#ambientSuppressed = true; this.#player?.stop(); }
   pause(): void { this.#paused = true; this.#bubble.hide(); this.#sync(); }
   resume(): void { this.#paused = false; this.#dialogue.deferIdle(this.#elapsed * 1000); this.#sync(); }
   resetCamera(): void { this.#resize(); if (this.#status === "paused") this.#tick(0); }
@@ -230,7 +233,11 @@ class Controller implements VrmController {
     if (!vrm || !renderer) return;
     const started = performance.now(); this.#elapsed += delta;
     this.#gaze.restoreHead();
-    this.#player?.update(delta); this.#startAmbient();
+    // The preceding frame can predate the trigger, especially after shader
+    // compilation. Only the time since this clip started belongs to its first sample.
+    const animationDelta = this.#playStartedAt === undefined ? delta : Math.min(delta, Math.max(0, (performance.now() - this.#playStartedAt) / 1000));
+    this.#playStartedAt = undefined;
+    this.#player?.update(animationDelta); this.#startAmbient();
     const action = this.#dialogue.poll(this.#elapsed * 1000, this.#foregroundActive());
     if (action) this.#showDialogue(action);
     this.#bubble.update(this.#elapsed * 1000);
