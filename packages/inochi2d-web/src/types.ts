@@ -120,6 +120,8 @@ export interface ResolvedAmbientParameterOscillator {
 export interface DialogueSceneConfig {
   /** Exact, case-sensitive animation name embedded in the model. */
   animation: string;
+  /** Optional pool, sampled independently on each trigger. */
+  animations?: readonly string[];
   /** Plain-text sentence library. HTML is never interpreted. */
   lines: readonly string[];
   /** How long the selected sentence remains visible. */
@@ -148,6 +150,7 @@ export type DialogueSceneName = "enter" | "idle" | "click";
 
 export interface ResolvedDialogueScene {
   animation: string;
+  animations?: readonly string[];
   lines: readonly string[];
   durationMs: number;
 }

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { mountModelWidget } from "../src/index.js";
+import { validateVrmWidgetConfig } from "../src/config.js";
 import { mountWithDependencies } from "../../inochi2d-web/src/controller.js";
 import type { ModelController } from "model-widget-core";
 let scene: THREE.Scene;
@@ -92,4 +93,21 @@ it('renders on every 60 Hz callback when configured for 60 FPS', async () => {
  advance(1000);
  expect(c.diagnostics().renderedFrames).toBeGreaterThanOrEqual(60);
  expect(c.diagnostics().frameTimesMs.every(value=>value<17)).toBe(true);
+});
+
+it('samples the configured click dialogue pool and resumes the base loop',async()=>{
+ const random=Math.random;let selection:number|undefined;
+ vi.spyOn(Math,'random').mockImplementation(()=>selection??random());
+ const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],ambient:{animations:['Action']},dialogue:{click:{animation:'Action',animations:['Action','Other'],lines:['Hello']}}});resources.push(c);
+ selection=.99;
+ const canvas=host.querySelector('canvas')!;
+ canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));
+ expect(c.diagnostics().activeAnimation).toBe('Other');
+ advance(1200);expect(c.status).toBe('running');expect(c.diagnostics().activeAnimation).toBe('Action');
+});
+
+it('rejects missing, duplicate and empty animation pools before loading',()=>{
+ const config={model:'test.vrm',fallback:'fallback.png',animations:[{name:'Action',url:'a.vrma'}]};
+ for(const animations of [[],['Missing'],['Action','Action']])expect(()=>validateVrmWidgetConfig({...config,dialogue:{click:{animation:'Action',animations,lines:['Hi']}}})).toThrow('pool');
 });

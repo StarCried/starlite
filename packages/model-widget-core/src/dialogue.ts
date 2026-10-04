@@ -1,5 +1,5 @@
 export type DialogueSceneName = 'enter' | 'idle' | 'click';
-export interface ResolvedDialogueScene { animation: string; lines: readonly string[]; durationMs: number }
+export interface ResolvedDialogueScene { animation: string; animations?: readonly string[]; lines: readonly string[]; durationMs: number }
 export interface DialogueSchedule {
  enter: false | (ResolvedDialogueScene & { delayMs: number });
  idle: false | (ResolvedDialogueScene & { intervalMinMs: number; intervalMaxMs: number });
@@ -99,7 +99,9 @@ export class DialogueScheduler {
     );
     return {
       scene,
-      animation: config.animation,
+      animation: config.animations?.length
+        ? config.animations[Math.floor(this.#unitRandom() * config.animations.length)]!
+        : config.animation,
       line: config.lines[index]!,
       durationMs: config.durationMs,
     };

@@ -91,3 +91,11 @@ Configure `dialogue.click` and `dialogue.idle` to enable those sentences; an
 animation-only click configuration intentionally has no invented dialogue.
 Hidden/paused models dismiss bubbles. Reduced-motion entry still displays text
 and expires without starting a continuous render loop.
+
+Keep `ambient.animations: ["Idle"]` for the continuous base loop. Occasional
+gestures belong in `dialogue.idle`, with `animation: "Yawn"`, optional
+`animations: ["Yawn", "Stretch"]`, sentence lines and interval limits. Click
+dialogue uses the same pool selection. Without dialogue, use
+`interactions.click: { animations: ["Wave", "Nod"] }` for animation-only clicks.
+Each trigger plays one clip once, then the configured base loop resumes. A
+static clip remains a static pose; author entry/exit in its VRMA for a gesture.

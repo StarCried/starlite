@@ -12,3 +12,8 @@ explicitly with an available animation and text lines. DSH state text and privac
 selection remain application responsibilities and are already backend-neutral.
 The shared bubble selector is `.model-widget__bubble`, with `data-model-scene`
 and `data-model-placement` attributes.
+
+Dialogue scenes accept an optional `animations: ["Wave", "Nod"]` pool beside
+their existing `animation` and `lines`. Each trigger independently chooses one
+clip and one sentence. Both backends validate every exact clip name; pools have
+1–20 distinct entries. Omit the pool to retain the single-clip behavior.

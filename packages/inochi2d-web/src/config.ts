@@ -390,6 +390,9 @@ function resolveDialogueScene(
       `${field}.animation ${JSON.stringify(animation)} is not present in the validated model animations`,
     );
   }
+  if (input.animations !== undefined && (!Array.isArray(input.animations) || input.animations.length < 1 || input.animations.length > 20 || new Set(input.animations).size !== input.animations.length || input.animations.some(name => typeof name !== "string" || !animations.has(name)))) {
+    throw new Error(`${field}.animations must contain 1..=20 distinct validated animation names`);
+  }
   if (
     !Array.isArray(input.lines) ||
     input.lines.length < 1 ||
@@ -412,6 +415,7 @@ function resolveDialogueScene(
   });
   return {
     animation,
+    ...(input.animations ? { animations: [...input.animations] } : {}),
     lines,
     durationMs: bounded(
       input.durationMs,

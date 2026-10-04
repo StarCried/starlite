@@ -26,12 +26,12 @@ export interface VrmWidgetConfig {
   gaze?: { maxYawDegrees?: number; maxPitchDegrees?: number; smoothingMs?: number };
   mobile?: { show?: boolean; breakpoint?: number };
   network?: { requestTimeoutMs?: number; modelMaxBytes?: number };
-  interactions?: { pointer?: boolean; click?: false | { animation?: string }; drag?: boolean };
+  interactions?: { pointer?: boolean; click?: false | { animation?: string; animations?: readonly string[] }; drag?: boolean };
   ambient?: { animations?: readonly string[] };
   dialogue?: {
-    enter?: false | { animation: string; lines: readonly string[]; durationMs?: number; delayMs?: number };
-    idle?: false | { animation: string; lines: readonly string[]; durationMs?: number; intervalMinMs?: number; intervalMaxMs?: number };
-    click?: false | { animation: string; lines: readonly string[]; durationMs?: number };
+    enter?: false | { animation: string; animations?: readonly string[]; lines: readonly string[]; durationMs?: number; delayMs?: number };
+    idle?: false | { animation: string; animations?: readonly string[]; lines: readonly string[]; durationMs?: number; intervalMinMs?: number; intervalMaxMs?: number };
+    click?: false | { animation: string; animations?: readonly string[]; lines: readonly string[]; durationMs?: number };
   };
 }
 export interface VrmDiagnostics {

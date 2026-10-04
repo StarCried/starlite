@@ -286,7 +286,11 @@ class Controller implements VrmController {
       if (!clicked) return;
       const action = this.#dialogue.triggerClick(this.#elapsed * 1000);
       if (action) this.#showDialogue(action);
-      else if (this.#config.interactions?.click) void this.playAnimation(this.#config.interactions.click.animation!, { mode: "once", restart: true });
+      else if (this.#config.interactions?.click) {
+        const click = this.#config.interactions.click;
+        const names = click.animations ?? [click.animation!];
+        void this.playAnimation(names[Math.floor(Math.random() * names.length)]!, { mode: "once", restart: true });
+      }
     });
     on(window, "pointercancel", () => { down = undefined; });
     this.#resizeObserver = new ResizeObserver(() => this.resetCamera()); this.#resizeObserver.observe(this.#host);

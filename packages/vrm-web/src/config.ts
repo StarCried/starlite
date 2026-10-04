@@ -29,9 +29,11 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   for (const name of config.ambient?.animations ?? []) if (!names.has(name)) throw new Error(`unknown ambient animation: ${name}`);
   if ((config.ambient?.animations?.length ?? 0) > 1) throw new Error("VRM supports one explicitly configured ambient clip");
   const click = config.interactions?.click;
-  if (click && (!click.animation || !names.has(click.animation))) throw new Error("Click must name an available animation");
+  const pool = (value: unknown): boolean => Array.isArray(value) && value.length > 0 && value.length <= 20 && new Set(value).size === value.length && value.every(name => typeof name === "string" && names.has(name));
+  if (click && (click.animations !== undefined ? !pool(click.animations) : !click.animation || !names.has(click.animation))) throw new Error("Click must name available animations");
   for (const scene of Object.values(config.dialogue ?? {})) {
     if (!scene) continue;
+    if (scene.animations !== undefined && !pool(scene.animations)) throw new Error("invalid dialogue animation pool");
     if (!names.has(scene.animation) || !Array.isArray(scene.lines) || !scene.lines.length || scene.lines.some((line) => typeof line !== "string" || line.length > 2000)) throw new Error("invalid dialogue scene");
   }
   if (config.profile && typeof config.profile !== "string") validateCharacterProfile(config.profile);
