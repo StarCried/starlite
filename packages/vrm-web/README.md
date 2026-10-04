@@ -35,7 +35,7 @@ gaze angles. These are not performance claims.
 Build `model-widget-core` and this package, then run the private example with
 `node examples/vrm/server.mjs --assets /path/to/companion-assets` from the workspace.
 Only loopback is served. Assets remain outside the repository and package.
-The preview has eight-action, repeated mount and 15-minute idle checks; reports
+The preview checks every declared action, repeated mounts and 15 minutes idle; reports
 are written under the explicitly supplied private asset directory's `qa` folder.
 
 `readPreparedBundleSync` exposes the same manifest validation for synchronous

@@ -5,8 +5,8 @@
 <script type="module">
 import {mountModelWidget} from '/runtime/index.js';
 let controller,abort,generation=0;
-const labels={Idle:'待机',Thinking:'思考',Working:'工作',Blocked:'阻塞',Approval:'等待批准',Completed:'完成',Error:'错误',Click:'打招呼'};
-const loops=new Set(['Idle','Thinking','Working','Blocked','Approval']);
+const labels={Idle:'待机',Working:'工作',Blocked:'阻塞',Approval:'等待批准',Completed:'完成',Error:'错误'};
+const loops=new Set(['Idle']);
 async function mount(variant=document.querySelector('#variant').value,fps=Number(document.querySelector('#fps').value)) {
  const current=++generation;abort?.abort();controller?.destroy();abort=new AbortController();
  const config=await(await fetch(`/config.json?variant=${variant}&fps=${fps}`)).json();
@@ -15,7 +15,6 @@ async function mount(variant=document.querySelector('#variant').value,fps=Number
  document.querySelector('#status').textContent=next.status==='running'?'模型已就绪':'模型状态：'+next.status;
  document.querySelector('#actions').replaceChildren(...next.getAnimations().map(a=>{const b=document.createElement('button');b.textContent=labels[a.name]??a.name;b.onclick=()=>void next.playAnimation(a.name,{mode:loops.has(a.name)?'loop':'once',restart:true});return b}));
  document.querySelector("#expression").replaceChildren(...["",...next.getExpressions()].map(name=>new Option(name||"自然",name)));
- if(next.status==='running') void next.playAnimation('Idle',{mode:'loop'});
  return next;
 }
 document.querySelector('#model').addEventListener('model-error',e=>{document.querySelector('#status').textContent=e.detail;console.error(e.detail)});

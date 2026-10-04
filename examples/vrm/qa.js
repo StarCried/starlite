@@ -30,7 +30,10 @@ async function run(kind){
     const once=c.playAnimation(a.name,{mode:'once',restart:true});await delay(a.durationMs+300);
     assert(await once==='completed','single clip did not complete');report.checks.push(a.name);
    }
-   const click=c.playAnimation('Click',{mode:'once'});const working=c.playAnimation('Working',{mode:'loop'});assert(await click==='interrupted','click interruption');c.stopAnimation();assert(await working==='stopped','working stop');
+   const response=c.getAnimations().find(a=>a.name.startsWith('Click'));
+   if(response&&c.getAnimations().some(a=>a.name==='Working')){
+    const click=c.playAnimation(response.name,{mode:'once'});const working=c.playAnimation('Working',{mode:'once'});assert(await click==='interrupted','click interruption');c.stopAnimation();assert(await working==='stopped','working stop');
+   }
    for(let i=0;i<20;i++){
     output.textContent=`挂载检查 ${i+1} / 20`;const old=c;c=await mount('desktop',30);old.destroy();old.destroy();assert(c.status==='running','remount failed');assert(document.querySelectorAll('#model canvas').length===1,'duplicate canvas');await delay(100);report.samples.push({cycle:i+1,...measure(c)});
    }
@@ -50,7 +53,7 @@ async function gallery(){
  try{const c=window.preview.controller;document.querySelector('#gallery')?.remove();
  const section=document.createElement('section');section.id='gallery';section.style.cssText='position:absolute;top:100vh;left:0;right:0;display:flex;flex-wrap:wrap;padding:24px;gap:12px;background:#101c2a';document.body.append(section);
  for(const a of c.getAnimations()){output.textContent='姿态预览：'+a.name;c.resume();void c.playAnimation(a.name,{mode:'loop',restart:true});await delay(a.durationMs/2);c.pause();const item=document.createElement('figure');item.style.margin='0';const img=new Image();img.src=c.captureFrame();img.alt=a.name;img.style.cssText='width:220px;height:330px;background:#26384c';const label=document.createElement('figcaption');label.textContent=a.name;item.append(img,label);section.append(item)}
- c.stopAnimation();c.resume();output.textContent='八种动作预览已生成';
+ c.stopAnimation();c.resume();output.textContent='全部已配置动作预览已生成';
  }finally{busy=false}
 }
 document.querySelector('#gallery-button').onclick=gallery;

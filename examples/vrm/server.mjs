@@ -24,7 +24,7 @@ const server=createServer(async(req,res)=>{
     if(url.pathname==="/config.json") {
       const variant=url.searchParams.get("variant")==="blog"?"blog":"desktop";
       const manifest=JSON.parse(await readFile(resolve(assets,variant,"manifest.json"),"utf8"));
-      const config={backend:"vrm",model:url.searchParams.get("variant")==="original"&&original?"/original.vrm":`/assets/${variant}/Weiguang.vrm`,fallback:"data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",profile:"/assets/profile.json",animations:manifest.animations.map(a=>({name:a.name,url:`/assets/motions/${a.name}.vrma`})),display:{width:480,height:720},render:{fps:Number(url.searchParams.get("fps"))===60?60:30,maxDevicePixelRatio:1.5,autoFit:true},mobile:{show:true},interactions:{pointer:true,click:false,drag:false}};
+      const config={backend:"vrm",model:url.searchParams.get("variant")==="original"&&original?"/original.vrm":`/assets/${variant}/${manifest.model.file}`,fallback:"data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",...(manifest.profile?{profile:`/assets/${variant}/${manifest.profile.file}`} : {}),animations:manifest.animations.map(a=>({name:a.name,url:`/assets/${variant}/${a.file}`})),ambient:{animations:typeof manifest.mappings?.idle==="string"?[manifest.mappings.idle]:[]},display:{width:480,height:720},render:{fps:Number(url.searchParams.get("fps"))===60?60:30,maxDevicePixelRatio:1.5,fitPadding:.92},camera:{yawDegrees:0,pitchDegrees:5,fovDegrees:20,targetHeight:.54},mobile:{show:true},interactions:{pointer:true,click:false,drag:false}};
       res.setHeader("Content-Type","application/json");res.end(JSON.stringify(config));return;
     }
     let path;
