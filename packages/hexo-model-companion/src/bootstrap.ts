@@ -120,8 +120,8 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     media.addEventListener("change", () => state.scheduleMount());
     state.listenerBound = true;
   }
-  if (document.readyState === "complete") scheduleMount();
-  else globalThis.addEventListener("load", scheduleMount, {once:true});
+  if (document.readyState !== "loading") scheduleMount();
+  else document.addEventListener("DOMContentLoaded", scheduleMount, {once:true});
 })(${serialized});`;
 }
 

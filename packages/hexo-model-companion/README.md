@@ -111,8 +111,9 @@ configuration confirmation cannot override a private manifest. The blog model
 limit is 8 MiB. Static fallback URLs remain site-owned configuration. Only the
 selected renderer is emitted; VRM pages do not ship the Inochi2D WASM.
 
-The bootstrap waits for document load, then an idle opportunity (up to 2 seconds
-on browsers with requestIdleCallback). Mobile exits before dynamic import or
+The bootstrap waits until the document has been parsed, then an idle opportunity
+(up to 2 seconds on browsers with requestIdleCallback). Pending third-party
+statistics or other resources do not block the widget. Mobile exits before dynamic import or
 model fetch. PJAX reattaches the original host even when a theme replaces its
 parent, preserving the canvas, pending load and controller. Switching to a mobile
 viewport cancels loading and removes the model; returning to desktop can mount it.

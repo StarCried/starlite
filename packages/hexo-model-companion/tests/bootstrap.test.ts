@@ -15,9 +15,14 @@ function harness(mobile=false,ready="complete",entered=false) {
  new Function("globalThis","document","load",source)(win,win.document,load);
  return {win,media,idle,load,mount,controller,run:async()=>{idle.shift()?.();await tick()}};
 }
-it("waits for the page load and idle opportunity",async()=>{
+it("waits for document parsing and an idle opportunity",async()=>{
  const h=harness(false,"loading");expect(h.idle).toHaveLength(0);expect(h.load).not.toHaveBeenCalled();
- h.win.dispatchEvent(new h.win.Event("load"));expect(h.load).not.toHaveBeenCalled();await h.run();expect(h.mount).toHaveBeenCalledOnce();await h.win.happyDOM.close();
+ h.win.document.dispatchEvent(new h.win.Event("DOMContentLoaded"));expect(h.load).not.toHaveBeenCalled();await h.run();expect(h.mount).toHaveBeenCalledOnce();await h.win.happyDOM.close();
+});
+it("does not wait for pending third-party resources after the body is ready",async()=>{
+ const h=harness(false,"interactive");expect(h.idle).toHaveLength(1);expect(h.load).not.toHaveBeenCalled();
+ await h.run();expect(h.mount).toHaveBeenCalledOnce();
+ h.win.dispatchEvent(new h.win.Event("load"));expect(h.idle).toHaveLength(0);expect(h.mount).toHaveBeenCalledOnce();await h.win.happyDOM.close();
 });
 it("mobile never imports runtime or mounts a model",async()=>{
  const h=harness(true);await h.run();expect(h.load).not.toHaveBeenCalled();expect(h.win.document.querySelectorAll("[data-inochi2d-widget-host]")).toHaveLength(0);await h.win.happyDOM.close();
