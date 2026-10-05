@@ -17,3 +17,4 @@ for (const filename of ["inochi2d.wasm"]) {
 
 // Keep the shared scheduler inside the browser distribution: no bare npm imports.
 await build({ entryPoints: [resolve(packageRoot,"src/dialogue.ts")], outfile: resolve(packageRoot,"dist/dialogue.js"), bundle: true, format: "esm", platform: "browser", target: "es2022" });
+await build({ entryPoints: [resolve(packageRoot,"src/hit-mask.ts")], outfile: resolve(packageRoot,"dist/hit-mask.js"), bundle: true, format: "esm", platform: "browser", target: "es2022" });

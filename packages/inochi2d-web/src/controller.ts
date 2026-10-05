@@ -1,7 +1,7 @@
 import { animationDurationMs, AnimationPlayer } from "./animation.js";
 import { applyAmbientParameterOscillators } from "./ambient.js";
 import { resolveConfig } from "./config.js";
-import { RenderedHitMask, type ModelHitMaskListener } from "model-widget-core";
+import { RenderedHitMask, type ModelHitMaskListener } from "./hit-mask.js";
 import {
   type DialogueAction,
   DialogueScheduler,
