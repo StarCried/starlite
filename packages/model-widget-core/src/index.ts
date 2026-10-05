@@ -3,6 +3,8 @@ export type WidgetStatus = "disabled" | "loading" | "running" | "paused" | "fall
 export type AnimationPlaybackResult = "completed" | "interrupted" | "stopped";
 export interface AnimationPlaybackOptions { mode?: "once" | "loop"; restart?: boolean }
 export interface ModelAnimationInfo { name: string; durationMs: number }
+import type { ModelHitMaskListener } from "./hit-mask.js";
+export { RenderedHitMask, packAlphaMask, type ModelHitMask, type ModelHitMaskListener } from "./hit-mask.js";
 export interface ModelController {
   readonly status: WidgetStatus;
   pause(): void;
@@ -11,6 +13,8 @@ export interface ModelController {
   playAnimation(name: string, options?: AnimationPlaybackOptions): Promise<AnimationPlaybackResult>;
   stopAnimation(): void;
   resetCamera(): void;
+  observeInteractionMask(listener?: ModelHitMaskListener): void;
+  setPointerPosition(clientX: number, clientY: number): void;
   destroy(): void;
 }
 export interface MountOptions { signal?: AbortSignal }

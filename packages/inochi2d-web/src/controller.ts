@@ -1,6 +1,7 @@
 import { animationDurationMs, AnimationPlayer } from "./animation.js";
 import { applyAmbientParameterOscillators } from "./ambient.js";
 import { resolveConfig } from "./config.js";
+import { RenderedHitMask, type ModelHitMaskListener } from "model-widget-core";
 import {
   type DialogueAction,
   DialogueScheduler,
@@ -91,6 +92,8 @@ class DisabledController implements WidgetController {
   setParameter(_id: string, _value: ManualValue): void {}
 
   resetCamera(): void {}
+  observeInteractionMask(listener?: ModelHitMaskListener): void { listener?.(undefined); }
+  setPointerPosition(_clientX: number, _clientY: number): void {}
 
   destroy(): void {
     this.#status = "destroyed";
@@ -103,6 +106,7 @@ class ActiveController implements WidgetController {
   readonly #config: ResolvedWidgetConfig;
   readonly #dependencies: WidgetDependencies;
   readonly #canvas: HTMLCanvasElement;
+  readonly #hitMask = new RenderedHitMask();
   readonly #fallback: HTMLImageElement;
   readonly #bubble: DialogueBubble;
   readonly #motion: MotionMixer;
@@ -315,12 +319,33 @@ class ActiveController implements WidgetController {
     this.#positionBubble();
   }
 
+  observeInteractionMask(listener?: ModelHitMaskListener): void {
+    this.#hitMask.setListener(this.#status === "destroyed" ? undefined : listener);
+    if (listener && this.#runtime && (this.#status === "running" || this.#status === "paused")) {
+      this.#runtime.renderFrame(performance.now());
+      this.#hitMask.capture(this.#canvas, performance.now());
+    }
+  }
+
+  setPointerPosition(clientX: number, clientY: number): void {
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY) || !this.#config.interactions.pointer || this.#status !== "running") return;
+    const bounds = this.#canvas.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    const viewportWidth = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
+    const viewportHeight = Math.max(1, document.documentElement.clientHeight || window.innerHeight);
+    this.#motion.setPointer(
+      (clientX - (bounds.left + bounds.width / 2)) / (viewportWidth * .4),
+      (clientY - (bounds.top + bounds.height / 2)) / (viewportHeight * .4),
+    );
+  }
+
   destroy(): void {
     if (this.#status === "destroyed") {
       return;
     }
     this.#stopFrame();
     this.#animations.stop();
+    this.#hitMask.destroy();
     this.#hideBubble();
     this.#resizeObserver?.disconnect();
     for (const remove of this.#removeListeners.splice(0)) {
@@ -422,26 +447,7 @@ class ActiveController implements WidgetController {
 
   #handlePointerMove(event: PointerEvent): void {
     const bounds = this.#canvas.getBoundingClientRect();
-    if (
-      this.#config.interactions.pointer &&
-      bounds.width > 0 &&
-      bounds.height > 0
-    ) {
-      const viewportWidth = Math.max(
-        1,
-        document.documentElement.clientWidth || window.innerWidth,
-      );
-      const viewportHeight = Math.max(
-        1,
-        document.documentElement.clientHeight || window.innerHeight,
-      );
-      this.#motion.setPointer(
-        (event.clientX - (bounds.left + bounds.width / 2)) /
-          (viewportWidth * 0.4),
-        (event.clientY - (bounds.top + bounds.height / 2)) /
-          (viewportHeight * 0.4),
-      );
-    }
+    this.setPointerPosition(event.clientX, event.clientY);
     if (this.#dragOrigin && event.pointerId === this.#dragOrigin.pointerId) {
       const deltaX = event.clientX - this.#dragOrigin.pointerX;
       const deltaY = event.clientY - this.#dragOrigin.pointerY;
@@ -706,6 +712,7 @@ class ActiveController implements WidgetController {
         this.#setRuntimeParameter(id, value);
       }
       this.#runtime.renderFrame(timestamp);
+      this.#hitMask.capture(this.#canvas, performance.now());
       if (!this.#modelRendered) {
         this.#modelRendered = true;
         // Reduced-motion mode renders only one neutral frame. Show the enter
@@ -779,6 +786,7 @@ class ActiveController implements WidgetController {
       return;
     }
     this.#stopFrame();
+    this.#hitMask.clear();
     this.#animations.stop();
     this.#hideBubble();
     this.#releaseRuntime();
