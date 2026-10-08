@@ -15,6 +15,8 @@ export interface ModelController {
   resetCamera(): void;
   observeInteractionMask(listener?: ModelHitMaskListener): void;
   setPointerPosition(clientX: number, clientY: number): void;
+  /** Optional host-movement capability. Coordinates are CSS pixels, local only. */
+  setHostPosition?(x: number, y: number): void;
   destroy(): void;
 }
 export interface MountOptions { signal?: AbortSignal }

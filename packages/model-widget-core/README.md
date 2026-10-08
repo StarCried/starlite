@@ -29,3 +29,8 @@ Pausing retains the last visible silhouette; failed rendering and destruction
 clear it. Native hosts must handle window-level mouse passthrough themselves.
 `setPointerPosition(x, y)` accepts finite viewport-relative CSS coordinates,
 including points outside the window, for bounded global desktop gaze tracking.
+
+Backends with movement-sensitive physics may expose `setHostPosition(x, y)`.
+Hosts supply screen positions in CSS pixels, including an initial position before
+movement. This optional capability does not change animation/state protocols.
+Coordinates stay in memory and are never logged or sent to a status service.
