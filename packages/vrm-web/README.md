@@ -74,6 +74,18 @@ each frame. `render.fitPadding` reserves an edge margin. `render.autoFit: false`
 disables gesture framing for hosts that supply their own camera framing.
 Check all clips visually, including physics and transitions, before acceptance.
 
+### Moving the host
+
+`setHostPosition(x, y)` accepts local screen positions in CSS pixels. The first
+sample establishes a baseline. Subsequent movement feeds a bounded virtual world
+translation into the VRM spring solver, including avatar-relative spring centers;
+the translation is removed before rendering. This produces inertia in imported
+hair/ears/tails without moving the character inside its canvas or adding fake
+bone rotations. Web dragging calls it automatically. Native hosts must forward
+window movement themselves. Pausing clears pending motion; resuming never applies
+movement accumulated while hidden. Models without spring bones remain stationary.
+The coordinates stay in memory and never cross a network or status protocol.
+
 ### Pointer gaze and dialogue
 
 Pointer following uses the actual head position and the portrait camera, with

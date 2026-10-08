@@ -8,6 +8,7 @@ import { parseGlb, inspectVrma, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { VrmAnimationPlayer } from "./playback.js";
 import { visibleModelBounds, framePortrait, MotionFraming } from "./camera.js";
 import { PoseBounds } from "./pose-bounds.js";
+import { HostMotion } from "./host-motion.js";
 import { PointerGaze } from "./gaze.js";
 import { CharacterBehavior } from "./character.js";
 import type { CharacterProfile, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
@@ -49,6 +50,7 @@ class Controller implements VrmController {
   #neutral: VRMPose | undefined;
   #portraitBounds: THREE.Box3 | undefined;
   #poseBounds: PoseBounds | undefined;
+  #hostMotion: HostMotion | undefined;
   readonly #motionBounds = new THREE.Box3();
   readonly #projected = new THREE.Vector3();
   readonly #framing = new MotionFraming();
@@ -157,6 +159,7 @@ class Controller implements VrmController {
       light.position.set(-3, 4, 2); this.#scene.add(light);
       vrm.humanoid.update(); this.#portraitBounds = visibleModelBounds(vrm.scene);
       this.#poseBounds = new PoseBounds(vrm.scene);
+      this.#hostMotion = new HostMotion(vrm.scene, vrm.springBoneManager);
       this.#resize(); this.#bind(); this.#startAmbient();
       this.#dialogue.start(0, this.#reduced.matches);
       this.#tick(0); this.#stats.loadMs = performance.now() - started; this.#sync();
@@ -196,6 +199,9 @@ class Controller implements VrmController {
     if (!(this.#config.interactions?.pointer ?? true) || this.#status !== "running") return;
     this.#gaze.move(clientX, clientY, this.#host.getBoundingClientRect(), { width: innerWidth, height: innerHeight });
   }
+  setHostPosition(x: number, y: number): void {
+    if (this.#status === "running") this.#hostMotion?.setPosition(x, y);
+  }
   captureFrame(): string {
     if (!this.#renderer || !this.#vrm) throw new Error("model is not ready");
     this.#renderer.render(this.#scene, this.#camera);
@@ -224,7 +230,7 @@ class Controller implements VrmController {
   }
   #sync(): void {
     if (this.#status === "destroyed" || this.#status === "fallback" || this.#status === "disabled" || !this.#renderer) return;
-    if (this.#paused || document.visibilityState !== "visible") { this.#bubble.hide(); this.#gaze.reset(); }
+    if (this.#paused || document.visibilityState !== "visible") { this.#bubble.hide(); this.#gaze.reset(); this.#hostMotion?.suspend(); }
     const paused = this.#paused || document.visibilityState !== "visible" || this.#reduced.matches;
     this.#stopFrame(); this.#setStatus(paused ? "paused" : "running");
     if (!paused) this.#schedule();
@@ -273,7 +279,8 @@ class Controller implements VrmController {
     }
     this.#character?.beforeExpressions(delta, this.#player?.hasBlinkTrack); vrm.expressionManager?.update();
     this.#character?.afterExpressions();
-    vrm.nodeConstraintManager?.update(); vrm.springBoneManager?.update(delta);
+    vrm.nodeConstraintManager?.update();
+    this.#hostMotion?.update(delta, this.#camera, this.#host.getBoundingClientRect().height || 480);
     for (const material of vrm.materials ?? []) (material as THREE.Material & { update?: (delta: number) => void }).update?.(delta);
     if (this.#config.render?.autoFit !== false) {
       const bounds = this.#foregroundActive() ? this.#poseBounds?.measure(vrm.scene, this.#motionBounds) : undefined;
@@ -317,12 +324,14 @@ class Controller implements VrmController {
     on(document, "pointerout", (event) => { if (!(event as PointerEvent).relatedTarget) this.#gaze.reset(); });
     on(window, "blur", () => this.#gaze.reset());
     let down: { id: number; x: number; y: number; left: number; top: number; moved: boolean } | undefined;
-    on(this.#canvas, "pointerdown", (event) => { const p = event as PointerEvent; if (p.button !== 0) return; const r = this.#host.getBoundingClientRect(); down = { id: p.pointerId, x: p.clientX, y: p.clientY, left: r.left, top: r.top, moved: false }; });
+    on(this.#canvas, "pointerdown", (event) => { const p = event as PointerEvent; if (p.button !== 0) return; const r = this.#host.getBoundingClientRect(); down = { id: p.pointerId, x: p.clientX, y: p.clientY, left: r.left, top: r.top, moved: false }; if (this.#config.interactions?.drag) this.setHostPosition(r.left, r.top); });
     on(window, "pointermove", (event) => {
       const p = event as PointerEvent; if (!down || down.id !== p.pointerId) return;
       const dx = p.clientX - down.x, dy = p.clientY - down.y; down.moved ||= Math.hypot(dx, dy) > 5;
       if (!this.#config.interactions?.drag || !down.moved) return;
-      Object.assign(this.#host.style, { position: "fixed", right: "auto", bottom: "auto", left: `${Math.max(0, Math.min(innerWidth - this.#host.offsetWidth, down.left + dx))}px`, top: `${Math.max(0, Math.min(innerHeight - this.#host.offsetHeight, down.top + dy))}px` });
+      const left = Math.max(0, Math.min(innerWidth - this.#host.offsetWidth, down.left + dx)), top = Math.max(0, Math.min(innerHeight - this.#host.offsetHeight, down.top + dy));
+      Object.assign(this.#host.style, { position: "fixed", right: "auto", bottom: "auto", left: `${left}px`, top: `${top}px` });
+      this.setHostPosition(left, top);
       this.#bubble.position();
     });
     on(window, "pointerup", (event) => {
@@ -344,7 +353,7 @@ class Controller implements VrmController {
   #setStatus(status: WidgetStatus): void { this.#status = status; this.#host.dataset.modelStatus = status; }
   #dispose(): void {
     this.#hitMask.clear();
-    this.#bubble.hide(); this.#stopFrame(); this.#player?.destroy(); this.#player = undefined;
+    this.#bubble.hide(); this.#stopFrame(); this.#player?.destroy(); this.#player = undefined; this.#hostMotion?.destroy(); this.#hostMotion = undefined;
     if (this.#vrm) {
       const closed = new Set<object>();
       this.#vrm.scene.traverse((object) => {
