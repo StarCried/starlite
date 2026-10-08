@@ -37,8 +37,9 @@ describe("VRM animation contract", () => {
     player.update(.11);
     expect(await result).toBe("completed"); expect(player.activeName).toBe("Idle");
     expect(root.position.x).toBeCloseTo(3);
+    player.update(.1); expect(root.position.x).toBeCloseTo(2.25);
     player.update(.1); expect(root.position.x).toBeCloseTo(1.5);
-    player.update(.11); expect(root.position.x).toBe(0);
+    player.update(.21); expect(root.position.x).toBe(0);
     expect(player.mixer.stats.actions.inUse).toBe(1);
     player.stop(); expect(player.activeName).toBeUndefined(); expect(root.position.x).toBe(0);
     player.destroy();
@@ -55,8 +56,11 @@ describe("VRM animation contract", () => {
     expect(root.position.x).toBeCloseTo(1);
     const click = player.play("Click");
     expect(await idle).toBe("interrupted"); expect(root.position.x).toBeCloseTo(1);
-    player.update(.1); expect(root.position.x).toBeCloseTo(.6);
-    player.update(.1); expect(root.position.x).toBeCloseTo(.4);
+    player.update(.1); expect(root.position.x).toBeCloseTo(.8);
+    player.update(.1); expect(root.position.x).toBeCloseTo(.7);
+    expect(player.mixer.stats.actions.inUse).toBe(2);
+    player.update(.2); expect(root.position.x).toBeCloseTo(.8);
+    expect(player.mixer.stats.actions.inUse).toBe(1);
     player.stop(); expect(await click).toBe("stopped"); expect(root.position.x).toBe(0);
   });
   it("blends bone rotations as quaternions without a neutral rotation snap", () => {
@@ -66,7 +70,7 @@ describe("VRM animation contract", () => {
     const player = new VrmAnimationPlayer(root, new Map([["first",clip],["second",clip.clone()]]),()=>root.quaternion.identity());
     void player.play("first"); player.update(.5);
     void player.play("second"); expect(root.quaternion.angleTo(raised)).toBeCloseTo(0);
-    player.update(.1); expect(root.quaternion.angleTo(new Quaternion())).toBeCloseTo(Math.PI*.3);
+    player.update(.1); expect(root.quaternion.angleTo(new Quaternion())).toBeCloseTo(Math.PI*.4);
     player.destroy(); expect(root.quaternion.angleTo(new Quaternion())).toBe(0);
   });
   it("captures rapid transitions without accumulating outgoing actions", () => {
@@ -79,7 +83,7 @@ describe("VRM animation contract", () => {
       player.update(.025);
       expect(player.mixer.stats.actions.inUse).toBeLessThanOrEqual(2);
     }
-    player.update(.3); expect(player.mixer.stats.actions.inUse).toBe(1);
+    player.update(.4); expect(player.mixer.stats.actions.inUse).toBe(1);
     player.destroy(); expect(player.mixer.stats.actions.inUse).toBe(0);
   });
   it("samples the authored blink closure and reopening", () => {

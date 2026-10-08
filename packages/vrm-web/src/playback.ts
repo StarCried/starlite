@@ -10,7 +10,7 @@ export class VrmAnimationPlayer {
   #active: { name: string; action: AnimationAction; promise: Promise<AnimationPlaybackResult>; resolve: (result: AnimationPlaybackResult) => void } | undefined;
   #finished = false;
   #transition: { clip: AnimationClip; action: AnimationAction; elapsed: number } | undefined;
-  static readonly transitionSeconds = .2;
+  static readonly transitionSeconds = .4;
   constructor(root: Object3D, clips: ReadonlyMap<string, AnimationClip>, restore: () => void, returnTo?: string) {
     if (returnTo && !clips.has(returnTo)) throw new Error(`return animation does not exist: ${returnTo}`);
     this.mixer = new AnimationMixer(root); this.#clips = clips; this.#restore = restore; this.#returnTo = returnTo;
