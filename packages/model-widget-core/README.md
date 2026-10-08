@@ -12,6 +12,8 @@ explicitly with an available animation and text lines. DSH state text and privac
 selection remain application responsibilities and are already backend-neutral.
 The shared bubble selector is `.model-widget__bubble`, with `data-model-scene`
 and `data-model-placement` attributes.
+Long sentences keep their visible prefix within three lines and show an ellipsis
+at overflow. Text fades in on a new scene and respects reduced-motion settings.
 
 Dialogue scenes accept an optional `animations: ["Wave", "Nod"]` pool beside
 their existing `animation` and `lines`. Each trigger independently chooses one

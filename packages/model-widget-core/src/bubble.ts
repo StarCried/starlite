@@ -17,7 +17,10 @@ export class DialogueBubble {
   }
   show(action: DialogueAction, timestamp: number, withoutFrames = false): void {
     this.hide();
-    this.element.textContent = action.line;
+    const content = document.createElement("span");
+    content.className = "model-widget__bubble-text";
+    content.textContent = action.line;
+    this.element.replaceChildren(content);
     this.element.dataset.modelScene = action.scene;
     this.element.hidden = false;
     this.#until = timestamp + action.durationMs;
