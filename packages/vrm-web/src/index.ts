@@ -253,12 +253,15 @@ class Controller implements VrmController {
     const action = this.#dialogue.poll(this.#elapsed * 1000, this.#foregroundActive());
     if (action) this.#showDialogue(action);
     this.#bubble.update(this.#elapsed * 1000);
-    // Pointer following is a bounded additive layer over every body animation.
-    // Exported look-at tracks (including constant ones) must not disable it.
-    const authoredGaze = this.#config.interactions?.pointer === false;
+    // Only the base Idle pose follows the pointer. Foreground gestures retain
+    // their authored head/eye direction, including constant look-at tracks.
+    const authoredGaze = this.#config.interactions?.pointer === false || this.#foregroundActive();
     this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#camera, delta, authoredGaze);
     vrm.humanoid.update();
     if (vrm.lookAt) {
+      if (authoredGaze && !this.#player?.hasLookAtTrack) {
+        vrm.lookAt.yaw = 0; vrm.lookAt.pitch = 0;
+      }
       this.#gaze.update(vrm.lookAt, this.#camera, delta, authoredGaze);
       vrm.lookAt.update(delta);
     }

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
+import { VRMLookAt, type VRMHumanoid } from "@pixiv/three-vrm";
 import { mountModelWidget } from "../src/index.js";
 import { validateVrmWidgetConfig } from "../src/config.js";
 import { mountWithDependencies } from "../../inochi2d-web/src/controller.js";
@@ -19,7 +20,10 @@ vi.mock("three/addons/loaders/GLTFLoader.js",()=>({GLTFLoader:class {
   if(bytes.byteLength===1)return {userData:{vrmAnimations:[{}]}};
   if(rejectTexture)this.manager.itemError("blob:blocked-texture");
   scene=new THREE.Scene();const mesh=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial());mesh.name="body";scene.add(mesh);
-  return {scene,userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[],humanoid:{getNormalizedBoneNode:()=>null,getNormalizedPose:()=>({}),setNormalizedPose:()=>{mesh.position.x=0},update:()=>{}},expressionManager:{resetValues(){},expressions:[],setValue(){},update(){}}}}};
+  const head=new THREE.Object3D();head.position.y=.4;scene.add(head);
+  const humanoid={getNormalizedBoneNode:()=>head,getRawBoneNode:()=>head,getNormalizedPose:()=>({}),setNormalizedPose:()=>{mesh.position.x=0;head.quaternion.identity()},update:()=>{}};
+  const lookAt=new VRMLookAt(humanoid as unknown as VRMHumanoid,{applyYawPitch(){}});
+  return {scene,userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[],humanoid,lookAt,expressionManager:{resetValues(){},expressions:[],setValue(){},update(){}}}}};
  }
 }}));
 vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));
@@ -148,4 +152,26 @@ it('does not restart a click response when clicked again before it finishes',asy
 it('rejects missing, duplicate and empty animation pools before loading',()=>{
  const config={model:'test.vrm',fallback:'fallback.png',animations:[{name:'Action',url:'a.vrma'}]};
  for(const animations of [[],['Missing'],['Action','Action']])expect(()=>validateVrmWidgetConfig({...config,dialogue:{click:{animation:'Action',animations,lines:['Hi']}}})).toThrow('pool');
+});
+
+it('suspends both head and eye pointer following throughout a gesture, then resumes in Idle',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ vi.spyOn(host,'getBoundingClientRect').mockReturnValue(new DOMRect(100,100,320,480));
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},
+  animations:[{name:'Idle',url:'idle.vrma'},{name:'Gesture',url:'gesture.vrma'}],ambient:{animations:['Idle']}});resources.push(c);
+ c.setPointerPosition(10000,-10000);advance(400);
+ const idle=c.diagnostics().gaze!;
+ expect(Math.abs(idle.headYawDegrees)).toBeGreaterThan(1);expect(Math.abs(idle.yawDegrees)).toBeGreaterThan(1);
+ const result=c.playAnimation('Gesture',{mode:'once',restart:true});advance(100);
+ const pose=scene.children[1]!.quaternion.clone();
+ for(const [x,y] of [[-10000,10000],[10000,-10000]]){
+  c.setPointerPosition(x!,y!);advance(300);
+  expect(c.diagnostics().gaze).toEqual({headYawDegrees:0,headPitchDegrees:0,yawDegrees:0,pitchDegrees:0});
+  expect(scene.children[1]!.quaternion.angleTo(pose)).toBeCloseTo(0);
+ }
+ advance(400);await expect(result).resolves.toBe('completed');
+ expect(c.diagnostics().activeAnimation).toBe('Idle');
+ c.setPointerPosition(-10000,10000);advance(400);
+ expect(c.diagnostics().gaze!.headYawDegrees * idle.headYawDegrees).toBeLessThan(0);
+ expect(Math.abs(c.diagnostics().gaze!.yawDegrees)).toBeGreaterThan(1);
 });

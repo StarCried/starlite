@@ -80,8 +80,10 @@ of the eyes, so a small corner widget keeps responding across the article area.
 The normalized head adds up to 60% of those limits (15° yaw / 9° pitch by
 default), then the eyes aim for the remaining angle. The additive head pose is
 removed before each animation sample, so it cannot accumulate or contaminate
-state transitions. Following remains active during foreground gestures, with the
-same smoothing and limits; it adds to the authored head pose.
+state transitions. Following applies to the base Idle loop and neutral preview.
+Foreground gestures suspend head and eye following until they return to Idle.
+Their authored eye direction is preserved; clips without look-at tracks use
+neutral eyes, rather than retaining the previous pointer target.
 Pointer events are captured before page handlers can stop bubbling.
 These bound the look-at input angles; the model's own eye range maps still apply.
 Leaving the page returns gaze toward the camera. `interactions.pointer: false`
