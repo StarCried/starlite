@@ -41,6 +41,7 @@ export interface VrmDiagnostics {
   activeAnimation?: string | null;
   gaze?: { yawDegrees: number; pitchDegrees: number; headYawDegrees: number; headPitchDegrees: number };
   framing?: { distance: number; maxAbsX: number; maxAbsY: number };
+  springPose?: readonly { name: string; rotation: [number, number, number, number] }[];
 }
 export interface VrmController extends ModelController {
  diagnostics(): VrmDiagnostics;

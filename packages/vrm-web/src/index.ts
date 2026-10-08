@@ -207,7 +207,7 @@ class Controller implements VrmController {
     this.#renderer.render(this.#scene, this.#camera);
     return this.#canvas.toDataURL("image/png");
   }
-  diagnostics(): VrmDiagnostics { return { ...this.#stats, activeAnimation: this.#player?.activeName ?? null, gaze: { headYawDegrees: this.#gaze.headAngles.yawDegrees, headPitchDegrees: this.#gaze.headAngles.pitchDegrees, yawDegrees: this.#vrm?.lookAt?.yaw ?? 0, pitchDegrees: this.#vrm?.lookAt?.pitch ?? 0 }, frameTimesMs: [...this.#stats.frameTimesMs], renderCostsMs: [...this.#stats.renderCostsMs] }; }
+  diagnostics(): VrmDiagnostics { return { ...this.#stats, springPose: [...(this.#vrm?.springBoneManager?.joints ?? [])].map(joint => ({ name: joint.bone.name, rotation: joint.bone.quaternion.toArray() })), activeAnimation: this.#player?.activeName ?? null, gaze: { headYawDegrees: this.#gaze.headAngles.yawDegrees, headPitchDegrees: this.#gaze.headAngles.pitchDegrees, yawDegrees: this.#vrm?.lookAt?.yaw ?? 0, pitchDegrees: this.#vrm?.lookAt?.pitch ?? 0 }, frameTimesMs: [...this.#stats.frameTimesMs], renderCostsMs: [...this.#stats.renderCostsMs] }; }
   destroy(): void {
     if (this.#status === "destroyed") return;
     this.#abort.abort(); this.#dispose(); this.#hitMask.destroy();
