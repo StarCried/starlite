@@ -19,9 +19,10 @@ export function visibleModelBounds(root: Object3D): Box3 {
   return bounds;
 }
 
-export function framePortrait(camera: PerspectiveCamera, bounds: Box3, aspect: number, render: VrmWidgetConfig["render"], options: VrmWidgetConfig["camera"]): Vector3 {
+export function framePortrait(camera: PerspectiveCamera, bounds: Box3, aspect: number, render: VrmWidgetConfig["render"], options: VrmWidgetConfig["camera"], anchor?: Vector3): Vector3 {
   const size = bounds.getSize(new Vector3()), target = bounds.getCenter(new Vector3());
   target.y = bounds.min.y + size.y * (options?.targetHeight ?? .5);
+  if (anchor) target.copy(anchor);
   camera.fov = options?.fovDegrees ?? 30; camera.aspect = aspect;
   const yaw = MathUtils.degToRad(options?.yawDegrees ?? 0), pitch = MathUtils.degToRad(options?.pitchDegrees ?? 0);
   const normal = new Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
@@ -35,4 +36,25 @@ export function framePortrait(camera: PerspectiveCamera, bounds: Box3, aspect: n
   camera.position.copy(target).addScaledVector(normal, distance / (render?.initialScale ?? 1));
   camera.lookAt(target); camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
   return target;
+}
+
+/** Keep the portrait target fixed, widening only as a pose requires. Returning
+ * to the base distance is eased; expanding is immediate to avoid clipped limbs. */
+export class MotionFraming {
+  readonly #anchor = new Vector3();
+  #baseDistance = 0;
+  reset(camera: PerspectiveCamera, target: Vector3): void {
+    this.#anchor.copy(target); this.#baseDistance = camera.position.distanceTo(target);
+  }
+  update(camera: PerspectiveCamera, bounds: Box3 | undefined, delta: number, render: VrmWidgetConfig["render"], options: VrmWidgetConfig["camera"]): void {
+    const previous = camera.position.distanceTo(this.#anchor);
+    let required = this.#baseDistance;
+    if (bounds && !bounds.isEmpty()) {
+      framePortrait(camera, bounds, camera.aspect, { ...render, initialScale: 1 }, options, this.#anchor);
+      required = Math.max(required, camera.position.distanceTo(this.#anchor));
+    }
+    const distance = Math.max(required, previous + (required - previous) * (1 - Math.exp(-Math.max(0, delta) / .2)));
+    camera.position.sub(this.#anchor).normalize().multiplyScalar(distance).add(this.#anchor);
+    camera.updateMatrixWorld(true);
+  }
 }

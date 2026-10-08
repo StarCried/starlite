@@ -6,7 +6,8 @@ import { RenderedHitMask, type ModelHitMaskListener, DialogueBubble, DialogueSch
 import { validateCharacterProfile, validateVrmWidgetConfig } from "./config.js";
 import { parseGlb, inspectVrma, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { VrmAnimationPlayer } from "./playback.js";
-import { visibleModelBounds, framePortrait } from "./camera.js";
+import { visibleModelBounds, framePortrait, MotionFraming } from "./camera.js";
+import { PoseBounds } from "./pose-bounds.js";
 import { PointerGaze } from "./gaze.js";
 import { CharacterBehavior } from "./character.js";
 import type { CharacterProfile, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
@@ -47,6 +48,10 @@ class Controller implements VrmController {
   #profile: CharacterProfile | undefined;
   #neutral: VRMPose | undefined;
   #portraitBounds: THREE.Box3 | undefined;
+  #poseBounds: PoseBounds | undefined;
+  readonly #motionBounds = new THREE.Box3();
+  readonly #projected = new THREE.Vector3();
+  readonly #framing = new MotionFraming();
   #resizeObserver: ResizeObserver | undefined;
   #frame: number | undefined;
   #lastTime: number | undefined;
@@ -151,6 +156,7 @@ class Controller implements VrmController {
       // A side key exposes MToon shade bands instead of washing out both sides.
       light.position.set(-3, 4, 2); this.#scene.add(light);
       vrm.humanoid.update(); this.#portraitBounds = visibleModelBounds(vrm.scene);
+      this.#poseBounds = new PoseBounds(vrm.scene);
       this.#resize(); this.#bind(); this.#startAmbient();
       this.#dialogue.start(0, this.#reduced.matches);
       this.#tick(0); this.#stats.loadMs = performance.now() - started; this.#sync();
@@ -269,6 +275,17 @@ class Controller implements VrmController {
     this.#character?.afterExpressions();
     vrm.nodeConstraintManager?.update(); vrm.springBoneManager?.update(delta);
     for (const material of vrm.materials ?? []) (material as THREE.Material & { update?: (delta: number) => void }).update?.(delta);
+    if (this.#config.render?.autoFit !== false) {
+      const bounds = this.#foregroundActive() ? this.#poseBounds?.measure(vrm.scene, this.#motionBounds) : undefined;
+      this.#framing.update(this.#camera, bounds, delta, this.#config.render, this.#config.camera);
+      const measured = bounds ?? this.#portraitBounds;
+      let maxAbsX = 0, maxAbsY = 0;
+      if (measured) for (const x of [measured.min.x, measured.max.x]) for (const y of [measured.min.y, measured.max.y]) for (const z of [measured.min.z, measured.max.z]) {
+        const p = this.#projected.set(x, y, z).project(this.#camera);
+        maxAbsX = Math.max(maxAbsX, Math.abs(p.x)); maxAbsY = Math.max(maxAbsY, Math.abs(p.y));
+      }
+      this.#stats.framing = { distance: this.#camera.position.length(), maxAbsX, maxAbsY };
+    }
     renderer.render(this.#scene, this.#camera);
     this.#hitMask.capture(this.#canvas, performance.now());
     this.#stats.renderedFrames++;
@@ -285,7 +302,8 @@ class Controller implements VrmController {
     this.#renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.#config.render?.maxDevicePixelRatio ?? 1.5));
     this.#renderer.setSize(width, height, false);
     if (!this.#portraitBounds) return;
-    framePortrait(this.#camera, this.#portraitBounds, width / height, this.#config.render, this.#config.camera);
+    const target = framePortrait(this.#camera, this.#portraitBounds, width / height, this.#config.render, this.#config.camera);
+    this.#framing.reset(this.#camera, target);
   }
   #bind(): void {
     const on = (target: EventTarget, event: string, handler: EventListener, capture = false) => { target.addEventListener(event, handler, capture); this.#listeners.push(() => target.removeEventListener(event, handler, capture)); };
@@ -340,7 +358,7 @@ class Controller implements VrmController {
       });
       VRMUtils.deepDispose(this.#vrm.scene); this.#scene.remove(this.#vrm.scene);
     }
-    this.#clips.clear(); this.#character = undefined; this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined;
+    this.#clips.clear(); this.#character = undefined; this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#poseBounds = undefined;
     this.#renderer?.dispose(); this.#renderer?.forceContextLoss(); this.#renderer = undefined;
   }
 }

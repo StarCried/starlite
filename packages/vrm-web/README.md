@@ -65,10 +65,14 @@ white model. Validate the result in the target browser before acceptance.
 `camera: { yawDegrees: -12, pitchDegrees: 3, fovDegrees: 20, targetHeight: 0.53 }`
 configures a mild three-quarter portrait with a longer lens. Omit it for the
 standard frontal camera. `targetHeight` is a fraction of visible model height.
-Fit uses the visible neutral pose once; hidden accessories do not affect the
-frame and viewport resizing does not recenter around the current gesture.
-`render.fitPadding` reserves space for hands. Check all clips visually when
-choosing padding; the neutral bounds cannot predict an arbitrary animation.
+The portrait target uses the visible neutral pose; hidden accessories do not
+affect it. During foreground gestures, conservative bounds follow the skin's
+joint clusters and blended morph offsets. The camera widens as needed without
+chasing the moving hands, then eases back to the chosen Idle distance over 200 ms.
+This transforms one box per influencing joint instead of reskinning every vertex
+each frame. `render.fitPadding` reserves an edge margin. `render.autoFit: false`
+disables gesture framing for hosts that supply their own camera framing.
+Check all clips visually, including physics and transitions, before acceptance.
 
 ### Pointer gaze and dialogue
 
