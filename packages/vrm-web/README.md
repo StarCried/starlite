@@ -66,12 +66,25 @@ white model. Validate the result in the target browser before acceptance.
 configures a mild three-quarter portrait with a longer lens. Omit it for the
 standard frontal camera. `targetHeight` is a fraction of visible model height.
 The portrait target uses the visible neutral pose; hidden accessories do not
-affect it. During foreground gestures, conservative bounds follow the skin's
-joint clusters and blended morph offsets. The camera widens as needed without
-chasing the moving hands, then eases back to the chosen Idle distance over 200 ms.
+affect it. The camera is fitted only when the logical host dimensions change.
+During motion, conservative bounds follow the skin's joint clusters and blended
+morph offsets. Limbs that extend beyond the portrait grow the transparent canvas
+in 32 CSS pixel increments, with an 8 pixel outline margin. The character keeps
+its original screen position and pixel size; the camera does not zoom out.
+Margins remain until the widget is destroyed, including after a return to Idle.
 This transforms one box per influencing joint instead of reskinning every vertex
-each frame. `render.fitPadding` reserves an edge margin. `render.autoFit: false`
-disables gesture framing for hosts that supply their own camera framing.
+each frame. `render.fitPadding` reserves the initial edge margin.
+`render.autoFit: false` disables gesture canvas expansion for hosts that supply
+their own framing. `resetCamera()` preserves the portrait size unless the logical
+host dimensions changed. Pointer gaze and drag inertia use the logical portrait,
+so expanding the surface does not change their scale.
+
+The host emits bubbling `model-viewport-change` events on initial sizing and every
+surface change, with `{ left, top, width, height, baseWidth, baseHeight }` in CSS
+pixels relative to the logical host. Native transparent windows must resize to
+these bounds while compensating their position to preserve the logical portrait's
+screen origin. Destroy emits the original logical bounds. Diagnostics expose the
+same data as `framing.viewport`. Keep overflow visible around the logical host.
 Check all clips visually, including physics and transitions, before acceptance.
 
 ### Moving the host

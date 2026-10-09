@@ -6,7 +6,7 @@ import { RenderedHitMask, type ModelHitMaskListener, DialogueBubble, DialogueSch
 import { validateCharacterProfile, validateVrmWidgetConfig } from "./config.js";
 import { parseGlb, inspectVrma, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { VrmAnimationPlayer } from "./playback.js";
-import { visibleModelBounds, framePortrait, MotionFraming } from "./camera.js";
+import { visibleModelBounds, framePortrait, ExpandedViewport } from "./camera.js";
 import { PoseBounds } from "./pose-bounds.js";
 import { HostMotion } from "./host-motion.js";
 import { PointerGaze } from "./gaze.js";
@@ -34,6 +34,7 @@ class Controller implements VrmController {
   readonly #listeners: (() => void)[] = [];
   readonly #scene = new THREE.Scene();
   readonly #camera = new THREE.PerspectiveCamera(30, 1, .01, 100);
+  readonly #baseCamera = new THREE.PerspectiveCamera(30, 1, .01, 100);
   readonly #gaze: PointerGaze;
   readonly #canvas = document.createElement("canvas");
   readonly #hitMask = new RenderedHitMask();
@@ -53,7 +54,8 @@ class Controller implements VrmController {
   #hostMotion: HostMotion | undefined;
   readonly #motionBounds = new THREE.Box3();
   readonly #projected = new THREE.Vector3();
-  readonly #framing = new MotionFraming();
+  readonly #viewport = new ExpandedViewport();
+  #pixelRatio = 0;
   #resizeObserver: ResizeObserver | undefined;
   #frame: number | undefined;
   #lastTime: number | undefined;
@@ -213,6 +215,9 @@ class Controller implements VrmController {
     this.#abort.abort(); this.#dispose(); this.#hitMask.destroy();
     for (const remove of this.#listeners.splice(0)) remove();
     this.#resizeObserver?.disconnect(); this.#resizeObserver = undefined;
+    const { baseWidth, baseHeight } = this.#viewport.rect;
+    if (baseWidth && baseHeight) this.#host.dispatchEvent(new CustomEvent("model-viewport-change", { bubbles: true,
+      detail: { left: 0, top: 0, width: baseWidth, height: baseHeight, baseWidth, baseHeight } }));
     this.#canvas.remove(); this.#fallback.remove(); this.#bubble.destroy(); this.#host.classList.remove("model-vrm-widget");
     this.#setStatus("destroyed");
   }
@@ -268,31 +273,28 @@ class Controller implements VrmController {
     // Only the base Idle pose follows the pointer. Foreground gestures retain
     // their authored head/eye direction, including constant look-at tracks.
     const authoredGaze = this.#config.interactions?.pointer === false || this.#foregroundActive();
-    this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#camera, delta, authoredGaze);
+    this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#baseCamera, delta, authoredGaze);
     vrm.humanoid.update();
     if (vrm.lookAt) {
       if (authoredGaze && !this.#player?.hasLookAtTrack) {
         vrm.lookAt.yaw = 0; vrm.lookAt.pitch = 0;
       }
-      this.#gaze.update(vrm.lookAt, this.#camera, delta, authoredGaze);
+      this.#gaze.update(vrm.lookAt, this.#baseCamera, delta, authoredGaze);
       vrm.lookAt.update(delta);
     }
     this.#character?.beforeExpressions(delta, this.#player?.hasBlinkTrack); vrm.expressionManager?.update();
     this.#character?.afterExpressions();
     vrm.nodeConstraintManager?.update();
-    this.#hostMotion?.update(delta, this.#camera, this.#host.getBoundingClientRect().height || 480);
+    this.#hostMotion?.update(delta, this.#baseCamera, this.#viewport.rect.baseHeight);
     for (const material of vrm.materials ?? []) (material as THREE.Material & { update?: (delta: number) => void }).update?.(delta);
-    if (this.#config.render?.autoFit !== false) {
-      const bounds = this.#foregroundActive() ? this.#poseBounds?.measure(vrm.scene, this.#motionBounds) : undefined;
-      this.#framing.update(this.#camera, bounds, delta, this.#config.render, this.#config.camera);
-      const measured = bounds ?? this.#portraitBounds;
-      let maxAbsX = 0, maxAbsY = 0;
-      if (measured) for (const x of [measured.min.x, measured.max.x]) for (const y of [measured.min.y, measured.max.y]) for (const z of [measured.min.z, measured.max.z]) {
-        const p = this.#projected.set(x, y, z).project(this.#camera);
-        maxAbsX = Math.max(maxAbsX, Math.abs(p.x)); maxAbsY = Math.max(maxAbsY, Math.abs(p.y));
-      }
-      this.#stats.framing = { distance: this.#camera.position.length(), maxAbsX, maxAbsY };
+    const bounds = this.#poseBounds?.measure(vrm.scene, this.#motionBounds) ?? this.#portraitBounds;
+    if (bounds && this.#config.render?.autoFit !== false && this.#viewport.expand(this.#baseCamera, bounds)) this.#applyViewport();
+    let maxAbsX = 0, maxAbsY = 0;
+    if (bounds) for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+      const p = this.#projected.set(x, y, z).project(this.#camera);
+      maxAbsX = Math.max(maxAbsX, Math.abs(p.x)); maxAbsY = Math.max(maxAbsY, Math.abs(p.y));
     }
+    this.#stats.framing = { distance: this.#camera.position.length(), maxAbsX, maxAbsY, viewport: this.#viewport.rect };
     renderer.render(this.#scene, this.#camera);
     this.#hitMask.capture(this.#canvas, performance.now());
     this.#stats.renderedFrames++;
@@ -306,11 +308,21 @@ class Controller implements VrmController {
     this.#bubble.position();
     if (!this.#renderer || !this.#vrm) return;
     const rect = this.#host.getBoundingClientRect(), width = rect.width || 320, height = rect.height || 480;
-    this.#renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.#config.render?.maxDevicePixelRatio ?? 1.5));
-    this.#renderer.setSize(width, height, false);
-    if (!this.#portraitBounds) return;
-    const target = framePortrait(this.#camera, this.#portraitBounds, width / height, this.#config.render, this.#config.camera);
-    this.#framing.reset(this.#camera, target);
+    const pixelRatio = Math.min(devicePixelRatio || 1, this.#config.render?.maxDevicePixelRatio ?? 1.5);
+    const changed = this.#viewport.resize(width, height);
+    if (!changed && pixelRatio === this.#pixelRatio) return;
+    this.#pixelRatio = pixelRatio; this.#renderer.setPixelRatio(pixelRatio);
+    if (changed && this.#portraitBounds) framePortrait(this.#baseCamera, this.#portraitBounds, width / height, this.#config.render, this.#config.camera);
+    this.#camera.copy(this.#baseCamera);
+    this.#applyViewport();
+  }
+  #applyViewport(): void {
+    if (!this.#renderer) return;
+    const viewport = this.#viewport.rect;
+    this.#viewport.apply(this.#camera);
+    this.#renderer.setSize(viewport.width, viewport.height, false);
+    Object.assign(this.#canvas.style, { left: `${viewport.left}px`, top: `${viewport.top}px`, width: `${viewport.width}px`, height: `${viewport.height}px` });
+    this.#host.dispatchEvent(new CustomEvent("model-viewport-change", { bubbles: true, detail: viewport }));
   }
   #bind(): void {
     const on = (target: EventTarget, event: string, handler: EventListener, capture = false) => { target.addEventListener(event, handler, capture); this.#listeners.push(() => target.removeEventListener(event, handler, capture)); };

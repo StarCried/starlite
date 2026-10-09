@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { Bone, Box3, BoxGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from "three";
-import { framePortrait, visibleModelBounds, MotionFraming } from "../src/camera.js";
+import { framePortrait, visibleModelBounds, ExpandedViewport } from "../src/camera.js";
 import { PoseBounds } from "../src/pose-bounds.js";
 import { validateVrmWidgetConfig } from "../src/config.js";
 
@@ -24,22 +24,32 @@ it("rejects invalid camera values before mounting", () => {
  for (const camera of [{yawDegrees:NaN},{pitchDegrees:90},{fovDegrees:0},{targetHeight:2}]) expect(()=>validateVrmWidgetConfig({model:'model.vrm',fallback:'fallback.png',camera})).toThrow();
 });
 
-it("keeps a raised or inverted pose inside the fixed portrait target, then returns smoothly", () => {
- const camera = new PerspectiveCamera(), base = new Box3(new Vector3(-.4,0,-.2),new Vector3(.4,1.8,.2));
- const render = {fitPadding:.9}, options = {targetHeight:.53,pitchDegrees:5};
- const target = framePortrait(camera,base,2/3,render,options), original = camera.position.clone(), framing = new MotionFraming();
- framing.reset(camera,target);
- for(const pose of [new Box3(new Vector3(-1.4,0,-.4),new Vector3(1.4,2.5,.4)),new Box3(new Vector3(-.6,-.5,-.4),new Vector3(.6,2.9,.4))]) {
-  framing.update(camera,pose,1/30,render,options);
+it("contains large gestures by expanding transparent margins without moving or scaling the portrait", () => {
+ const basis = new PerspectiveCamera(), camera = new PerspectiveCamera();
+ const base = new Box3(new Vector3(-.4,0,-.2),new Vector3(.4,1.8,.2));
+ framePortrait(basis,base,2/3,{fitPadding:.9},{targetHeight:.53,pitchDegrees:5});
+ const matrix=basis.matrixWorld.clone(), projection=basis.projectionMatrix.clone(), fov=basis.fov;
+ camera.copy(basis);
+ const viewport=new ExpandedViewport();expect(viewport.resize(320,480)).toBe(true);viewport.apply(camera);
+ const portraitPixel=(point:Vector3)=>{const p=point.clone().project(camera),r=viewport.rect;return [r.left+(p.x+1)*r.width/2,r.top+(1-p.y)*r.height/2]};
+ const reference=new Vector3(.15,1.3,.1), first=portraitPixel(reference), other=new Vector3(-.2,.7,0), size=portraitPixel(other).map((v,i)=>v-first[i]!);
+ const largePoses=[new Box3(new Vector3(-1.4,0,-.4),new Vector3(1.4,2.5,.4)),new Box3(new Vector3(-.6,-.5,-.4),new Vector3(.6,2.9,.4))];
+ for(const pose of largePoses) {
+  expect(viewport.expand(basis,pose)).toBe(true);viewport.apply(camera);
+  const r=viewport.rect;
   for(const x of [pose.min.x,pose.max.x])for(const y of [pose.min.y,pose.max.y])for(const z of [pose.min.z,pose.max.z]) {
-   const p=new Vector3(x,y,z).project(camera);expect(Math.abs(p.x)).toBeLessThanOrEqual(.901);expect(Math.abs(p.y)).toBeLessThanOrEqual(.901);
+   const p=new Vector3(x,y,z).project(camera),px=(p.x+1)*r.width/2,py=(1-p.y)*r.height/2;
+   expect(px).toBeGreaterThanOrEqual(7.999);expect(px).toBeLessThanOrEqual(r.width-7.999);
+   expect(py).toBeGreaterThanOrEqual(7.999);expect(py).toBeLessThanOrEqual(r.height-7.999);
   }
+  portraitPixel(reference).forEach((v,i)=>expect(v).toBeCloseTo(first[i]!));
+  portraitPixel(other).forEach((v,i)=>expect(v-portraitPixel(reference)[i]!).toBeCloseTo(size[i]!));
+  expect(camera.matrixWorld.equals(matrix)).toBe(true);expect(camera.fov).toBe(fov);
+  expect(basis.projectionMatrix.equals(projection)).toBe(true);
  }
- const widened=camera.position.clone();framing.update(camera,undefined,1/30,render,options);
- expect(camera.position.distanceTo(target)).toBeLessThan(widened.distanceTo(target));
- expect(camera.position.distanceTo(original)).toBeGreaterThan(.1);
- for(let i=0;i<120;i++)framing.update(camera,undefined,1/30,render,options);
- expect(camera.position.distanceTo(original)).toBeLessThan(.001);
+ const expanded=viewport.rect;
+ expect(viewport.expand(basis,base)).toBe(false);expect(viewport.rect).toEqual(expanded);
+ expect(viewport.resize(320,480)).toBe(false);expect(viewport.rect).toEqual(expanded);
 });
 
 it("bounds posed weighted skin and blended morphs without resampling vertices", () => {

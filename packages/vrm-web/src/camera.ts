@@ -1,5 +1,5 @@
 import { Box3, MathUtils, Mesh, PerspectiveCamera, Vector3, type Object3D, type SkinnedMesh } from "three";
-import type { VrmWidgetConfig } from "./types.js";
+import type { ModelViewport, VrmWidgetConfig } from "./types.js";
 
 /** Measure the visible, posed mesh once. Hidden accessories and stale skin bounds
  * must not widen the portrait, and a later resize must not chase a moving hand. */
@@ -38,23 +38,45 @@ export function framePortrait(camera: PerspectiveCamera, bounds: Box3, aspect: n
   return target;
 }
 
-/** Keep the portrait target fixed, widening only as a pose requires. Returning
- * to the base distance is eased; expanding is immediate to avoid clipped limbs. */
-export class MotionFraming {
-  readonly #anchor = new Vector3();
-  #baseDistance = 0;
-  reset(camera: PerspectiveCamera, target: Vector3): void {
-    this.#anchor.copy(target); this.#baseDistance = camera.position.distanceTo(target);
+/** Expand the transparent surface around a fixed logical portrait. Padding is
+ * quantized and retained until destroy, so an Idle return never rescales or
+ * moves the character and small spring movements do not resize every frame. */
+export class ExpandedViewport {
+  #width = 0;
+  #height = 0;
+  #left = 0;
+  #top = 0;
+  #right = 0;
+  #bottom = 0;
+  readonly #point = new Vector3();
+  get rect(): ModelViewport {
+    return { left: 0 - this.#left, top: 0 - this.#top, width: this.#width + this.#left + this.#right,
+      height: this.#height + this.#top + this.#bottom, baseWidth: this.#width, baseHeight: this.#height };
   }
-  update(camera: PerspectiveCamera, bounds: Box3 | undefined, delta: number, render: VrmWidgetConfig["render"], options: VrmWidgetConfig["camera"]): void {
-    const previous = camera.position.distanceTo(this.#anchor);
-    let required = this.#baseDistance;
-    if (bounds && !bounds.isEmpty()) {
-      framePortrait(camera, bounds, camera.aspect, { ...render, initialScale: 1 }, options, this.#anchor);
-      required = Math.max(required, camera.position.distanceTo(this.#anchor));
+  resize(width: number, height: number): boolean {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error("invalid portrait viewport");
+    if (width === this.#width && height === this.#height) return false;
+    this.#width = width; this.#height = height; return true;
+  }
+  expand(camera: PerspectiveCamera, bounds: Box3): boolean {
+    if (bounds.isEmpty()) return false;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+      const p = this.#point.set(x, y, z).project(camera);
+      const px = (p.x + 1) * this.#width / 2, py = (1 - p.y) * this.#height / 2;
+      if (![px, py].every(Number.isFinite)) throw new Error("non-finite portrait projection");
+      minX = Math.min(minX, px); minY = Math.min(minY, py);
+      maxX = Math.max(maxX, px); maxY = Math.max(maxY, py);
     }
-    const distance = Math.max(required, previous + (required - previous) * (1 - Math.exp(-Math.max(0, delta) / .2)));
-    camera.position.sub(this.#anchor).normalize().multiplyScalar(distance).add(this.#anchor);
-    camera.updateMatrixWorld(true);
+    const grow = (current: number, required: number) => Math.max(current, Math.ceil(required / 32) * 32);
+    const left = grow(this.#left, 8 - minX), top = grow(this.#top, 8 - minY);
+    const right = grow(this.#right, maxX + 8 - this.#width), bottom = grow(this.#bottom, maxY + 8 - this.#height);
+    if (left === this.#left && top === this.#top && right === this.#right && bottom === this.#bottom) return false;
+    this.#left = left; this.#top = top; this.#right = right; this.#bottom = bottom;
+    return true;
+  }
+  apply(camera: PerspectiveCamera): void {
+    const rect = this.rect;
+    camera.setViewOffset(this.#width, this.#height, rect.left, rect.top, rect.width, rect.height);
   }
 }

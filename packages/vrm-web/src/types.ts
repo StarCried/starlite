@@ -34,13 +34,16 @@ export interface VrmWidgetConfig {
     click?: false | { animation: string; animations?: readonly string[]; lines: readonly string[]; durationMs?: number };
   };
 }
+export interface ModelViewport {
+  left: number; top: number; width: number; height: number; baseWidth: number; baseHeight: number;
+}
 export interface VrmDiagnostics {
   renderedFrames: number; frameTimesMs: number[]; renderCostsMs: number[];
   calls: number; triangles: number; geometries: number; textures: number;
   renderer: string; loadMs: number;
   activeAnimation?: string | null;
   gaze?: { yawDegrees: number; pitchDegrees: number; headYawDegrees: number; headPitchDegrees: number };
-  framing?: { distance: number; maxAbsX: number; maxAbsY: number };
+  framing?: { distance: number; maxAbsX: number; maxAbsY: number; viewport: ModelViewport };
   springPose?: readonly { name: string; rotation: [number, number, number, number] }[];
 }
 export interface VrmController extends ModelController {

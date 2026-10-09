@@ -175,3 +175,45 @@ it('suspends both head and eye pointer following throughout a gesture, then resu
  expect(c.diagnostics().gaze!.headYawDegrees * idle.headYawDegrees).toBeLessThan(0);
  expect(Math.abs(c.diagnostics().gaze!.yawDegrees)).toBeGreaterThan(1);
 });
+
+
+it('emits growing transparent viewport bounds while keeping the logical host and portrait distance fixed',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ vi.spyOn(host,'getBoundingClientRect').mockReturnValue(new DOMRect(100,100,320,480));
+ const viewports:any[]=[],onViewport=(event:Event)=>viewports.push((event as CustomEvent).detail);
+ document.body.addEventListener('model-viewport-change',onViewport);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},interactions:{pointer:false},animations:[{name:'Action',url:'a.vrma'}]});resources.push(c);
+ expect(viewports[0]).toEqual({left:0,top:0,width:320,height:480,baseWidth:320,baseHeight:480});
+ const initial=c.diagnostics().framing!,canvas=host.querySelector('canvas')!;
+ void c.playAnimation('Action',{mode:'once'});advance(600);
+ const gesture=c.diagnostics().framing!;
+ expect(gesture.viewport.width).toBeGreaterThan(320);expect(gesture.distance).toBe(initial.distance);
+ expect(gesture.maxAbsX).toBeLessThan(1);expect(gesture.maxAbsY).toBeLessThan(1);
+ expect(canvas.style.width).toBe(`${gesture.viewport.width}px`);expect(canvas.style.left).toBe(`${gesture.viewport.left}px`);
+ expect(host.style.width).toBe('320px');expect(host.style.height).toBe('480px');
+ advance(600);expect(c.diagnostics().framing!.viewport).toEqual(gesture.viewport);
+ const count=viewports.length;c.resetCamera();expect(viewports).toHaveLength(count);
+ expect(c.diagnostics().framing!.distance).toBe(initial.distance);
+ c.destroy();expect(viewports.at(-1)).toEqual(viewports[0]);
+ document.body.removeEventListener('model-viewport-change',onViewport);
+});
+
+it('keeps the original viewport when transparent gesture expansion is disabled',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},render:{autoFit:false},interactions:{pointer:false},animations:[{name:'Action',url:'a.vrma'}]});resources.push(c);
+ void c.playAnimation('Action',{mode:'once'});advance(600);
+ expect(c.diagnostics().framing!.viewport).toEqual({left:0,top:0,width:320,height:480,baseWidth:320,baseHeight:480});
+ expect(c.diagnostics().framing!.maxAbsX).toBeGreaterThan(1);
+});
+
+
+it('preserves pointer gaze when an unrelated posed limb expands the transparent surface',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ vi.spyOn(host,'getBoundingClientRect').mockReturnValue(new DOMRect(100,100,320,480));
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true}});resources.push(c);
+ c.setPointerPosition(300,300);advance(1500);
+ const gaze=c.diagnostics().gaze!,viewport=c.diagnostics().framing!.viewport;
+ scene.getObjectByName('body')!.position.x=2;advance(1500);
+ expect(c.diagnostics().framing!.viewport.width).toBeGreaterThan(viewport.width);
+ for(const field of ['yawDegrees','pitchDegrees','headYawDegrees','headPitchDegrees'] as const) expect(c.diagnostics().gaze![field]).toBeCloseTo(gaze[field],3);
+});
