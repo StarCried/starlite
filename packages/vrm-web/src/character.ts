@@ -18,6 +18,8 @@ export class CharacterBehavior {
   readonly #baseEar = new Map<string, { rotation: Quaternion; position: Vector3 }>();
   #time = 0;
   #weights = "";
+  #blinkAmount = 0;
+  #authoredBlink: number | undefined;
   constructor(vrm: VRM, profile?: CharacterProfile) {
     this.#vrm = vrm; this.#profile = profile;
     if (!profile) return;
@@ -45,12 +47,17 @@ export class CharacterBehavior {
   }
   beforeExpressions(delta: number, authoredBlink = false): void {
     this.#time += delta;
-    if (authoredBlink) return;
+    if (authoredBlink && !this.#profile) return;
     const manager = this.#vrm.expressionManager;
-    const fixed = this.#profile && Object.values(this.#profile.expressions).some((item) => (manager?.getValue(item.expression) ?? 0) > .001);
-    // Fixed-expression eyelid corrections are applied after the expression manager.
+    // Recipes without a correction already have closed eyes (e.g. Proud), so
+    // their share also replaces Basis. Additive totals above one stay additive.
+    const total = this.#profile ? Object.values(this.#profile.expressions).reduce((sum, item) => sum + Math.min(1, Math.max(0, manager?.getValue(item.expression) ?? 0)), 0) : 0;
+    // Each custom correction closes its expression's share of the eyelids.
+    // Ordinary blink must still close the remaining Basis share during fades.
     const curve = this.#profile?.blink.curve ?? [[0, 0], [3.4, 0], [3.48, 1], [3.52, 1], [3.65, 0], [4.7, 0]];
-    manager?.setValue("blink", fixed ? 0 : sampleCurve(curve, this.#time % (this.#profile?.blink.period ?? 4.7)));
+    this.#authoredBlink = authoredBlink ? manager?.getValue("blink") ?? 0 : undefined;
+    this.#blinkAmount = this.#authoredBlink ?? sampleCurve(curve, this.#time % (this.#profile?.blink.period ?? 4.7));
+    manager?.setValue("blink", Math.max(0, 1 - total) * this.#blinkAmount);
   }
   afterExpressions(): void {
     const profile = this.#profile;
@@ -86,14 +93,17 @@ export class CharacterBehavior {
         if (profile.earBones.some((name) => this.#earBones.get(name) === joint.bone)) joint.setInitState();
       }
     }
-    const amount = sampleCurve(profile.blink.curve, this.#time % profile.blink.period);
     for (const [name, weight] of weights) {
       const blink = profile.expressions[name]?.blink;
       if (!blink) continue;
-      for (const { mesh, index } of this.#morphs.get(blink) ?? []) mesh.morphTargetInfluences![index] = weight * amount;
+      for (const { mesh, index } of this.#morphs.get(blink) ?? []) mesh.morphTargetInfluences![index] = weight * this.#blinkAmount;
     }
+    // Only the applied neutral share changes; the animation's sampled value
+    // remains available to the next authored frame or captured-pose transition.
+    if (this.#authoredBlink !== undefined) this.#vrm.expressionManager?.setValue("blink", this.#authoredBlink);
+    this.#authoredBlink = undefined;
   }
-  reset(): void { this.#time = 0; this.#weights = ""; }
+  reset(): void { this.#time = 0; this.#weights = ""; this.#blinkAmount = 0; this.#authoredBlink = undefined; }
 }
 
 function findAuthoredNode(root: Object3D, name: string): Object3D | undefined {

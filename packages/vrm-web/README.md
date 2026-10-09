@@ -24,6 +24,11 @@ resources. `prefers-reduced-motion` presents a stationary model.
 An optional data-only Weiguang profile supplies neutral pose, named expressions,
 custom blink morphs, ear rest poses and accessory visibility. Ordinary VRM models
 have no dependency on that profile. Never merge custom morphs indiscriminately.
+Profile blink morphs are deltas from each expression's eye shape to closed eyes;
+recipes without one must already have closed eyes. Blinking also closes the
+remaining neutral share during expression fades, using authored blink timing
+when present. Fully closed blends assume profile expression weights total at
+most one; larger totals retain the existing additive expression semantics.
 The common interface does not emulate Inochi2D parameters for VRM bones.
 
 The backend additionally exposes expression inspection and selection, plus frame
