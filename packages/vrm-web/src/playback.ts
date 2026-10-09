@@ -26,7 +26,7 @@ export class VrmAnimationPlayer {
     if (this.#active?.name === name && !options.restart) return this.#active.promise;
     const pose = this.#active ? this.#capturePose() : undefined;
     this.stop("interrupted");
-    const action = this.mixer.clipAction(clip).reset();
+    const action = this.mixer.clipAction(clip).reset().setEffectiveWeight(1);
     action.setLoop(options.mode === "loop" ? LoopRepeat : LoopOnce, options.mode === "loop" ? Infinity : 1);
     action.clampWhenFinished = true;
     let resolve!: (result: AnimationPlaybackResult) => void;
@@ -36,19 +36,25 @@ export class VrmAnimationPlayer {
     if (pose) {
       const outgoing = this.mixer.clipAction(pose);
       outgoing.setLoop(LoopOnce, 1); outgoing.clampWhenFinished = true;
-      outgoing.play().fadeOut(VrmAnimationPlayer.transitionSeconds);
-      action.fadeIn(VrmAnimationPlayer.transitionSeconds);
+      outgoing.setEffectiveWeight(1).play();
+      action.setEffectiveWeight(0);
       this.#transition = { clip: pose, action: outgoing, elapsed: 0 };
     }
     this.mixer.update(0);
     return promise;
   }
   update(delta: number): void {
-    this.mixer.update(delta);
     if (this.#transition) {
       this.#transition.elapsed += delta;
-      if (this.#transition.elapsed >= VrmAnimationPlayer.transitionSeconds) this.#clearTransition();
+      const t = Math.max(0, Math.min(1, this.#transition.elapsed / VrmAnimationPlayer.transitionSeconds));
+      // Ease the blend at both ends without overshooting a bone's target pose.
+      // This shapes the weights; the frozen snapshot does not retain velocity.
+      const weight = t * t * (3 - 2 * t);
+      this.#transition.action.setEffectiveWeight(1 - weight);
+      this.#active?.action.setEffectiveWeight(weight);
     }
+    this.mixer.update(delta);
+    if (this.#transition && this.#transition.elapsed >= VrmAnimationPlayer.transitionSeconds) this.#clearTransition();
     if (this.#finished) {
       if (this.#returnTo) {
         // Finish at the authored endpoint, then capture it before starting Idle.

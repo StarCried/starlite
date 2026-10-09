@@ -48,8 +48,10 @@ Preparation requires all standard humanoid bones and rejects non-finite binary
 geometry, unknown VRM versions and buffer views outside the declared buffer.
 
 State interruptions settle the previous promise immediately and blend the current
-visible pose into the new clip for 400 ms. Rapid switches keep one pose snapshot,
-not a growing queue. Explicit stop/destroy restores neutral immediately.
+visible pose into the new clip for 400 ms with cubic ease-in/ease-out weights.
+The weights stay between zero and one: they do not add rebound or preserve the
+outgoing clip's velocity. Rapid switches keep one pose snapshot, not a growing
+queue. Explicit stop/destroy restores neutral immediately.
 
 ### Embedded VRM textures and CSP
 
@@ -130,6 +132,7 @@ gestures belong in `dialogue.idle`, with `animation: "Yawn"`, optional
 dialogue uses the same pool selection. Without dialogue, use
 `interactions.click: { animations: ["Wave", "Nod"] }` for animation-only clicks.
 Each trigger plays the complete clip once, then blends its final pose directly
-into the configured base loop over 400 ms. Bubble duration does not shorten a
-clip. Clicks during an entry or another foreground gesture are ignored. A
-static clip remains a static pose; author entry/exit in its VRMA for a gesture.
+into the configured base loop over 400 ms with the same eased blend. Bubble
+duration does not shorten a clip. Clicks during an entry or another foreground
+gesture are ignored. A static clip remains a static pose; author entry/exit in
+its VRMA for a gesture.

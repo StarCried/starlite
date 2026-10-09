@@ -37,7 +37,7 @@ describe("VRM animation contract", () => {
     player.update(.11);
     expect(await result).toBe("completed"); expect(player.activeName).toBe("Idle");
     expect(root.position.x).toBeCloseTo(3);
-    player.update(.1); expect(root.position.x).toBeCloseTo(2.25);
+    player.update(.1); expect(root.position.x).toBeCloseTo(2.53125);
     player.update(.1); expect(root.position.x).toBeCloseTo(1.5);
     player.update(.21); expect(root.position.x).toBe(0);
     expect(player.mixer.stats.actions.inUse).toBe(1);
@@ -56,7 +56,7 @@ describe("VRM animation contract", () => {
     expect(root.position.x).toBeCloseTo(1);
     const click = player.play("Click");
     expect(await idle).toBe("interrupted"); expect(root.position.x).toBeCloseTo(1);
-    player.update(.1); expect(root.position.x).toBeCloseTo(.8);
+    player.update(.1); expect(root.position.x).toBeCloseTo(.875);
     player.update(.1); expect(root.position.x).toBeCloseTo(.7);
     expect(player.mixer.stats.actions.inUse).toBe(2);
     player.update(.2); expect(root.position.x).toBeCloseTo(.8);
@@ -70,7 +70,7 @@ describe("VRM animation contract", () => {
     const player = new VrmAnimationPlayer(root, new Map([["first",clip],["second",clip.clone()]]),()=>root.quaternion.identity());
     void player.play("first"); player.update(.5);
     void player.play("second"); expect(root.quaternion.angleTo(raised)).toBeCloseTo(0);
-    player.update(.1); expect(root.quaternion.angleTo(new Quaternion())).toBeCloseTo(Math.PI*.4);
+    player.update(.1); expect(root.quaternion.angleTo(new Quaternion())).toBeCloseTo(Math.PI*.4375);
     player.destroy(); expect(root.quaternion.angleTo(new Quaternion())).toBe(0);
   });
   it("captures rapid transitions without accumulating outgoing actions", () => {
@@ -85,6 +85,77 @@ describe("VRM animation contract", () => {
     }
     player.update(.4); expect(player.mixer.stats.actions.inUse).toBe(1);
     player.destroy(); expect(player.mixer.stats.actions.inUse).toBe(0);
+  });
+  it("starts and lands more gently than its middle without overshooting the target", () => {
+    const root = new Object3D();
+    const idle = new AnimationClip("Idle", 1, [new NumberKeyframeTrack(".position[x]", [0,1], [0,0])]);
+    const raised = new AnimationClip("Raised", 1, [new NumberKeyframeTrack(".position[x]", [0,1], [1,1])]);
+    const player = new VrmAnimationPlayer(root, new Map([["Idle",idle],["Raised",raised]]),()=>root.position.set(0,0,0));
+    void player.play("Idle", {mode:"loop"});
+    void player.play("Raised", {mode:"loop"});
+    const positions = [root.position.x];
+    for (let i=0;i<40;i++) { player.update(.01); positions.push(root.position.x); }
+    expect(positions[0]).toBe(0); expect(positions.at(-1)).toBeCloseTo(1);
+    for (let i=1;i<positions.length;i++) {
+      expect(positions[i]).toBeGreaterThanOrEqual(positions[i-1]!);
+      expect(positions[i]).toBeLessThanOrEqual(1);
+    }
+    const middleStep = positions[20]! - positions[19]!;
+    expect(positions[1]! - positions[0]!).toBeLessThan(middleStep * .1);
+    expect(positions[40]! - positions[39]!).toBeLessThan(middleStep * .1);
+    expect(player.mixer.stats.actions.inUse).toBe(1);
+    player.destroy();
+  });
+  it("returns tracks absent from the destination to neutral along the eased blend", () => {
+    const root = new Object3D();
+    const first = new AnimationClip("First", 1, [new NumberKeyframeTrack(".position[x]", [0,1], [2,2])]);
+    const second = new AnimationClip("Second", 1, [new NumberKeyframeTrack(".position[y]", [0,1], [1,1])]);
+    const player = new VrmAnimationPlayer(root, new Map([["First",first],["Second",second]]),()=>root.position.set(0,0,0));
+    void player.play("First", {mode:"loop"}); player.update(.5);
+    void player.play("Second", {mode:"loop"});
+    expect(root.position.toArray()).toEqual([2,0,0]);
+    player.update(.1);
+    expect(root.position.x).toBeCloseTo(1.6875); expect(root.position.y).toBeCloseTo(.15625);
+    player.update(.3);
+    expect(root.position.toArray()).toEqual([0,1,0]);
+    expect(player.mixer.stats.actions.inUse).toBe(1);
+    player.destroy();
+  });
+  it("reaches the same pose at 30 fps, 60 fps and a single large update", () => {
+    const sample = (steps: number[]) => {
+      const {player,root} = harness();
+      void player.play("Idle", {mode:"loop"}); player.update(.5);
+      void player.play("Click", {mode:"loop"});
+      for (const step of steps) player.update(step);
+      const result = {x:root.position.x, actions:player.mixer.stats.actions.inUse};
+      player.destroy(); return result;
+    };
+    const at30 = sample(Array.from({length:6},()=>1/30));
+    const at60 = sample(Array.from({length:12},()=>1/60));
+    const oneStep = sample([.2]);
+    expect(at30.x).toBeCloseTo(oneStep.x,6); expect(at60.x).toBeCloseTo(oneStep.x,6);
+    expect(at30.actions).toBe(2); expect(at60.actions).toBe(2);
+    const finished30 = sample(Array.from({length:15},()=>1/30));
+    const finished60 = sample(Array.from({length:30},()=>1/60));
+    const large = sample([.5]);
+    expect(finished30.x).toBeCloseTo(large.x,6); expect(finished60.x).toBeCloseTo(large.x,6);
+    expect(finished30.actions).toBe(1); expect(finished60.actions).toBe(1); expect(large.actions).toBe(1);
+  });
+  it("can finish a short once during entry and return to Idle without a pose snap", async () => {
+    const root = new Object3D();
+    const idle = new AnimationClip("Idle", 1, [new NumberKeyframeTrack(".position[x]", [0,1], [0,0])]);
+    const short = new AnimationClip("Short", .08, [new NumberKeyframeTrack(".position[x]", [0,.08], [0,2])]);
+    const player = new VrmAnimationPlayer(root, new Map([["Idle",idle],["Short",short]]),()=>root.position.set(0,0,0),"Idle");
+    void player.play("Idle", {mode:"loop"});
+    const result = player.play("Short"); player.update(.1);
+    expect(await result).toBe("completed"); expect(player.activeName).toBe("Idle");
+    const exitPose = root.position.x;
+    expect(exitPose).toBeGreaterThan(0); expect(exitPose).toBeLessThan(2);
+    player.update(0); expect(root.position.x).toBeCloseTo(exitPose);
+    player.update(.2); expect(root.position.x).toBeCloseTo(exitPose/2);
+    player.update(.21); expect(root.position.x).toBe(0);
+    expect(player.mixer.stats.actions.inUse).toBe(1);
+    player.destroy();
   });
   it("samples the authored blink closure and reopening", () => {
     const curve: [number, number][]=[[0,0],[3.4,0],[3.48,1],[3.52,1],[3.65,0],[4.7,0]];
