@@ -86,6 +86,16 @@ their own framing. `resetCamera()` preserves the portrait size unless the logica
 host dimensions changed. Pointer gaze and drag inertia use the logical portrait,
 so expanding the surface does not change their scale.
 
+Native hosts that require a stable canvas can supply
+`render.viewportPadding: { left: 128, top: 64, right: 128, bottom: 128 }`.
+These are fixed CSS pixel margins around the logical portrait. They are applied
+before the first frame and disable subsequent gesture expansion, including after
+`resetCamera()`. The portrait keeps the same camera, screen origin and pixel size.
+Each margin is limited to 1024 pixels and the complete surface to 4096 per axis.
+The host must choose margins large enough for its supported gestures and physics;
+content outside those bounds is clipped. Omitting this option retains automatic
+expansion for browser widgets.
+
 The host emits bubbling `model-viewport-change` events on initial sizing and every
 surface change, with `{ left, top, width, height, baseWidth, baseHeight }` in CSS
 pixels relative to the logical host. Native transparent windows must resize to

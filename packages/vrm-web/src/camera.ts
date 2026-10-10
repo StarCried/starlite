@@ -49,6 +49,11 @@ export class ExpandedViewport {
   #right = 0;
   #bottom = 0;
   readonly #point = new Vector3();
+  readonly #fixed: boolean;
+  constructor(padding?: NonNullable<VrmWidgetConfig["render"]>["viewportPadding"]) {
+    this.#fixed = padding !== undefined;
+    if (padding) { this.#left = padding.left; this.#top = padding.top; this.#right = padding.right; this.#bottom = padding.bottom; }
+  }
   get rect(): ModelViewport {
     return { left: 0 - this.#left, top: 0 - this.#top, width: this.#width + this.#left + this.#right,
       height: this.#height + this.#top + this.#bottom, baseWidth: this.#width, baseHeight: this.#height };
@@ -59,7 +64,7 @@ export class ExpandedViewport {
     this.#width = width; this.#height = height; return true;
   }
   expand(camera: PerspectiveCamera, bounds: Box3): boolean {
-    if (bounds.isEmpty()) return false;
+    if (this.#fixed || bounds.isEmpty()) return false;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
       const p = this.#point.set(x, y, z).project(camera);

@@ -53,6 +53,17 @@ async function mount(backend:string,signal?:AbortSignal,dialogue?:any){
  }
  resources.push(c);return c;
 }
+it('keeps a fixed canvas and emits no viewport changes while an action begins, completes or returns to neutral',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ const changed=vi.fn();host.addEventListener('model-viewport-change',changed);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},render:{viewportPadding:{left:128,top:64,right:128,bottom:128}},interactions:{pointer:false},animations:[{name:'Action',url:'a.vrma'}]});resources.push(c);
+ const viewport={left:-128,top:-64,width:576,height:672,baseWidth:320,baseHeight:480};
+ expect(changed).toHaveBeenCalledOnce();expect(c.diagnostics().framing?.viewport).toEqual(viewport);
+ const action=c.playAnimation('Action');advance(1500);await expect(action).resolves.toBe('completed');
+ c.stopAnimation();c.resetCamera();advance(500);
+ expect(changed).toHaveBeenCalledOnce();expect(c.diagnostics().framing?.viewport).toEqual(viewport);
+ const canvas=host.querySelector('canvas')!;expect(canvas.style.width).toBe('576px');expect(canvas.style.top).toBe('-64px');
+});
 for(const backend of ['inochi2d','vrm'])describe(`${backend} public controller contract`,()=>{
  it('lists real clips and completes a single clip',async()=>{const c=await mount(backend);expect(c.status).toBe('running');expect(c.getAnimations()).toEqual([{name:'Action',durationMs:1000},{name:'Other',durationMs:1000}]);const result=c.playAnimation('Action');advance(1200);await expect(result).resolves.toBe('completed')});
  it('keeps loops pending until interrupted or stopped',async()=>{const c=await mount(backend);const loop=c.playAnimation('Action',{mode:'loop'});const settled=vi.fn();void loop.then(settled);advance(2000);await Promise.resolve();expect(settled).not.toHaveBeenCalled();const next=c.playAnimation('Other',{mode:'loop'});await expect(loop).resolves.toBe('interrupted');c.stopAnimation();await expect(next).resolves.toBe('stopped')});

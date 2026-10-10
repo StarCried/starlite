@@ -52,6 +52,32 @@ it("contains large gestures by expanding transparent margins without moving or s
  expect(viewport.resize(320,480)).toBe(false);expect(viewport.rect).toEqual(expanded);
 });
 
+it("keeps fixed margins through gestures, Idle returns and camera resets without changing portrait pixels", () => {
+ const basis = new PerspectiveCamera(), camera = new PerspectiveCamera();
+ const base = new Box3(new Vector3(-.4,0,-.2),new Vector3(.4,1.8,.2));
+ framePortrait(basis,base,2/3,{fitPadding:.9},{targetHeight:.53,pitchDegrees:5});
+ camera.copy(basis);
+ const viewport=new ExpandedViewport({left:128,top:64,right:128,bottom:128});
+ viewport.resize(320,480);viewport.apply(camera);
+ const rect=viewport.rect,reference=new Vector3(.15,1.3,.1);
+ const pixel=()=>{const p=reference.clone().project(camera),r=viewport.rect;return [r.left+(p.x+1)*r.width/2,r.top+(1-p.y)*r.height/2]};
+ const original=pixel();
+ for(const bounds of [new Box3(new Vector3(-10,-10,-.2),new Vector3(10,10,.2)),base]) {
+  expect(viewport.expand(basis,bounds)).toBe(false);expect(viewport.rect).toEqual(rect);
+  camera.copy(basis);viewport.apply(camera);pixel().forEach((value,i)=>expect(value).toBeCloseTo(original[i]!));
+ }
+ expect(viewport.resize(320,480)).toBe(false);
+ expect(rect).toEqual({left:-128,top:-64,width:576,height:672,baseWidth:320,baseHeight:480});
+});
+
+it("rejects malformed or excessive fixed padding before mounting", () => {
+ for(const viewportPadding of [null,[],{left:0,top:0,right:0},{left:-1,top:0,right:0,bottom:0},{left:0,top:NaN,right:0,bottom:0},{left:1025,top:0,right:0,bottom:0}]) {
+  expect(()=>validateVrmWidgetConfig({model:'model.vrm',fallback:'fallback.png',render:{viewportPadding:viewportPadding as any}})).toThrow("fixed viewport");
+ }
+ expect(()=>validateVrmWidgetConfig({model:'model.vrm',fallback:'fallback.png',display:{width:4096},render:{viewportPadding:{left:1,top:0,right:0,bottom:0}}})).toThrow("fixed viewport");
+ expect(()=>validateVrmWidgetConfig({model:'model.vrm',fallback:'fallback.png',render:{viewportPadding:{left:128,top:64,right:128,bottom:128}}})).not.toThrow();
+});
+
 it("bounds posed weighted skin and blended morphs without resampling vertices", () => {
  const root=new Scene(), geometry=new BoxGeometry(.3,.6,.2), count=geometry.getAttribute('position').count;
  const indices=[],weights=[];for(let i=0;i<count;i++){indices.push(0,1,0,0);weights.push(.3,.7,0,0)}

@@ -18,6 +18,13 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
     [config.network?.modelMaxBytes ?? 64 * 1024 * 1024, 1, 64 * 1024 * 1024],
   ];
   if (checks.some(([value, min, max]) => !finite(value, min, max))) throw new Error("invalid VRM display or network limits");
+  const padding = config.render?.viewportPadding;
+  if (padding !== undefined) {
+    if (!padding || typeof padding !== "object" || Array.isArray(padding)
+      || [padding.left, padding.top, padding.right, padding.bottom].some(value => !finite(value, 0, 1024))
+      || (config.display?.width ?? 320) + padding.left + padding.right > 4096
+      || (config.display?.height ?? 480) + padding.top + padding.bottom > 4096) throw new Error("invalid fixed viewport padding");
+  }
   const animations = config.animations ?? [];
   if (!Array.isArray(animations) || animations.length > 64) throw new Error("at most 64 animations are supported");
   const names = new Set<string>();

@@ -21,7 +21,9 @@ export interface VrmWidgetConfig {
   animations?: readonly VrmAnimationSource[];
   profile?: CharacterProfile | string;
   display?: { width?: number; height?: number };
-  render?: { fps?: number; maxDevicePixelRatio?: number; initialScale?: number; autoFit?: boolean; fitPadding?: number };
+  render?: { fps?: number; maxDevicePixelRatio?: number; initialScale?: number; autoFit?: boolean; fitPadding?: number;
+    /** Fixed CSS pixel margins; when supplied, animation never resizes the canvas. */
+    viewportPadding?: { left: number; top: number; right: number; bottom: number } };
   camera?: { yawDegrees?: number; pitchDegrees?: number; fovDegrees?: number; targetHeight?: number };
   gaze?: { maxYawDegrees?: number; maxPitchDegrees?: number; smoothingMs?: number };
   mobile?: { show?: boolean; breakpoint?: number };

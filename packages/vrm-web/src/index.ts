@@ -54,7 +54,7 @@ class Controller implements VrmController {
   #hostMotion: HostMotion | undefined;
   readonly #motionBounds = new THREE.Box3();
   readonly #projected = new THREE.Vector3();
-  readonly #viewport = new ExpandedViewport();
+  readonly #viewport: ExpandedViewport;
   #pixelRatio = 0;
   #resizeObserver: ResizeObserver | undefined;
   #frame: number | undefined;
@@ -68,6 +68,7 @@ class Controller implements VrmController {
 
   constructor(host: HTMLElement, config: VrmWidgetConfig) {
     this.#host = host; this.#config = config; this.#gaze = new PointerGaze(config.gaze);
+    this.#viewport = new ExpandedViewport(config.render?.viewportPadding);
     this.#bubble = new DialogueBubble(host);
     const d = config.dialogue;
     this.#dialogue = new DialogueScheduler({
