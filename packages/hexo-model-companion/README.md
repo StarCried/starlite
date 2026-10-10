@@ -1,13 +1,13 @@
 # hexo-model-companion
 
-Hexo 7 adapter for `inochi2d-web`. It verifies local model bundles, emits
+Hexo 7/8 adapter for Inochi2D and VRM model companions. It verifies local model bundles, emits
 content-hashed runtime/model assets, injects a mobile no-fetch bootstrap, and
 keeps one widget across PJAX navigation.
 
 ## Install
 
 ```sh
-npm install hexo-model-companion
+npm install hexo-model-companion@0.1.0-alpha.1
 ```
 
 For a bundle already produced by `inochi2d-blog` or `inochi2d-pipeline`, add:
@@ -138,3 +138,5 @@ white model. Validate the result in the target browser before acceptance.
 For VRM, `camera` and `gaze` pass through to the renderer. See `vrm-web` for
 angle limits. Enter/idle/click sentences use the same `dialogue` configuration
 for both backends; defining a click animation alone does not enable sentences.
+
+Installation of local candidate tarballs, VRM preparation, daily use and removal are described in the [release guide](https://github.com/StarCried/inochi2d-web/blob/main/docs/release-guide.md). Alpha packages must first be published; until then use the candidate tarballs, not an assumed registry release. Character packs are separately licensed and are not included in this npm package.

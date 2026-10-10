@@ -4,7 +4,14 @@ The full StarCried character project remains private on Windows. It must not
 enter this repository, package archives, upstream contributions, CI artifacts,
 or a public blog deployment.
 
-A blog puppet must be a separate Creator export with explicit publication
+An independently licensed example pack is separate from the BSD-licensed code.
+Only expressly approved derived assets may be distributed under that pack's own
+license; it never grants rights to the private source project or third-party
+motions. Public blog delivery must be an expressly permitted use, since visitors
+receive the files needed to render the character. Restrictions on re-use cannot
+technically prevent downloading those files.
+
+An Inochi2D blog puppet must be a separate Creator export with explicit publication
 approval. The alpha profile accepts PNG/TGA source textures up to 8192 pixels
 per dimension and 32 Mi pixels, resizes browser output to at most 4096 pixels
 per dimension, and requires the prepared `.inp` to remain at or below 8 MiB.

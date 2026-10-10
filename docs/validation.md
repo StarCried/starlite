@@ -49,12 +49,16 @@ blog.
 
 ## First public alpha
 
+For dual-backend installation and usage see [the release guide](release-guide.md).
+
 Publication remains a separate maintainer approval after the public repository
 and hosted release-dry-run succeed. Publish the exact reviewed tarballs in
 dependency order, using the non-default `alpha` dist-tag:
 
 ```sh
+npm publish model-widget-core-0.1.0-alpha.1.tgz --tag alpha
 npm publish inochi2d-web-0.1.0-alpha.1.tgz --tag alpha
+npm publish vrm-web-0.1.0-alpha.1.tgz --tag alpha
 npm publish hexo-model-companion-0.1.0-alpha.1.tgz --tag alpha
 npm publish inochi2d-blog-0.1.0-alpha.1.tgz --tag alpha
 ```

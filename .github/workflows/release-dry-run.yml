@@ -87,12 +87,16 @@ jobs:
       - name: Create package tarballs without publishing
         run: |
           mkdir -p release-packages
+          npm pack --workspace model-widget-core --pack-destination release-packages
           npm pack --workspace inochi2d-web --pack-destination release-packages
+          npm pack --workspace vrm-web --pack-destination release-packages
           npm pack --workspace hexo-model-companion --pack-destination release-packages
           npm pack --workspace inochi2d-blog --pack-destination release-packages
+          sha256sum release-packages/*.tgz > release-packages/SHA256SUMS
+          git rev-parse HEAD > release-packages/SOURCE_REVISION
       - uses: actions/upload-artifact@v4
         with:
           name: npm-release-dry-run
-          path: release-packages/*.tgz
+          path: release-packages/
           if-no-files-found: error
           retention-days: 7
