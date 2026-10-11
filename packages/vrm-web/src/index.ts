@@ -284,9 +284,10 @@ class Controller implements VrmController {
       vrm.lookAt.update(delta);
     }
     this.#character?.beforeExpressions(delta, this.#player?.hasBlinkTrack); vrm.expressionManager?.update();
-    this.#character?.afterExpressions();
-    vrm.nodeConstraintManager?.update();
-    this.#hostMotion?.update(delta, this.#baseCamera, this.#viewport.rect.baseHeight);
+    this.#hostMotion?.update(delta, this.#baseCamera, this.#viewport.rect.baseHeight, () => {
+      this.#character?.afterExpressions();
+      vrm.nodeConstraintManager?.update();
+    });
     for (const material of vrm.materials ?? []) (material as THREE.Material & { update?: (delta: number) => void }).update?.(delta);
     const bounds = this.#poseBounds?.measure(vrm.scene, this.#motionBounds) ?? this.#portraitBounds;
     if (bounds && this.#config.render?.autoFit !== false && this.#viewport.expand(this.#baseCamera, bounds)) this.#applyViewport();

@@ -37,21 +37,27 @@ export class HostMotion {
     this.#last = [x, y];
   }
   suspend(): void { this.#last = undefined; this.#pending.set(0, 0, 0); }
-  update(delta: number, camera: PerspectiveCamera, height: number): void {
-    if (!this.manager || delta <= 0) { this.manager?.update(delta); return; }
-    const depth = Math.max(.1, camera.position.distanceTo(this.root.position));
-    const metresPerPixel = 2 * depth * Math.tan(MathUtils.degToRad(camera.fov / 2)) / Math.max(1, height);
-    this.#movement.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(this.#pending.x * metresPerPixel * .35);
-    this.#up.setFromMatrixColumn(camera.matrixWorld, 1).multiplyScalar(-this.#pending.y * metresPerPixel * .35);
-    this.#movement.add(this.#up).clampLength(0, .08);
-    this.#pending.set(0, 0, 0); this.#offset.add(this.#movement);
+  update(delta: number, camera: PerspectiveCamera, height: number, beforePhysics?: () => void): void {
+    if (!this.manager) { beforePhysics?.(); return; }
+    if (delta > 0) {
+      const depth = Math.max(.1, camera.position.distanceTo(this.root.position));
+      const metresPerPixel = 2 * depth * Math.tan(MathUtils.degToRad(camera.fov / 2)) / Math.max(1, height);
+      this.#movement.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(this.#pending.x * metresPerPixel * .35);
+      this.#up.setFromMatrixColumn(camera.matrixWorld, 1).multiplyScalar(-this.#pending.y * metresPerPixel * .35);
+      this.#movement.add(this.#up).clampLength(0, .08);
+      this.#pending.set(0, 0, 0); this.#offset.add(this.#movement);
+    }
     this.#position.copy(this.root.position); this.root.position.add(this.#offset); this.root.updateMatrixWorld(true);
     for (const [original, proxy] of this.#centers) {
       proxy.matrix.copy(original.matrixWorld);
       proxy.matrix.elements[12]! -= this.#offset.x; proxy.matrix.elements[13]! -= this.#offset.y; proxy.matrix.elements[14]! -= this.#offset.z;
       proxy.updateMatrixWorld(true);
     }
-    try { this.manager.update(delta); }
+    // A rest-pose capture must see the same translated world as the solver's
+    // retained tails. Drawing-space captures after a drag would reapply the
+    // whole host offset on every expression change, flipping the ears.
+    // This also applies at delta zero: pose sampling can still refresh a rest.
+    try { beforePhysics?.(); this.manager.update(delta); }
     finally { this.root.position.copy(this.#position); this.root.updateMatrixWorld(true); }
   }
   destroy(): void {

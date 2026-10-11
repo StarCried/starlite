@@ -30,3 +30,33 @@ it('rejects invalid movement, bounds fast drags and drops paused input',()=>{
  motion.update(1/30,camera,480);expect(bone.quaternion.angleTo(new Quaternion())).toBeLessThan(.01);
  motion.destroy();motion.destroy();
 });
+
+for(const centered of [false,true])it(`captures changed spring rest poses in the same ${centered?'centered':'world'} physics space after a drag`,()=>{
+ const {root,bone,camera,motion,joint}=rig(centered), axis=new Vector3(0,0,1);
+ motion.setPosition(0,0);
+ for(let step=1;step<=3;step++){motion.setPosition(step*100,0);motion.update(1/60,camera,480);}
+ for(let frame=0;frame<60;frame++)motion.update(1/60,camera,480);
+ // The canvas returns to its drawing origin after each simulated frame, while
+ // the spring tails retain the cumulative host movement in physics space.
+ expect(root.position.length()).toBe(0);
+ let captured=0;
+ for(const delta of [0,1/60,1/30,.1,1/60]){
+  const target=new Quaternion().setFromAxisAngle(axis,.1*++captured);
+  motion.update(delta,camera,480,()=>{
+   expect(root.position.length()).toBeGreaterThan(.1);
+   bone.quaternion.copy(target);bone.updateMatrix();root.updateMatrixWorld(true);
+   joint.setInitState();
+  });
+  expect(root.position.length()).toBe(0);
+  expect(bone.quaternion.angleTo(target)).toBeLessThan(1e-6);
+ }
+ motion.destroy();
+});
+
+it('runs pre-physics work without springs and restores the drawing origin if it fails',()=>{
+ const root=new Object3D(), camera=new PerspectiveCamera(), noSprings=new HostMotion(root);
+ let calls=0;noSprings.update(0,camera,480,()=>{calls++;});expect(calls).toBe(1);
+ const f=rig(false);f.motion.setPosition(0,0);f.motion.setPosition(100,0);f.motion.update(1/60,f.camera,480);
+ expect(()=>f.motion.update(0,f.camera,480,()=>{throw new Error('rest failed');})).toThrow('rest failed');
+ expect(f.root.position.length()).toBe(0);f.motion.destroy();noSprings.destroy();
+});
