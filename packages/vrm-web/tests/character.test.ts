@@ -1,6 +1,6 @@
 import {expect,it,vi} from "vitest";
-import {Object3D,SkinnedMesh} from "three";
-import type {VRM} from "@pixiv/three-vrm";
+import {Object3D,Quaternion,SkinnedMesh,Vector3} from "three";
+import {VRMSpringBoneJoint,VRMSpringBoneManager,type VRM} from "@pixiv/three-vrm";
 import {CharacterBehavior} from "../src/character.js";
 import type {CharacterProfile} from "../src/types.js";
 function fixture(){
@@ -29,4 +29,30 @@ it("sets accessory defaults and only resets ear spring rest state on changes",()
  const f=fixture(), behavior=new CharacterBehavior(f.vrm,f.profile);expect(f.collar.visible).toBe(true);expect(f.cone.visible).toBe(false);
  behavior.afterExpressions();expect(f.init).toHaveBeenCalledOnce();behavior.afterExpressions();expect(f.init).toHaveBeenCalledOnce();
  f.values.set("happy",1);behavior.afterExpressions();expect(f.init).toHaveBeenCalledTimes(2);
+});
+
+it.each([30,60])("keeps ear rest matrices consistent with a fading authored pose at %s FPS",fps=>{
+ const f=fixture(), root=f.vrm.scene, first=root.getObjectByName("EarL")!, second=new Object3D(), tail=new Object3D();
+ second.name="EarTip";second.userData.name="Ear.L.001";second.position.y=.3;tail.position.y=.2;first.add(second);second.add(tail);root.updateMatrixWorld(true);
+ const joints=[new VRMSpringBoneJoint(first,second,{stiffness:12,dragForce:.8}),new VRMSpringBoneJoint(second,tail,{stiffness:12,dragForce:.8})];
+ const manager=new VRMSpringBoneManager();for(const joint of joints)manager.addJoint(joint);manager.setInitState();
+ Object.assign(f.vrm,{springBoneManager:manager});
+ const neutral=new Quaternion(), target=new Quaternion().setFromAxisAngle(new Vector3(0,0,1),.7);
+ f.profile.earBones.push("Ear.L.001");
+ for(const poses of Object.values(f.profile.earPoses))poses["Ear.L.001"]={rotation:neutral.toArray()};
+ // Other fixture recipes share Neutral, so replace Happy rather than mutate it.
+ f.profile.earPoses.Happy={"Ear.L":{rotation:target.toArray()},"Ear.L.001":{rotation:target.toArray()}};
+ const behavior=new CharacterBehavior(f.vrm,f.profile), matrixRotation=new Quaternion(), scale=new Vector3(), position=new Vector3();
+ for(const weight of [0,.2,.4,.6,.8,1,.8,.6,.4,.2,0]){
+  f.values.set("happy",weight);behavior.afterExpressions();
+  const expected=neutral.clone().slerp(target,weight);
+  for(const bone of [first,second]){
+   bone.matrix.decompose(position,matrixRotation,scale);
+   expect(matrixRotation.angleTo(expected)).toBeLessThan(1e-6);
+  }
+  manager.update(1/fps);
+  for(const bone of [first,second])expect(bone.quaternion.angleTo(expected)).toBeLessThan(1e-6);
+ }
+ for(let frame=0;frame<fps;frame++){behavior.afterExpressions();manager.update(1/fps);}
+ for(const bone of [first,second])expect(bone.quaternion.angleTo(neutral)).toBeLessThan(1e-6);
 });

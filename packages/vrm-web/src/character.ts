@@ -86,6 +86,12 @@ export class CharacterBehavior {
           accumulated += weight;
         }
         bone.quaternion.copy(rotation); bone.position.copy(position.divideScalar(Math.max(1, total)));
+        // Spring joints disable matrixAutoUpdate. Their rest state reads both
+        // quaternion and matrix, so compose the authored local pose before
+        // propagating world matrices or capturing a new spring rest direction.
+        // Otherwise a changing expression mixes the new rotation with the
+        // preceding frame's simulated matrix and makes the ears jump.
+        bone.updateMatrix();
       }
       this.#vrm.scene.updateMatrixWorld(true);
       // Expression changes establish a new authored rest direction for ears only.
