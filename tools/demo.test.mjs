@@ -84,7 +84,7 @@ test('one command serves Hexo, preserves built Inochi2D browser JS, chooses a fr
   const existingBrowserModules = await browserModuleHashes(existingBrowserDist);
   const preferred = blocker.address().port;
   const childTemporary = join(root, 'temporary'); await mkdir(childTemporary);
-  const child = spawn(process.execPath, ['tools/demo.mjs', '--bundle', archive, '--port', String(preferred), '--no-open', '--no-install', '--accept-license'], {cwd: resolve(import.meta.dirname, '..'), stdio: ['ignore', 'pipe', 'pipe'], env: {...process.env, TMPDIR: childTemporary, TEMP: childTemporary, TMP: childTemporary}});
+  const child = spawn(process.execPath, ['tools/demo.mjs', '--bundle', archive, '--port', String(preferred), '--no-open', '--no-install', '--accept-license'], {cwd: resolve(import.meta.dirname, '..'), stdio: ['ignore', 'pipe', 'pipe'], env: {...process.env, TMPDIR: childTemporary, TEMP: childTemporary, TMP: childTemporary, NODE_COMPILE_CACHE: join(root, 'node-compile-cache')}});
   let output = ''; child.stdout.on('data', bytes => { output += bytes; }); child.stderr.on('data', bytes => { output += bytes; });
   t.after(() => { if (child.exitCode === null) child.kill('SIGTERM'); });
   const url = await new Promise((done, reject) => {
@@ -118,7 +118,7 @@ test('unapproved bundles and malicious manifest references never start a server'
   manifest.publication.allowRedistribution = true; manifest.model.file = '../outside.vrm';
   const archive = await saveZip(root, fixture({'blog/manifest.json': Buffer.from(JSON.stringify(manifest))}));
   const childTemporary = join(root, 'temporary'); await mkdir(childTemporary);
-  const child = spawn(process.execPath, ['tools/demo.mjs', '--bundle', archive, '--no-open', '--no-install', '--accept-license'], {cwd: resolve(import.meta.dirname, '..'), stdio: ['ignore', 'pipe', 'pipe'], env: {...process.env, TMPDIR: childTemporary, TEMP: childTemporary, TMP: childTemporary}});
+  const child = spawn(process.execPath, ['tools/demo.mjs', '--bundle', archive, '--no-open', '--no-install', '--accept-license'], {cwd: resolve(import.meta.dirname, '..'), stdio: ['ignore', 'pipe', 'pipe'], env: {...process.env, TMPDIR: childTemporary, TEMP: childTemporary, TMP: childTemporary, NODE_COMPILE_CACHE: join(root, 'node-compile-cache')}});
   let output = ''; child.stdout.on('data', bytes => { output += bytes; }); child.stderr.on('data', bytes => { output += bytes; });
   const code = await new Promise((done, reject) => { child.once('exit', done); child.once('error', reject); });
   assert.equal(code, 1); assert.match(output, /invalid manifest asset/u); assert.doesNotMatch(output, /已就绪/u);
