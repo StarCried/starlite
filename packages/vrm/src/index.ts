@@ -11,6 +11,7 @@ import { PoseBounds } from "./pose-bounds.js";
 import { HostMotion } from "./host-motion.js";
 import { PointerGaze } from "./gaze.js";
 import { CharacterBehavior } from "./character.js";
+import { prepareEmbeddedAnimations } from "./embedded.js";
 import type { CharacterProfile, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
 export { validateVrmWidgetConfig } from "./config.js";
@@ -48,6 +49,8 @@ class Controller implements VrmController {
   #player: VrmAnimationPlayer | undefined;
   #character: CharacterBehavior | undefined;
   #profile: CharacterProfile | undefined;
+  #applyEmbeddedMorphs: (() => void) | undefined;
+  #embeddedEyeClips: ReadonlySet<string> = new Set();
   #neutral: VRMPose | undefined;
   #portraitBounds: THREE.Box3 | undefined;
   #poseBounds: PoseBounds | undefined;
@@ -102,7 +105,7 @@ class Controller implements VrmController {
         this.#fetchAnimations(),
       ]);
       this.#abort.signal.throwIfAborted();
-      parseGlb(bytes, "vrm");
+      const modelJson = parseGlb(bytes, "vrm");
       const manager = new THREE.LoadingManager();
       let imageLoadFailed = false;
       // GLTFLoader tolerates texture failures and otherwise returns white materials.
@@ -117,14 +120,21 @@ class Controller implements VrmController {
       if (!vrm) throw new Error("model did not produce a VRM instance");
       this.#vrm = vrm;
       if (imageLoadFailed) throw new Error("VRM texture loading failed; check image decoding and CSP connect-src/img-src blob: permissions");
+      const embedded = await prepareEmbeddedAnimations(gltf, vrm, modelJson, this.#abort.signal);
+      this.#abort.signal.throwIfAborted();
+      for (const clip of embedded.clips) this.#clips.set(clip.name, clip);
+      this.#applyEmbeddedMorphs = embedded.applyMorphs;
+      this.#embeddedEyeClips = embedded.eyeClips;
+      for (const name of this.#config.embeddedAnimations ?? []) if (!this.#clips.has(name)) throw new Error("declared embedded animation is missing: " + name);
       VRMUtils.rotateVRM0(vrm);
       VRMUtils.combineSkeletons(vrm.scene);
       VRMUtils.removeUnnecessaryVertices(vrm.scene);
       // Custom expression-blink morphs must survive loading unchanged.
       this.#scene.add(vrm.scene);
-      if (this.#config.profile) {
-        validateCharacterProfile(profile); this.#profile = profile;
-        vrm.humanoid.setNormalizedPose(profile.neutralPose as VRMPose);
+      const characterProfile = this.#config.profile !== undefined ? profile : modelJson.extras?.starlite?.profile;
+      if (characterProfile !== undefined) {
+        validateCharacterProfile(characterProfile); this.#profile = characterProfile;
+        vrm.humanoid.setNormalizedPose(characterProfile.neutralPose as VRMPose);
       }
       this.#neutral = vrm.humanoid.getNormalizedPose();
       this.#character = new CharacterBehavior(vrm, this.#profile);
@@ -143,11 +153,13 @@ class Controller implements VrmController {
         if (!animation) throw new Error(`invalid VRMA: ${source.name}`);
         const clip = createVRMAnimationClip(animation, vrm);
         if (!clip.tracks.length || clip.tracks.some((track) => Array.from(track.values).some((value) => !Number.isFinite(value)))) throw new Error(`animation has invalid or incompatible tracks: ${source.name}`);
+        if (this.#clips.has(source.name)) throw new Error("external animation duplicates embedded animation: " + source.name);
         clip.name = source.name; this.#clips.set(source.name, clip);
       }
-      if (this.#profile?.neutralAnimation) {
-        const clip = this.#clips.get(this.#profile.neutralAnimation);
-        if (!clip) throw new Error("profile neutral animation is missing");
+      const neutralAnimation = this.#config.neutralAnimation ?? this.#profile?.neutralAnimation;
+      if (neutralAnimation) {
+        const clip = this.#clips.get(neutralAnimation);
+        if (!clip) throw new Error("neutral animation is missing");
         const sampler = new THREE.AnimationMixer(vrm.scene);
         sampler.clipAction(clip).play(); sampler.update(0);
         this.#neutral = vrm.humanoid.getNormalizedPose();
@@ -306,14 +318,14 @@ class Controller implements VrmController {
     const authoredGaze = this.#config.interactions?.pointer === false || this.#foregroundActive();
     this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#baseCamera, delta, authoredGaze);
     vrm.humanoid.update();
-    if (vrm.lookAt) {
+    if (vrm.lookAt && !this.#embeddedEyeClips.has(this.#player?.activeName ?? "")) {
       if (authoredGaze && !this.#player?.hasLookAtTrack) {
         vrm.lookAt.yaw = 0; vrm.lookAt.pitch = 0;
       }
       this.#gaze.update(vrm.lookAt, this.#baseCamera, delta, authoredGaze);
       vrm.lookAt.update(delta);
     }
-    this.#character?.beforeExpressions(delta, this.#player?.hasBlinkTrack); vrm.expressionManager?.update();
+    this.#character?.beforeExpressions(delta, this.#player?.hasBlinkTrack); vrm.expressionManager?.update(); this.#applyEmbeddedMorphs?.();
     this.#hostMotion?.update(delta, this.#baseCamera, this.#viewport.rect.baseHeight, () => {
       this.#character?.afterExpressions();
       vrm.nodeConstraintManager?.update();
@@ -419,7 +431,7 @@ class Controller implements VrmController {
       });
       VRMUtils.deepDispose(this.#vrm.scene); this.#scene.remove(this.#vrm.scene);
     }
-    this.#clips.clear(); this.#character = undefined; this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#poseBounds = undefined;
+    this.#clips.clear(); this.#character = undefined; this.#applyEmbeddedMorphs = undefined; this.#embeddedEyeClips = new Set(); this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#poseBounds = undefined;
     this.#renderer?.dispose(); this.#renderer?.forceContextLoss(); this.#renderer = undefined;
   }
 }

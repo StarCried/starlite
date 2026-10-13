@@ -51,7 +51,26 @@ export function parseGlb(bytes: ArrayBuffer, kind: "vrm" | "vrma"): Json {
   return json;
 }
 
-export function inspectVrm(bytes: ArrayBuffer): { version: "0" | "1"; name?: string; expressions: string[] } {
+export function embeddedAnimationCatalog(json: Json): { name: string; durationMs: number }[] {
+  const animations = json.animations ?? [];
+  if (!Array.isArray(animations) || animations.length > 64) throw new Error("at most 64 embedded animations are supported");
+  const names = new Set<string>();
+  return animations.map((animation: Json, index: number) => {
+    const name = animation.name ?? "Animation_" + (index + 1);
+    if (typeof name !== "string" || !name.trim() || new TextEncoder().encode(name).length > 128 || /[\u0000-\u001f\u007f]/.test(name) || name === "StarLiteIdle" || names.has(name)) throw new Error("invalid or duplicate embedded animation name");
+    names.add(name);
+    let duration = 0;
+    for (const sampler of animation.samplers ?? []) {
+      const accessor = json.accessors?.[sampler.input];
+      if (!accessor || accessor.type !== "SCALAR" || accessor.componentType !== 5126 || !Number.isFinite(accessor.max?.[0])) throw new Error("embedded animation has invalid animation times");
+      duration = Math.max(duration, accessor.max[0]);
+    }
+    if (!(duration > 0) || duration > 600) throw new Error("embedded animation duration must be between 0 and 600 seconds");
+    return { name, durationMs: duration * 1000 };
+  });
+}
+
+export function inspectVrm(bytes: ArrayBuffer): { version: "0" | "1"; name?: string; expressions: string[]; animations: { name: string; durationMs: number }[] } {
   const json = parseGlb(bytes, "vrm");
   const v0 = json.extensions.VRM;
   const humanoid = (v0 ?? json.extensions.VRMC_vrm).humanoid?.humanBones;
@@ -68,6 +87,7 @@ export function inspectVrm(bytes: ArrayBuffer): { version: "0" | "1"; name?: str
   return {
     version: v0 ? "0" : "1",
     ...(typeof name === "string" ? { name } : {}),
+    animations: embeddedAnimationCatalog(json),
     expressions: v0 ? (v0.blendShapeMaster?.blendShapeGroups ?? []).map((group: Json) => group.name) : Object.keys({ ...json.extensions.VRMC_vrm.expressions?.preset, ...json.extensions.VRMC_vrm.expressions?.custom }),
   };
 }

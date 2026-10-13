@@ -19,6 +19,10 @@ export interface VrmWidgetConfig {
   model: string;
   fallback: string;
   animations?: readonly VrmAnimationSource[];
+  /** Names returned by inspectVrm for animations embedded in the model. */
+  embeddedAnimations?: readonly string[];
+  /** Initial sample used as the relaxed pose when playback is stopped. */
+  neutralAnimation?: string;
   profile?: CharacterProfile | string;
   display?: { width?: number; height?: number };
   render?: { fps?: number | "display"; maxDevicePixelRatio?: number; initialScale?: number; autoFit?: boolean; fitPadding?: number;

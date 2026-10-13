@@ -31,6 +31,11 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   const animations = config.animations ?? [];
   if (!Array.isArray(animations) || animations.length > 64) throw new Error("at most 64 animations are supported");
   const names = new Set<string>();
+  if (config.embeddedAnimations !== undefined && (!Array.isArray(config.embeddedAnimations) || config.embeddedAnimations.length > 64)) throw new Error("invalid embedded animation catalog");
+  for (const name of config.embeddedAnimations ?? []) {
+    if (typeof name !== "string" || !name.trim() || name.length > 128 || names.has(name)) throw new Error("invalid or duplicate embedded animation");
+    names.add(name);
+  }
   for (const animation of animations) {
     if (!animation || typeof animation.name !== "string" || !animation.name.trim() || animation.name.length > 128 || names.has(animation.name) || typeof animation.url !== "string" || !animation.url.trim()) throw new Error("invalid or duplicate animation");
     if (animation.durationMs !== undefined && !finite(animation.durationMs, 1, 600000)) throw new Error("invalid animation duration");
@@ -38,6 +43,7 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   }
   for (const name of config.ambient?.animations ?? []) if (!names.has(name)) throw new Error(`unknown ambient animation: ${name}`);
   if ((config.ambient?.animations?.length ?? 0) > 1) throw new Error("VRM supports one explicitly configured ambient clip");
+  if (config.neutralAnimation !== undefined && !names.has(config.neutralAnimation)) throw new Error("unknown neutral animation");
   const click = config.interactions?.click;
   const pool = (value: unknown): boolean => Array.isArray(value) && value.length > 0 && value.length <= 20 && new Set(value).size === value.length && value.every(name => typeof name === "string" && names.has(name));
   if (click && (click.animations !== undefined ? !pool(click.animations) : !click.animation || !names.has(click.animation))) throw new Error("Click must name available animations");

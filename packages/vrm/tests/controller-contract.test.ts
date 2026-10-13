@@ -14,6 +14,8 @@ let compileGate: Promise<void> | undefined;
 let compileCalls = 0;
 let renderCalls = 0;
 let onAnimationParse: (() => void) | undefined;
+let embeddedModel = false;
+let relaxedIdle = false;
 vi.mock("three", async (original) => ({...await original<typeof import("three")>(), WebGLRenderer: class {
  info={render:{calls:1,triangles:12},memory:{geometries:1,textures:0}};
  setClearColor(){} setPixelRatio(){} setSize(){} render(){renderCalls++} dispose(){} forceContextLoss(){}
@@ -27,22 +29,32 @@ vi.mock("three/addons/loaders/GLTFLoader.js",()=>({GLTFLoader:class {
   if(bytes.byteLength===1){onAnimationParse?.();return {userData:{vrmAnimations:[{}]}};}
   if(rejectTexture)this.manager.itemError("blob:blocked-texture");
   scene=new THREE.Scene();const mesh=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial());mesh.name="body";scene.add(mesh);
-  const head=new THREE.Object3D();head.position.y=.4;scene.add(head);
-  const humanoid={getNormalizedBoneNode:()=>head,getRawBoneNode:()=>head,getNormalizedPose:()=>({}),setNormalizedPose:()=>{mesh.position.x=0;head.quaternion.identity()},update:()=>{}};
+  const head=new THREE.Object3D();head.name="head";head.position.y=.4;scene.add(head);
+  const humanoid={getNormalizedBoneNode:()=>head,getRawBoneNode:()=>head,getNormalizedPose:()=>({head:{rotation:head.quaternion.toArray()}}),setNormalizedPose:(pose:any)=>{mesh.position.x=0;head.quaternion.fromArray(pose.head?.rotation??[0,0,0,1])},update:()=>{}};
   const lookAt=new VRMLookAt(humanoid as unknown as VRMHumanoid,{applyYawPitch(){}});
-  return {scene,userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[{update:(delta:number)=>{if(throwMaterial)throw new Error('material update failed');materialDeltas.push(delta)}}],humanoid,lookAt,expressionManager:{resetValues(){},expressions:[],setValue(){},update(){}}}}};
+  return {scene,animations:embeddedModel?[new THREE.AnimationClip("Jump",1,[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])]:[],userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[{update:(delta:number)=>{if(throwMaterial)throw new Error('material update failed');materialDeltas.push(delta)}}],humanoid,lookAt,expressionManager:{resetValues(){},expressions:[],setValue(){},update(){}}}}};
  }
 }}));
-vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));
+vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,relaxedIdle?[new THREE.QuaternionKeyframeTrack("head.quaternion",[0,1],[0,0,.2,Math.sqrt(.96),0,0,.2,Math.sqrt(.96)])]:[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));
 vi.mock("../src/inspect.js",async(original)=>({...await original<typeof import("../src/inspect.js")>(),inspectVrma:()=>({durationMs:1000})}));
 let time=0,id=0;const frames=new Map<number,FrameRequestCallback>();
 function advance(ms:number){for(let end=time+ms;time<end;){time=Math.min(end,time+1000/60);const batch=[...frames];frames.clear();for(const [,callback]of batch)callback(time)}}
 const requestFrame=(callback:FrameRequestCallback)=>{frames.set(++id,callback);return id};
 const cancelFrame=(handle:number)=>frames.delete(handle);
 const resources:ModelController[]=[];
-function model(){const text=new TextEncoder().encode(JSON.stringify({asset:{version:"2.0"},extensions:{VRMC_vrm:{specVersion:"1.0"}}}));const n=Math.ceil(text.length/4)*4;const b=new ArrayBuffer(20+n),v=new DataView(b);for(const [at,value]of [[0,0x46546c67],[4,2],[8,b.byteLength],[12,n],[16,0x4e4f534a]])v.setUint32(at!,value!,true);new Uint8Array(b,20).fill(32);new Uint8Array(b,20,text.length).set(text);return b}
+function model(){
+ const json={asset:{version:"2.0"},extensions:{VRMC_vrm:{specVersion:"1.0"}},...(embeddedModel?{
+  nodes:[{}],buffers:[{byteLength:32}],bufferViews:[{buffer:0,byteOffset:0,byteLength:8},{buffer:0,byteOffset:8,byteLength:24}],
+  accessors:[{bufferView:0,componentType:5126,count:2,type:"SCALAR",max:[1]},{bufferView:1,componentType:5126,count:2,type:"VEC3"}],
+  animations:[{name:"Jump",samplers:[{input:0,output:1}],channels:[{sampler:0,target:{node:0,path:"translation"}}]}],
+ }:{})};
+ const text=new TextEncoder().encode(JSON.stringify(json)),n=Math.ceil(text.length/4)*4,b=new ArrayBuffer(20+n+(embeddedModel?40:0)),v=new DataView(b);
+ for(const [at,value]of [[0,0x46546c67],[4,2],[8,b.byteLength],[12,n],[16,0x4e4f534a]])v.setUint32(at!,value!,true);new Uint8Array(b,20,n).fill(32);new Uint8Array(b,20,text.length).set(text);
+ if(embeddedModel){v.setUint32(20+n,32,true);v.setUint32(24+n,0x004e4942,true);v.setFloat32(32+n,1,true);}
+ return b;
+}
 beforeEach(()=>{
- rejectTexture=false;materialDeltas=[];throwMaterial=false;compileGate=undefined;compileCalls=0;renderCalls=0;onAnimationParse=undefined;time=0;id=0;frames.clear();document.body.replaceChildren();
+ rejectTexture=false;materialDeltas=[];throwMaterial=false;compileGate=undefined;compileCalls=0;renderCalls=0;onAnimationParse=undefined;embeddedModel=false;relaxedIdle=false;time=0;id=0;frames.clear();document.body.replaceChildren();
  vi.spyOn(performance,"now").mockImplementation(()=>time);
  vi.stubGlobal("requestAnimationFrame",requestFrame);vi.stubGlobal("cancelAnimationFrame",cancelFrame);
  vi.stubGlobal("matchMedia",()=>({matches:false,addEventListener(){},removeEventListener(){}}));
@@ -60,6 +72,28 @@ async function mount(backend:string,signal?:AbortSignal,dialogue?:any){
  }
  resources.push(c);return c;
 }
+it('lists and plays a model embedded animation alongside the program-provided Idle',async()=>{
+ embeddedModel=true;const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},embeddedAnimations:['Jump'],
+  animations:[{name:'StarLiteIdle',url:'Idle.vrma'}],ambient:{animations:['StarLiteIdle']},interactions:{pointer:false,click:{animation:'Jump'}}});resources.push(c);
+ expect(c.status).toBe('running');expect(c.getAnimations()).toEqual([{name:'Jump',durationMs:1000},{name:'StarLiteIdle',durationMs:1000}]);
+ const action=c.playAnimation('Jump');advance(1500);await expect(action).resolves.toBe('completed');expect(c.diagnostics().activeAnimation).toBe('StarLiteIdle');
+});
+it('rejects an external clip that silently shadows an embedded clip',async()=>{
+ embeddedModel=true;const host=document.createElement('div');document.body.append(host);
+ const error=vi.fn();host.addEventListener('model-error',error);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},animations:[{name:'Jump',url:'Jump.vrma'}]});resources.push(c);
+ expect(c.status).toBe('fallback');expect((error.mock.calls[0]![0] as CustomEvent).detail).toContain('duplicates embedded');
+});
+it('keeps the selected Idle baseline when stopping a generic model without a character profile',async()=>{
+ relaxedIdle=true;const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},animations:[{name:'StarLiteIdle',url:'Idle.vrma'}],
+  neutralAnimation:'StarLiteIdle',ambient:{animations:['StarLiteIdle']},interactions:{pointer:false}});resources.push(c);
+ expect(c.status).toBe('running');advance(500);c.stopAnimation();
+ const rotation=scene.getObjectByName('head')!.quaternion;
+ expect(rotation.angleTo(new THREE.Quaternion(0,0,.2,Math.sqrt(.96)))).toBeCloseTo(0);
+ expect(rotation.angleTo(new THREE.Quaternion())).toBeGreaterThan(.3);
+});
 it('keeps a fixed canvas and emits no viewport changes while an action begins, completes or returns to neutral',async()=>{
  const host=document.createElement('div');document.body.append(host);
  const changed=vi.fn();host.addEventListener('model-viewport-change',changed);
