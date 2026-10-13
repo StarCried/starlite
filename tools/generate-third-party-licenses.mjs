@@ -107,7 +107,7 @@ function dComponents() {
   const selections = readJson(
     resolve(repositoryRoot, "tools/official-sdk/dub.selections.json"),
   );
-  const cacheRoot = resolve(
+  const cacheRoot = process.env.INOCHI2D_SDK_CACHE ?? resolve(
     homedir(),
     ".cache/starlite/official-sdk",
     `${pin.sdkCommit}-${pin.toolchainTag}`,
@@ -126,8 +126,8 @@ function dComponents() {
     ([left], [right]) => left.localeCompare(right),
   )) {
     const componentRoot = resolve(
-      homedir(),
-      ".dub/packages",
+      cacheRoot,
+      "dub-home/packages",
       name,
       version,
       name,
