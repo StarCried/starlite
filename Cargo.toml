@@ -6,7 +6,7 @@ resolver = "2"
 version = "0.1.0-alpha.1"
 edition = "2021"
 license = "BSD-2-Clause"
-repository = "https://github.com/StarCried/inochi2d-web"
+repository = "https://github.com/StarCried/starlite"
 rust-version = "1.85"
 
 [profile.release]

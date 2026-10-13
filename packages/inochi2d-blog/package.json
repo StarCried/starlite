@@ -6,11 +6,11 @@
   "license": "BSD-2-Clause",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/StarCried/inochi2d-web.git",
+    "url": "git+https://github.com/StarCried/starlite.git",
     "directory": "packages/inochi2d-blog"
   },
-  "homepage": "https://github.com/StarCried/inochi2d-web#readme",
-  "bugs": "https://github.com/StarCried/inochi2d-web/issues",
+  "homepage": "https://github.com/StarCried/starlite#readme",
+  "bugs": "https://github.com/StarCried/starlite/issues",
   "bin": {
     "inochi2d-blog": "./bin/inochi2d-blog.mjs"
   },

@@ -109,7 +109,7 @@ function dComponents() {
   );
   const cacheRoot = resolve(
     homedir(),
-    ".cache/inochi2d-web/official-sdk",
+    ".cache/starlite/official-sdk",
     `${pin.sdkCommit}-${pin.toolchainTag}`,
   );
   const sdkRoot = resolve(cacheRoot, `inochi2d-${pin.sdkCommit}`);
@@ -196,14 +196,14 @@ function vrmComponents() {
  return [...new Set(names)].sort().map(name=>{const root=resolve(repositoryRoot,"node_modules",name), pkg=readJson(resolve(root,"package.json"));return {name,version:pkg.version,license:pkg.license,source:typeof pkg.repository==="string"?pkg.repository:pkg.repository?.url,files:collectLicenseFiles(root)}});
 }
 const outputs = [
- {path:resolve(repositoryRoot,"packages/vrm-web/THIRD_PARTY_LICENSES.txt"),contents:renderLicenseBundle("THIRD-PARTY LICENSES FOR vrm-web",vrmComponents())},
+ {path:resolve(repositoryRoot,"packages/vrm/THIRD_PARTY_LICENSES.txt"),contents:renderLicenseBundle("THIRD-PARTY LICENSES FOR @starcried/starlite-vrm",vrmComponents())},
   {
     path: resolve(
       repositoryRoot,
-      "packages/inochi2d-web/THIRD_PARTY_LICENSES.txt",
+      "packages/inochi2d/THIRD_PARTY_LICENSES.txt",
     ),
     contents: renderLicenseBundle(
-      "THIRD-PARTY LICENSES FOR inochi2d-web",
+      "THIRD-PARTY LICENSES FOR @starcried/starlite-inochi2d",
       dComponents(),
     ),
   },

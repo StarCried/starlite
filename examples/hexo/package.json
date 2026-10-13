@@ -1,5 +1,5 @@
 {
-  "name": "@inochi2d-web/hexo-example",
+  "name": "@starcried/starlite-hexo-example",
   "version": "0.1.0-alpha.1",
   "private": true,
   "hexo": {
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "hexo": "7.3.0",
-    "hexo-model-companion": "0.1.0-alpha.1",
+    "hexo-starlite": "0.1.0-alpha.1",
     "hexo-renderer-marked": "7.0.1"
   }
 }

@@ -1,14 +1,17 @@
-# Model Companion Web project instructions
+# StarLite project instructions
 
 ## Repository boundaries
 
-- `packages/model-widget-core` owns the format-neutral playback contract,
+- `packages/core` owns the format-neutral playback contract,
   cancellable mounts and dialogue scheduling. It must not import a backend.
-- `packages/vrm-web` owns VRM inspection/preparation, Three.js/three-vrm
+- `packages/vrm` owns VRM inspection/preparation, Three.js/three-vrm
   rendering, VRMA playback and data-only character profiles. Keep private
   character models and animation-authoring projects outside this repository.
-- Product names are Model Companion Web and DSH Companion. Remote repository
-  URLs and Inochi2D-specific package names describe their actual identities.
+- Product names are StarLite, StarLite for Hexo and StarLite for DSH. Local
+  checkouts use `starlite` and `starlite-dsh`; package names and repository metadata
+  follow these identities. The GitHub repositories have been renamed to
+  `StarCried/starlite` and `StarCried/starlite-dsh` with user approval.
+  Pushing source and publishing releases require explicit user approval.
 
 - `crates/inochi2d-pipeline` owns untrusted `.inp/.inx` inspection,
   compatibility and rights reports, deterministic texture optimization
@@ -17,10 +20,10 @@
 - `tools/build-official-sdk.mjs` owns the reproducible official D-SDK download,
   source compatibility patches, minimal browser export surface, Binaryen
   optimization, and pinned output hashes.
-- `packages/inochi2d-web` owns model fetch, official WASM calls, WebGL2 command
+- `packages/inochi2d` owns model fetch, official WASM calls, WebGL2 command
   rendering, lifecycle, motion synthesis, interaction, DPR/FPS policy, and
   fallback presentation.
-- `packages/hexo-model-companion` owns Hexo 7 configuration, manifest verification,
+- `packages/hexo` owns Hexo 7 configuration, manifest verification,
   hashed asset routes, injection, and PJAX-safe singleton bootstrapping.
 - `packages/inochi2d-blog` owns fail-closed orchestration. No code path may call
   `hexo deploy` before rights, identity, preparation, generation, and browser

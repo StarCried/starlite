@@ -37,7 +37,7 @@ const CONFIG_NAME = ".inochi2d.generated.yml";
 const PERFORMANCE_SAMPLE_COUNT = 90;
 const MINIMUM_RENDER_FPS = 29.5;
 const MAX_P95_RENDER_DURATION_MS = 33;
-const LOCAL_PREVIEW_ENV = "INOCHI2D_LOCAL_PREVIEW_TOKEN";
+const LOCAL_PREVIEW_ENV = "STARLITE_LOCAL_PREVIEW_TOKEN";
 const PREVIEW_LOCK_NAME = "run.json";
 
 export async function main(argv) {
@@ -711,7 +711,7 @@ async function writeGeneratedConfig(context, prepared) {
       click: clickAnimation ? { animation: clickAnimation } : false,
     },
   };
-  const contents = `${JSON.stringify({ inochi2d_widget: widget }, null, 2)}\n`;
+  const contents = `${JSON.stringify({ starlite: widget }, null, 2)}\n`;
   const temporary = `${context.generatedConfigPath}.tmp-${process.pid}`;
   await writeFile(temporary, contents, { flag: "wx" });
   await rename(temporary, context.generatedConfigPath);
@@ -759,7 +759,7 @@ async function writePreviewConfig(context, prepared) {
   const contents = `${JSON.stringify(
     {
       public_dir: relativePublic,
-      inochi2d_widget: widget,
+      starlite: widget,
     },
     null,
     2,
@@ -1027,7 +1027,7 @@ async function verifyBrowser(chromium, target, url) {
     const requests = [];
     mobilePage.on("request", (request) => requests.push(request.url()));
     await mobilePage.goto(url, { waitUntil: "domcontentloaded" });
-    if ((await mobilePage.locator("[data-inochi2d-widget-host]").count()) !== 0) {
+    if ((await mobilePage.locator("[data-starlite-widget-host]").count()) !== 0) {
       throw new Error(`${target.label}: mobile widget host was not removed`);
     }
     const forbidden = requests.filter(
@@ -1054,7 +1054,7 @@ async function verifyBrowser(chromium, target, url) {
     await mobilePage.evaluate(() => {
       document.dispatchEvent(new Event("pjax:complete"));
     });
-    if ((await mobilePage.locator("[data-inochi2d-widget-host]").count()) !== 0) {
+    if ((await mobilePage.locator("[data-starlite-widget-host]").count()) !== 0) {
       throw new Error(`${target.label}: PJAX did not remove the widget after entering mobile`);
     }
     await mobilePage.setViewportSize({ width: 1_440, height: 900 });
@@ -1480,7 +1480,7 @@ async function verifyPackagedPipeline(packageRoot, binaryPath, executable) {
 }
 
 function assertHexoPlugin(blogRoot) {
-  resolveFromPackage(blogRoot, "hexo-model-companion");
+  resolveFromPackage(blogRoot, "hexo-starlite");
 }
 
 function resolveFromPackage(root, request) {

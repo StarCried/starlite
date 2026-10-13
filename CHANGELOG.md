@@ -5,6 +5,21 @@ versioning once packages are published.
 
 ## 0.1.0-alpha.1 - Unreleased
 
+- Renamed the local project to StarLite, the Hexo adapter to hexo-starlite and
+  runtime packages to @starcried/starlite-core, starlite-vrm and starlite-inochi2d.
+  Consolidated package directories and changed the Hexo config key to starlite.
+  Existing remote identities are unchanged pending a separate release step.
+- Added the format-neutral playback contract, cancellable mounts, shared bubbles
+  and per-animation sentence libraries.
+- Added VRM 0/1 inspection, immutable bundle preparation, VRMA playback, limited
+  pointer gaze and optional data-only character adaptation through Three.js.
+- Added page click-through interaction, PJAX persistence, load preparation yields
+  and spring rest-pose handling for animated host motion.
+- Rewrote installation and configuration documentation to distinguish current
+  behavior from the planned original default Idle and animation-free setup.
+
+### Inochi2D implementation history
+
 - Added a reproducible browser build of the official Inochi2D D SDK.
 - Added a framework-free WebGL2 renderer and widget controller.
 - Added blink, breath, pointer, click, drag, reset, fallback, reduced-motion,
@@ -51,10 +66,10 @@ versioning once packages are published.
   compatibility fixture, and a full-range public Aka continuity regression.
 - Increased the default desktop bottom clearance so the widget does not
   overlap Volantis' fixed return-to-top control at 1440 x 900.
-- Defined `inochi2d-web` and `hexo-model-companion` as the normal browser alpha,
+- Defined the Inochi2D runtime and Hexo adapter as the normal browser alpha,
   while `inochi2d-blog` and its bundled native pipeline are an explicitly
   invoked experimental unsigned alpha. Installation has no native lifecycle
   script; integrity, authorization, or execution failures remain fail-closed.
 
-No public package, repository push, or production blog deployment is part of
-this unreleased entry.
+The program packages remain unpublished. Separately approved site deployments
+do not constitute a package release.

@@ -16,10 +16,10 @@ for (const lifecycle of ["preinstall", "install", "postinstall"]) {
 }
 
 const expectations = new Map([
- ["model-widget-core", ["dist/index.js", "LICENSE", "README.md"]],
- ["vrm-web", ["dist/index.js", "dist/widget.css", "dist/inspect.cjs", "dist/config.cjs", "LICENSE", "README.md", "THIRD_PARTY_LICENSES.txt"]],
+ ["@starcried/starlite-core", ["dist/index.js", "LICENSE", "README.md"]],
+ ["@starcried/starlite-vrm", ["dist/index.js", "dist/widget.css", "dist/inspect.cjs", "dist/config.cjs", "LICENSE", "README.md", "THIRD_PARTY_LICENSES.txt"]],
   [
-    "inochi2d-web",
+    "@starcried/starlite-inochi2d",
     [
       "dist/index.js",
       "dist/generated/inochi2d.wasm",
@@ -29,7 +29,7 @@ const expectations = new Map([
       "THIRD_PARTY_LICENSES.txt",
     ],
   ],
-  ["hexo-model-companion", ["dist/index.js", "LICENSE", "README.md"]],
+  ["hexo-starlite", ["dist/index.js", "LICENSE", "README.md"]],
   [
     "inochi2d-blog",
     [

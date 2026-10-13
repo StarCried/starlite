@@ -2,7 +2,7 @@ import { readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const workspaceRoot = resolve(import.meta.dirname, "..");
-const distRoot = resolve(workspaceRoot, "packages/inochi2d-web/dist");
+const distRoot = resolve(workspaceRoot, "packages/inochi2d/dist");
 const budget = 1.5 * 1024 * 1024;
 const assets = [];
 

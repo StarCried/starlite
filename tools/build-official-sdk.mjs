@@ -25,7 +25,7 @@ const cacheRoot =
   join(
     homedir(),
     ".cache",
-    "inochi2d-web",
+    "starlite",
     "official-sdk",
     `${pin.sdkCommit}-${pin.toolchainTag}`,
   );
@@ -36,7 +36,7 @@ const sourceRoot = resolve(cacheRoot, `inochi2d-${pin.sdkCommit}`);
 const toolchainRoot = resolve(cacheRoot, "ldc2");
 const output = resolve(
   workspaceRoot,
-  "packages/inochi2d-web/src/generated/inochi2d.wasm",
+  "packages/inochi2d/src/generated/inochi2d.wasm",
 );
 
 if (process.platform !== "linux") {

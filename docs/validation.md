@@ -1,5 +1,37 @@
 # Validation checklist
 
+Current naming is StarLite (2026-10-13). Dated results below describe historical
+Inochi2D candidates; their old package labels and hashes are retained only as
+evidence, not as current installation inputs or release approval. Commands use
+the new package names. See [current status](status.md) before release.
+
+## 2026-10-13 local StarLite rename
+
+The package directories, package identities, Hexo key, examples and local
+consumers were migrated together. This check does not approve publication.
+
+- Workspace unit suites: 269 passed, 7 skipped (external real-model fixtures).
+- Playwright: 11 passed, 2 skipped (external real-model inputs).
+- Four runtime package builds, three application example builds, lint,
+  typecheck, package-content/license checks and  passed.
+- The Inochi2D runtime budget check measured 586,722 bytes against 1,572,864;
+  this is not a VRM GPU, memory or loading benchmark.
+- The documented prepare script and YAML configuration generated an isolated
+  Hexo page using synthetic VRM/VRMA inputs after the documented enablement and
+  source-hash steps. No private character assets were used in that smoke test.
+- The browser gate exposed a bare core-package import in the Inochi2D output.
+  Routing it through the existing bundled bridge fixed the output; the browser
+  suite then passed.
+- Six real-blog routes were checked at 1440 x 900 and 390 x 844 with screenshots.
+  Desktop retained one running host at right 112 / bottom 160 CSS px. Mobile
+  requested no model, VRMA or runtime JS (the widget stylesheet is still loaded).
+  No local HTTP or layout-overflow failure was found. External resources were
+  blocked, so CDN images, external lazy-load scripts and real PJAX interaction
+  were outside this narrow rename check; synthetic PJAX tests ran separately.
+- Full Rust validation and a clean WASM rebuild, hosted CI, signed installers,
+  public-registry installation and final product release gates were not run.
+  No push, package publication, release or site deployment was performed.
+
 ## 2026-07-29 full code-review regression pass
 
 The review added focused coverage for the Inochi2D Lighten, LinearDodge,
@@ -38,7 +70,7 @@ git diff --check
 For a prepared redistributable model:
 
 ```sh
-INOCHI2D_TEST_MODEL_PATH=/absolute/path/model.inp npm test --workspace inochi2d-web
+INOCHI2D_TEST_MODEL_PATH=/absolute/path/model.inp npm test --workspace @starcried/starlite-inochi2d
 INOCHI2D_TEST_MODEL_PATH=/absolute/path/model.inp npm run test:browser
 ```
 
@@ -56,10 +88,10 @@ and hosted release-dry-run succeed. Publish the exact reviewed tarballs in
 dependency order, using the non-default `alpha` dist-tag:
 
 ```sh
-npm publish model-widget-core-0.1.0-alpha.1.tgz --tag alpha
-npm publish inochi2d-web-0.1.0-alpha.1.tgz --tag alpha
-npm publish vrm-web-0.1.0-alpha.1.tgz --tag alpha
-npm publish hexo-model-companion-0.1.0-alpha.1.tgz --tag alpha
+npm publish starcried-starlite-core-0.1.0-alpha.1.tgz --tag alpha --access public
+npm publish starcried-starlite-inochi2d-0.1.0-alpha.1.tgz --tag alpha --access public
+npm publish starcried-starlite-vrm-0.1.0-alpha.1.tgz --tag alpha --access public
+npm publish hexo-starlite-0.1.0-alpha.1.tgz --tag alpha
 npm publish inochi2d-blog-0.1.0-alpha.1.tgz --tag alpha
 ```
 

@@ -1,0 +1,54 @@
+# StarLite for Hexo / 本地候选配置
+# 合并到博客 _config.yml；替换 bundle、fallback、哈希和真实动作名后再开启。
+# publication 两项只在核实所有模型/贴图/动作许可后改为 true。
+starlite:
+  enable: false
+  backend: vrm
+  bundle: ./starlite-bundle
+  fallback: images/starlite-fallback.png
+  publication:
+    confirm: false
+    allowRedistribution: false
+    sourceSha256: "替换为 manifest.model.sourceSha256"
+  display:
+    width: 260
+    height: 360
+  render:
+    fps: 30
+    maxDevicePixelRatio: 1
+  gaze:
+    maxYawDegrees: 25
+    maxPitchDegrees: 15
+    smoothingMs: 100
+  mobile:
+    show: false
+    breakpoint: 768
+  ambient:
+    animations: [Idle]
+  dialogue:
+    # 首次入场可选；无该动作请删除此节。
+    enter:
+      animation: Wave
+      linesByAnimation:
+        Wave: ["你好，欢迎来坐坐。", "慢慢看，我在这里。"]
+      delayMs: 1000
+      durationMs: 7200
+    # idle 是偶发小动作，和上方 Idle 基础循环是不同概念。
+    idle:
+      animation: Stretch
+      linesByAnimation:
+        Stretch: ["伸个懒腰，继续陪你。", "休息一下也很好。"]
+      intervalMinMs: 60000
+      intervalMaxMs: 120000
+      durationMs: 7200
+    click:
+      animation: Wave
+      animations: [Wave, Nod]
+      linesByAnimation:
+        Wave: ["你好呀。", "看到你了！"]
+        Nod: ["我在听。", "嗯，慢慢来。"]
+      durationMs: 7200
+  interactions:
+    pointer: true
+    passThrough: true
+    drag: false

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const here=dirname(fileURLToPath(import.meta.url));
 const args=process.argv.slice(2), option=(name)=>args[args.indexOf(name)+1];
 if(!args.includes("--assets")) throw new Error("Pass --assets <private companion output directory>; assets are never copied into this repository.");
-const assets=resolve(option("--assets")), runtime=resolve(here,"../../packages/vrm-web/dist");
+const assets=resolve(option("--assets")), runtime=resolve(here,"../../packages/vrm/dist");
 const port=Number(args.includes("--port")?option("--port"):4178);
 const original=args.includes("--original")?resolve(option("--original")):undefined;
 const inside=(root,path)=>{const part=relative(root,path);return !part.startsWith("..")&&!isAbsolute(part)};

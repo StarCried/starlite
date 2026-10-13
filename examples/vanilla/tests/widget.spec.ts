@@ -165,6 +165,7 @@ test("entry and click scenes show safe dialogue above the model", async ({ page 
 
   await widget.click({ position: { x: 130, y: 180 } });
   await expect(bubble).toHaveText("Clicked <img src=x>");
+  await expect(bubble).toHaveAttribute("data-model-animation", "Click");
   await expect(bubble.locator("img")).toHaveCount(0);
 });
 
@@ -649,7 +650,7 @@ test("Hexo mobile bootstrap fetches no runtime JavaScript, WASM, or model", asyn
   page.on("request", (request) => requests.push(request.url()));
 
   await page.goto("http://127.0.0.1:4174/");
-  await expect(page.locator("[data-inochi2d-widget-host]")).toHaveCount(0);
+  await expect(page.locator("[data-starlite-widget-host]")).toHaveCount(0);
   expect(requests.some((url) => url.endsWith("/index.js"))).toBe(false);
   expect(requests.some((url) => url.endsWith(".wasm"))).toBe(false);
   expect(requests.some((url) => url.endsWith(".inp"))).toBe(false);

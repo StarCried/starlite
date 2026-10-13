@@ -1,142 +1,39 @@
-# Alpha status and approval gates
+# StarLite 当前状态
 
-Status on 2026-07-27:
+本页更新于 2026-10-13。版本为 `0.1.0-alpha.1` 候选；npm 程序包尚未发布。源码、目录和包身份已统一为 StarLite，GitHub 仓库为 `StarCried/starlite` 和 `StarCried/starlite-dsh`。发布准备包括独立 npm 安装验收、干净源码构建与 CI；微光资源包仍独立授权，不随程序上传。
 
-## Implemented and locally validated
+## 本轮交付
 
-- Official Inochi2D D-SDK WASM at a fixed source/toolchain hash, with
-  browser-compatibility patches and a 31-symbol export surface.
-- 451,459-byte optimized WASM; raw runtime JS plus WASM is below 1.5 MiB.
-- WebGL2 rendering with transparent layers, masks/blends, finite draw-buffer
-  validation, deterministic teardown, fallback, reduced motion, and
-  visibility/context lifecycle.
-- Blink, breath, pointer/head tracking, whole-page dragging, body feedback, and
-  double-click reset. Strict model-animation extraction, named playback, and
-  missing-animation failure paths pass unit tests. A Creator-authored public
-  Aka test copy's `Click` clip passed official-WASM, Chromium, installed Chrome,
-  and installed Edge visual interaction gates without a synthesized fallback.
-  Enabling reduced motion during an active clip restores its affected model
-  parameters instead of leaving the puppet frozen at an intermediate pose.
-- Hexo 7 hashed runtime/model assets, strict bundle verification, mobile
-  no-fetch bootstrap, and PJAX singleton.
-- Windows/Linux native inspection and pixel-lossless TGA conversion/PNG
-  recompression, bounded 8192-to-4096 source preprocessing, adaptive 8 MiB
-  texture fitting, and transactional immutable output. Every dimension change
-  is reported as lossy in the manifest.
-- Fail-closed inspection, preparation, Hexo generation, browser verification,
-  dry run, and deployment orchestration.
-- Unit tests, synthetic fixtures, Chromium browser tests, CI definitions, and a
-  package-only release dry run.
-- Deterministic third-party license bundles for the official D-SDK WASM and
-  locked native Cargo graph are included in, and verified before packing, the
-  respective npm packages.
-- Public Aka pre-animation baseline: upright transparent layers, parameter motion,
-  drag/reset, fallback, Hexo asset verification, and real official-WASM
-  rendering passed.
-- Public Aka's Breath parameter now changes more than twenty final draw
-  vertices across its range. The runtime still probes draw output and selects a
-  restored-value camera breathing fallback for genuinely ineffective targets,
-  but Aka uses its authored mesh deformation.
-- Real pointer press/release shares the drag recognizer: sub-six-pixel travel
-  triggers the configured model animation, while larger movement remains an
-  exclusive whole-widget drag. No parameter-pulse fallback remains; a missing
-  or invalid configured clip stops the automatic workflow.
-- Aka names arms anatomically. Its `Arm:: Left:: Move` produces the screen-right
-  action and `Arm:: Right:: Move` produces the screen-left action. Both arms and
-  their hands are bound in the source model and now move together in the
-  browser.
-- D-SDK migration regressions reported during human review were reproduced and
-  fixed: browser upload no longer flips already-decoded textures; legacy 1D/2D
-  ranges, composite tint/screen tint, simple-physics output scale, and mesh
-  deformation vectors now deserialize through the correct fixed-vector
-  storage. The previous generic `vec2` conversion silently replaced every
-  legacy deformation vector with zero. The runtime validates model ranges and
-  clamps finite external parameter values to them.
-- Synthetic compatibility tests now cover legacy scalar/vector ranges,
-  non-zero mesh deformation vectors, and composite colors. The ignored public
-  Aka fixture scans
-  `Head:: Yaw-Pitch` across its full range and rejects frozen segments or
-  discontinuous jumps.
-- A local-only Mannequin 0.8.6 export now passes the complete pinned SDK path:
-  duplicate UUID/name parameter entries are merged, optional template-node
-  bindings are pruned safely, omitted legacy composite colors receive valid
-  defaults, Cubic bindings remain finite, MeshGroup deformation and ColorBurn
-  render, and all 207 textures are browser-safe. Its 600% export is reduced
-  from 22,598,857 to 8,143,142 bytes in two adaptive passes while retaining 82
-  parameters.
-- Verified bundles default to neutral draw-list auto-fitting, so Mannequin and
-  Creator models no longer require a generator-specific camera constant.
-  Conventional Mannequin head/eye/body channels and its tail/tip parameters are
-  inferred; deterministic tail oscillators run below foreground animations.
-  Source and prepared rigs are both checked before an explicitly configured
-  oscillator is allowed into Hexo generation.
-- Final npm tarballs install into a fresh directory without lifecycle
-  execution; the packaged Linux native helper inspects Aka successfully and a
-  production-dependency `npm audit` reports zero vulnerabilities. The reviewed
-  local candidate hashes are `a406ec109aeb8af267090211f0e779f6961de822fabbfb9a1aa4353592b95860`
-  (`inochi2d-web`), `59ee023e4a349611bea03443094c8069147e722b2a13fb7c3645405a0aed7d9c`
-  (`hexo-model-companion`), and
-  `9856c67f1e001ae133559bcc03a6970661d21d82c225b7ba341c0d76a03b3956`
-  (`inochi2d-blog`).
-- Native Linux and Windows GNU release binaries were built locally, staged with
-  SHA-256 metadata, packed into `inochi2d-blog`, installed from tarballs, and
-  the packaged Windows binary successfully inspected the public Aka fixture.
-- The minimal Hexo public-model dry run measured exactly 30.00 FPS and 0.80 ms
-  p95 render duration at DPR 1.25 over 90 GPU-synchronized frames.
-- The Windows blog's full-screen `starfield.js` was optimized without lowering
-  its animation rate: the nearly static atmosphere is cached for one second,
-  orbit trigonometry is computed once per frame, the primary sky stays at full
-  DPR, and only the masked duplicate cover layer is capped at 0.9x.
-- The final packaged Windows Volantis dry run used the normalized
-  model-authored `Click` manifest and a manifest-addressed immutable bundle.
-  Chrome and Edge each measured 29.98 FPS; p95 render duration was 0.90 ms and
-  1.10 ms respectively. Both installed browsers passed the visible click pose,
-  pointer, drag/reset, PJAX, layout, and mobile no-fetch gates. `hexo deploy`
-  was not executed.
-- Windows endpoint policy blocked the newly packed unsigned helper exactly as
-  expected. The CLI stopped before writing or generating the blog. Final local
-  validation then used a hash-verified executable built from the same reviewed
-  source via the documented `pipelineBinary` override; no system protection was
-  disabled or bypassed.
-- The approved explicit WSL backend now lets the Windows CLI run only
-  inspection/compression in a named distribution while keeping Hexo and the
-  Chrome/Edge gates on Windows. The original 22,599,804-byte local Mannequin
-  `.inx` produced the expected 8,144,294-byte model; Chrome and Edge both
-  measured 29.98 FPS with 1.60/1.70 ms p95. A nonexistent WSL binary stopped
-  before Hexo with no fallback, preview listener, production-output change, or
-  failed-run residue.
-- After manual review found horizontal eye and face-color movement excessive,
-  the default Mannequin profile was recalibrated to `0.4` gaze, `0.35` head,
-  and `0.12` body yaw on X while retaining the accepted vertical response.
-  The real-model direction test now enforces both lower and upper movement
-  bounds and samples animation peaks rather than one timing-sensitive frame.
-  Three consecutive full Mannequin browser runs passed; the refreshed Windows
-  Chrome/Edge gate remained at 29.98 FPS and 1.70 ms p95 in both browsers.
-- The user accepted the calibrated Mannequin fixture for the current local
-  workflow phase and will repeat the same workflow with the eventual StarCried
-  model. The 4196 preview was stopped, all isolated run directories were
-  cleaned, and the existing test-blog `public/index.html` hash and length were
-  unchanged. Production integration and model-specific recalibration remain
-  separate future gates.
-- Desktop/mobile checks passed on home, about, gallery, friends, prose, and
-  code-heavy pages. Twenty PJAX events retained one sky, one cover sky on home,
-  and one model canvas; mobile fetched no model/runtime assets; reduced motion
-  scheduled no starfield animation frames.
+- 主项目统一为 StarLite · 星伴；四个运行时子包采用 core／vrm／hexo／inochi2d 结构。
+- Hexo 插件为 StarLite for Hexo（`hexo-starlite`），唯一配置入口为 `starlite:`。
+- 桌宠显示为 StarLite for DSH，桥接包为 `dsh-starlite`；安装标识、deep link 和用户数据路径保留。
+- README、安装说明和可复制配置按新名称整理；本地消费者随之迁移。
+- 程序、微光实例包、源工程和第三方动作分开管理。
 
-## Remaining release gates
+## 一命令体验入口
 
-- Run the same native/package release dry run on GitHub infrastructure.
-- Keep the clean worktree's machine-local Aka bundle/config and self-built
-  executable test-only; they must not be merged or deployed. Production blog
-  integration remains a separate reviewed change.
-- Create and approve a separate redistributable StarCried blog puppet, or keep
-  using a credited third-party/manual fixture.
-- Run the reviewed source and package candidate through hosted CI before the
-  first public tag.
+源码目录运行 `npm run demo -- --bundle "微光资源包.zip"`，首次自动安装依赖、确认模型许可并打开独立本地 Hexo 示例；不依赖真实博客或原生工具链。微光 ZIP 已在本地同步最新配置、文案和品牌。8 项入口测试通过，另在无 node_modules／构建产物的临时源码副本验证了首次自动安装。真实包的材质、点击动作、语句气泡与普通页面点击已在内置浏览器验证。
 
-## External approval still required
+## 当前行为
 
-Creating or pushing the public remote, opening an upstream issue, publishing npm
-packages, copying a model into a public deployment, and running production
-`hexo deploy` are separate approval gates. CI workflows are source files only
-until a remote exists; neither workflow publishes or deploys.
+VRM 0／1、外部 VRMA、眨眼、限角光标跟随、可选角色配置、资源检查、公共播放契约和公共气泡调度已有实现。Hexo 支持移动端默认零模型请求、正文优先启动、PJAX 单实例、动作随机池、动作对应语句与点击穿透。DSH 连接、工作状态、输入气泡和余额等应用能力由桌宠仓库维护。
+
+无动作模型目前只支持独立预览原始姿态；DSH 仍要求选择有效 Idle。现有对话场景须绑定动作；没有把 glTF 内嵌动作自动导入目录。配置中的全部 VRMA 会在 ready 前准备好，尚未按需加载。
+
+## alpha 后的产品工作
+
+1. 提供唯一自制默认 Idle，明确源文件、许可和可复现导出；不附送其他动作库。
+2. 标准人形 VRM 加可用眨眼表达，即可获得自然基础姿态、眨眼、轻呼吸和限角光标跟随；视线行为仍依赖模型的 lookAt 配置。
+3. 有用户动作时列出并映射；气泡允许独立使用，动作不再是气泡的前提。
+4. 简化 VRM 安装路径，Inochi2D 保持独立可选。
+5. 将以上能力独立验证后，再扩大公开支持范围；alpha 不把计划中的能力当作已完成行为。
+
+## 2026-10-13 发布准备验证
+
+完整本地验证通过：Rust 26 项、JavaScript 277 项；默认浏览器回归 11 项通过。另用公开 Aka 的本地测试派生运行完整浏览器回归，12 项通过、1 项缺少外部 Mannequin 输入跳过。该派生仅加入明确标注的合成 Click 轨道，不是原模型自带动作；模型仍在忽略目录，不进入源码或程序包。
+
+全新目录经临时本地 registry 单条安装 hexo-starlite 成功，自动解析同批四个候选包；Hexo 7 自动加载插件，桌面运行和手机零模型请求通过。公共 npm 安装仍须在实际 alpha 发布后复测，本地 registry 测试不证明公共发布身份或权限。DSH 的 ZIP 自动导入与 Windows 安装候选由桌宠仓库分别验收。
+
+## 验证与发布边界
+
+[validation](validation.md) 中较早的 Inochi2D 数据是历史记录，不代表当前 StarLite 全部发布门已通过。重命名后的构建／测试以本轮执行结果为准；未执行的跨设备性能、签名、公开包安装和托管 CI 不写成通过。角色可用和博客已部署也不等于 npm 插件已经发布。

@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]
@@ -52,7 +53,7 @@ jobs:
           echo "$RUNNER_TEMP/binaryen-version_120/bin" >> "$GITHUB_PATH"
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/inochi2d-web/official-sdk
+          path: ~/.cache/starlite/official-sdk
           key: official-sdk-${{ runner.os }}-${{ hashFiles('tools/official-sdk/pin.json', 'tools/official-sdk/**', 'tools/build-official-sdk.mjs') }}
       - run: npm ci
       - run: npx playwright install --with-deps chromium

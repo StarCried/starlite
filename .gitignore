@@ -3,7 +3,7 @@
 **/node_modules/
 **/dist/
 **/coverage/
-/packages/inochi2d-web/src/generated/
+/packages/inochi2d/src/generated/
 /packages/inochi2d-blog/vendor/
 **/.inochi2d/
 **/_multiconfig.yml

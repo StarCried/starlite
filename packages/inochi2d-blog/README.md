@@ -1,5 +1,10 @@
 # inochi2d-blog
 
+Optional Inochi2D-specific tooling in the StarLite workspace. It is not needed
+for VRM-only users. New StarLite package names are local candidates, not yet
+published registry packages; see [installation instructions](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/release-guide.md).
+
+
 Fail-closed, local orchestration from a Creator-exported `.inp` or `.inx` to an
 immutable Hexo bundle and optional deployment.
 
@@ -15,7 +20,8 @@ immutable Hexo bundle and optional deployment.
 Install it in the Hexo blog together with the adapter and browser validator:
 
 ```sh
-npm install inochi2d-blog hexo-model-companion playwright
+# Install the locally built candidate tarballs described in docs/release-guide.md.
+npm install ./inochi2d-blog-0.1.0-alpha.1.tgz ./hexo-starlite-0.1.0-alpha.1.tgz ./starcried-starlite-core-0.1.0-alpha.1.tgz ./starcried-starlite-inochi2d-0.1.0-alpha.1.tgz ./starcried-starlite-vrm-0.1.0-alpha.1.tgz playwright
 ```
 
 Copy `inochi2d-blog.config.example.json`, set the original model, fallback, blog
@@ -85,11 +91,11 @@ is loaded and advanced by the browser runtime without a synthetic hair/sleeve
 fallback.
 
 Read the repository
-[pipeline](https://github.com/StarCried/inochi2d-web/blob/main/docs/pipeline.md)
+[pipeline](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/pipeline.md)
 and
-[configuration](https://github.com/StarCried/inochi2d-web/blob/main/docs/configuration.md)
+[configuration](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/configuration.md)
 guides. The blog must provide compatible Hexo,
-`hexo-model-companion`, and Playwright installations; Windows gates use installed
+`hexo-starlite`, and Playwright installations; Windows gates use installed
 Chrome and Edge.
 
 This package is unofficial, AI-assisted, human-reviewed, BSD-2-Clause licensed,

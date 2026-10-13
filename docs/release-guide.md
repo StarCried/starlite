@@ -1,81 +1,99 @@
-# Hexo 看板娘安装与使用
+# StarLite for Hexo：安装与使用
 
-程序支持 Inochi2D 和 VRM，示例角色另行授权。当前候选版本为 `0.1.0-alpha.1`；未发布到 npm 前，使用本地 tarball，不把以下正式安装命令当作已上线。
+本指南面向博客用户。当前是 `0.1.0-alpha.1` 本地候选，**尚未发布到 npm**；正式安装命令将在公开 alpha 后可用。[桌宠安装说明](https://github.com/StarCried/starlite-dsh/blob/feat/dual-model-backends/docs/user-guide.md)
 
-## 安装
+## 1. 准备
 
-需要 Node.js 22.12+、Hexo 7/8、桌面 Chrome 或 Edge 与 WebGL2。手机默认不下载模型。现有博客先在本地预览，插件不修改主题，也不自动部署。
+需要 Node.js 22.12+、已经正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收。普通用户不需要 Rust、Blender 或 Inochi2D 原生工具。
 
-正式发布后，在博客目录运行：
+准备自己有权托管的 VRM、外部 VRMA 和静态 fallback 图，或使用另行授权的资源包。标准 VRM 不要求角色 profile。程序不附赠微光模型或第三方动作库；自制默认 Idle 和无动作安装的简化流程还未落地，本候选的完整互动配置需要自己的动作。
 
-```sh
-npm install hexo-model-companion@0.1.0-alpha.1
-```
+## 2. 安装插件
 
-本地候选包含四个互相依赖的包，必须一起安装，避免去注册表寻找尚未发布的依赖：
+正式发布后，预期在博客目录执行：
 
 ```sh
-npm install /path/to/model-widget-core-0.1.0-alpha.1.tgz /path/to/inochi2d-web-0.1.0-alpha.1.tgz /path/to/vrm-web-0.1.0-alpha.1.tgz /path/to/hexo-model-companion-0.1.0-alpha.1.tgz
+npm install hexo-starlite@alpha
 ```
 
-Inochi2D 使用现有 pipeline／`inochi2d-blog` 准备流程。VRM 使用自己拥有网站分发许可的模型、VRMA 和可选角色配置；现成资源包应已有 `manifest.json`。自行准备时可创建 `prepare-model.cjs`：
+插件会自动安装对应运行时依赖，无需分别安装后端。**现在测试本地候选**时，尚未公开的依赖需要一并从本地安装；使用维护者从同一源码构建的四个 tarball：
 
-```js
-const { prepareModel } = require('vrm-web/prepare');
-prepareModel({
-  model: './my-assets/avatar.vrm',
-  animations: [
-    { name: 'Idle', path: './my-assets/Idle.vrma' },
-    { name: 'Click', path: './my-assets/Click.vrma' },
-  ],
-  // profile: './my-assets/profile.json',
-  output: './companion-bundle',
-  // Only set true after reviewing every model/texture/motion permission.
-  allowRedistribution: true,
-}).catch(error => { console.error(error.message); process.exitCode = 1; });
+```sh
+npm install /path/to/starcried-starlite-core-0.1.0-alpha.1.tgz /path/to/starcried-starlite-inochi2d-0.1.0-alpha.1.tgz /path/to/starcried-starlite-vrm-0.1.0-alpha.1.tgz /path/to/hexo-starlite-0.1.0-alpha.1.tgz
 ```
 
-运行 `node prepare-model.cjs`。输出目录必须不存在；模型文件限 8 MiB，不自动减面或压缩贴图。禁止把私有清单的分发开关改成 true 来跳过授权。
+当前插件的安装依赖包含两个后端，浏览器只请求配置选中的一个；普通 VRM 用户不需要 `inochi2d-blog`。
 
-在博客 `source/images/companion.png` 放一张有权使用的静态图。将下列配置合并到 `_config.yml`，哈希填写输出清单的 `model.sourceSha256`（不是 `model.sha256`，两者不一定相同）：
+从旧本地候选迁移时，先卸载旧的 `hexo-model-companion`、`model-widget-core`、`vrm-web`、`inochi2d-web` 直接依赖，再安装新四包。不要同时保留两个 Hexo 适配器。把旧 `inochi2d_widget:` 配置块改为 `starlite:`；新插件不读取旧键。
 
-```yaml
-inochi2d_widget:
-  enable: true
-  backend: vrm
-  bundle: ./companion-bundle
-  fallback: images/companion.png
-  publication:
-    confirm: true
-    allowRedistribution: true
-    sourceSha256: 填写清单中的64位源哈希
-  render:
-    fps: 30
-    maxDevicePixelRatio: 1.5
-  mobile:
-    show: false
-    breakpoint: 768
-  ambient:
-    animations: [Idle]
-  dialogue:
-    click:
-      animation: Click
-      lines: [你好！]
-  interactions:
-    pointer: true
-    drag: true
+## 3. 准备资源包
+
+### 使用微光独立资源包
+
+阅读并同意包内许可后，将 ZIP 解压到博客根目录的 `weiguang/`，使 `weiguang/blog/manifest.json` 和 `weiguang/hexo-config.yml` 存在。再将 `weiguang/fallback.png` 复制到 `source/images/weiguang.png`。资源目录放在博客根目录，不能放进 `source/`；插件只发布配置所需的博客资源。
+
+资源包的 `hexo-config.yml` 已包含动作、句库、来源哈希和微光的显示配置，不必重新制作资源或逐项填写。保留原博客配置，用 Hexo 的多配置入口启动：
+
+```sh
+npx hexo server --config _config.yml,weiguang/hexo-config.yml
 ```
 
-动作名区分大小写。资源包若有多个点击／偶发动作，按作者提供的配置使用随机池；单个动作示例不能代替角色的完整配置。气泡与语句库为两后端公共能力。参数轨道是 Inochi2D 专属，不能套给 VRM。
+以后生成站点也使用相同的配置参数：
 
-## 日常使用与更新
+```sh
+npx hexo generate --config _config.yml,weiguang/hexo-config.yml
+```
 
-运行 `npx hexo clean`、`npx hexo generate` 和 `npx hexo server`，确认模型、材质、气泡、点击、光标跟随与切页正常，再按自己已有流程部署。CSP 的 `img-src`／`connect-src` 须允许 `blob:` 解码贴图。首次正文解析完成后空闲加载；PJAX 保留实例；完整导航会重新请求但同一标签页不重复播放入场对白。
+自己的部署命令同样带上 `--config _config.yml,weiguang/hexo-config.yml`，或者将资源包中的 `starlite` 块合并到博客 `_config.yml` 后沿用原命令。已有 `starlite` 配置应先替换，避免旧字段参与合并。微光包用户可跳过下面的资源制作和第 4 节，直接本地验收。
 
-换资源时重新准备到新目录，核对清单与全部素材许可，再更新 bundle 路径、源哈希和动作名，重新生成。手机默认没有运行时或模型请求；加载失败显示静态图。公开网站会把必要 VRM／VRMA 发送给访客，文件不能保证无法提取。
+### 使用自己的模型
 
-停用时设 `enable: false` 并重新生成。卸载时运行 `npm uninstall hexo-model-companion`，移除对应配置，再生成静态站点；不要遗留旧公开模型资源。
+已有 `manifest.json` 的合法资源包可以跳过制作。自行准备时，将 [prepare-vrm.cjs](examples/prepare-vrm.cjs) 放到博客目录，替换输入路径和动作清单，核实分发许可后才把 `allowRedistribution` 改为 `true`，然后运行：
 
-## 维护者发布
+```sh
+node prepare-vrm.cjs
+```
 
-从干净提交构建，完成 `npm run validate`、`npm run test:browser` 和适用的公开模型浏览器检查。候选包不得包含私有模型或动作。按 core → Inochi2D → VRM → Hexo 顺序，以 `alpha` 标签发布同一组已核验 tarball。`inochi2d-blog` 是独立的原生辅助 CLI，另需 Linux／Windows 原生二进制发布门；直接使用 VRM 的 Hexo 插件不需要它。远程发布与真实博客部署分别批准。
+输出目录必须不存在；失败不会覆盖源模型。准备工具允许最多 64 MiB 的 VRM，而 **Hexo 发布模型上限为 8 MiB**；它不会自动减面、缩图或转换 FBX。动作也有独立大小与数量限制，详见[配置说明](configuration.md)。模型过大请从源工程导出合适的派生资产。
+
+## 4. 配置
+
+将 [hexo-vrm.yml](examples/hexo-vrm.yml) 合并到 `_config.yml`。静态图放到 `source/images/starlite-fallback.png`。按自己的资源调整：
+
+- `bundle`：含清单的本地资源目录，相对博客根目录。
+- `publication.sourceSha256`：清单的 `model.sourceSha256`，不是其他文件哈希。
+- `ambient.animations`：一个基础循环动作，例如你提供的 `Idle`。
+- `dialogue.enter / idle / click`：首次入场、偶发小动作和点击回应。每个场景可绑定动作随机池和各自语句库；没有的场景直接删除。
+- 核实全部资源许可后将两个 publication 开关设为 `true`，最后设 `enable: true`。
+
+动作名英文且区分大小写，必须与资源清单一致。示例的 `Wave / Nod / Stretch` 只是名称示范，不是附赠动作。现有候选的每个气泡场景仍要求有效动作；气泡独立配置会在下一阶段实现。
+
+博客推荐 `passThrough: true`、`drag: false`：点击模型同时保留下层页面的原生点击行为。30 FPS／DPR 1 是保守起点；60 FPS 更流畅也更耗 GPU。保持抗锯齿，先按目标设备验收再调整。
+
+## 5. 本地验收与日常使用
+
+```sh
+npx hexo clean
+npx hexo generate --config _config.yml,weiguang/hexo-config.yml
+npx hexo server -p 4000 --config _config.yml,weiguang/hexo-config.yml
+```
+
+以上命令使用微光包的独立配置；如果已将 `starlite` 块合并到 `_config.yml`，省略 `--config` 参数即可。若端口占用，换一个空闲端口。桌面打开页面，检查正文先可用、模型材质、基础循环、眼睛／头部跟随、点击句子对应动作、偶发动作，以及跳页没有重复实例。检查小屏幕下没有模型下载，加载失败有静态图。较大动作还须检查画布边缘和页面底部没有裁切。
+
+CSP 如有限制，贴图解码所用 `blob:` 需被适用的 `img-src`／`connect-src` 允许。PJAX 导航保留实例；完整文档导航需要新实例，但同一标签页不重复首次入场。同一资源的网络复用取决于站点缓存策略。
+
+验收通过后再用自己的 Hexo 部署流程。本插件不会自动部署，也不代管 API key。公开网站会把必要的模型和动作文件交给访客，许可可以约束再利用，不能保证文件无法提取。
+
+## 6. 更新、停用与卸载
+
+更新模型或动作时重新准备到新目录，复核许可、清单哈希和配置动作名，再本地生成。不要只改清单中的许可开关或哈希以绕过校验。
+
+停用时设 `starlite.enable: false` 并重新生成。卸载插件和四个候选的直接依赖：
+
+```sh
+npm uninstall hexo-starlite @starcried/starlite-core @starcried/starlite-vrm @starcried/starlite-inochi2d
+```
+
+移除 `starlite` 配置与不再使用的源资源，执行 `hexo clean` 后生成；确认站点生成目录及部署目标没有遗留旧模型路由。不要把其他功能仍使用的图片或资源一并删掉。
+
+发布验证与当前限制见[项目状态](status.md)和[开发说明](development.md)。程序包与 Weiguang for StarLite 独立资源包分别分发，许可不能混用。

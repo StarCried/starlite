@@ -1,5 +1,5 @@
 {
-  "name": "@inochi2d-web/hexo-vrm-example",
+  "name": "@starcried/starlite-hexo-vrm-example",
   "version": "0.1.0-alpha.1",
   "private": true,
   "type": "module",
@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "hexo": "7.3.0",
-    "hexo-model-companion": "0.1.0-alpha.1"
+    "hexo-starlite": "0.1.0-alpha.1"
   }
 }

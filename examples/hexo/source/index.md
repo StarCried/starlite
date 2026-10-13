@@ -1,5 +1,5 @@
 ---
-title: inochi2d-web Hexo example
+title: StarLite Inochi2D Hexo example
 layout: page
 ---
 

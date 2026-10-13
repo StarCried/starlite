@@ -1,0 +1,20 @@
+import { expect, it } from "vitest";
+import { validateVrmWidgetConfig } from "../src/config.js";
+import type { VrmWidgetConfig } from "../src/types.js";
+
+it.each([undefined, 30, 60, "display"] as const)("accepts frame policy %s", (fps) => {
+  expect(() => validateVrmWidgetConfig({ model: "/model.vrm", fallback: "/fallback.png", render: { fps } })).not.toThrow();
+});
+
+it.each([0, -1, 144, NaN, Infinity, "60", "auto"])("rejects unsupported frame policy %s", (fps) => {
+  expect(() => validateVrmWidgetConfig({ model: "/model.vrm", fallback: "/fallback.png", render: { fps } } as VrmWidgetConfig)).toThrow(/frame rate/);
+});
+
+it("accepts animation-bound dialogue and rejects incomplete or unknown mapping keys", () => {
+  const config: VrmWidgetConfig = { model: "/model.vrm", fallback: "/fallback.png", animations: [{ name: "Wave", url: "/wave.vrma" }, { name: "Nod", url: "/nod.vrma" }], dialogue: { click: { animation: "Wave", animations: ["Wave", "Nod"], linesByAnimation: { Wave: ["Hello"], Nod: ["Yes", "Agreed"] } } } };
+  expect(() => validateVrmWidgetConfig(config)).not.toThrow();
+  for (const mapping of [{ Wave: ["Hi"] }, { Wave: ["Hi"], Nod: ["Yes"], Unknown: ["No"] }, { Wave: [" "], Nod: ["Yes"] }]) {
+    config.dialogue!.click = { animation: "Wave", animations: ["Wave", "Nod"], linesByAnimation: mapping };
+    expect(() => validateVrmWidgetConfig(config)).toThrow(/dialogue.click/);
+  }
+});

@@ -1,5 +1,5 @@
 {
-  "name": "@inochi2d-web/vrm-example", "version": "0.1.0-alpha.1", "private": true, "type": "module",
+  "name": "@starcried/starlite-vrm-example", "version": "0.1.0-alpha.1", "private": true, "type": "module",
   "scripts": { "start": "node server.mjs" },
-  "dependencies": { "vrm-web": "0.1.0-alpha.1" }
+  "dependencies": { "@starcried/starlite-vrm": "0.1.0-alpha.1" }
 }

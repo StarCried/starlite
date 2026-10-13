@@ -1,11 +1,11 @@
-title: inochi2d-web Hexo example
+title: StarLite Inochi2D Hexo example
 url: http://127.0.0.1:4174
 root: /
 language: en
 theme: minimal
 per_page: 0
 
-inochi2d_widget:
+starlite:
   enable: true
   model: models/puppet.inp
   fallback: images/fallback.svg

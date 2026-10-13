@@ -1,0 +1,29 @@
+{
+  "name": "@starcried/starlite-core",
+  "version": "0.1.0-alpha.1",
+  "type": "module",
+  "license": "BSD-2-Clause",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./bubble.css": "./dist/bubble.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test": "vitest run"
+  },
+  "description": "Format-neutral lifecycle, animation contracts and dialogue components for StarLite",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StarCried/starlite.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/StarCried/starlite#readme",
+  "bugs": "https://github.com/StarCried/starlite/issues"
+}

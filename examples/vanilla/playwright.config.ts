@@ -8,14 +8,14 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: [
-    {command: "npm run serve --workspace @inochi2d-web/hexo-vrm-example",port:4182,reuseExistingServer:true},
+    {command: "npm run serve --workspace @starcried/starlite-hexo-vrm-example",port:4182,reuseExistingServer:true},
     {
       command: "npm run dev",
       port: 4173,
       reuseExistingServer: true,
     },
     {
-      command: "npm run serve --workspace @inochi2d-web/hexo-example",
+      command: "npm run serve --workspace @starcried/starlite-hexo-example",
       port: 4174,
       reuseExistingServer: true,
     },

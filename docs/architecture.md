@@ -1,129 +1,59 @@
-# Model Companion Web architecture
+# StarLite 架构与命名
+
+代码分为运行时与桌宠两个仓库；角色资源独立分发。既不按博客／桌宠复制一套渲染器，也不把 DSH 状态协议放进渲染器。
 
 ```text
-Hexo page lifecycle                 DSH Companion state scheduler
-          |                                     |
-          +---- ModelController / mountModelWidget ----+
-                        |                              |
-                 inochi2d-web                       vrm-web
-                 WASM + parameters            Three.js + VRM + VRMA
-                        |                              |
-                prepared Inochi bundle        prepared VRM bundle + profile
+starlite/
+  packages/
+    core/           @starcried/starlite-core
+    vrm/            @starcried/starlite-vrm
+    hexo/           hexo-starlite
+    inochi2d/       @starcried/starlite-inochi2d
+    inochi2d-blog/  可选、格式专用原生辅助 CLI
+  crates/inochi2d-pipeline/
+  examples/
+  docs/
+  tools/
+
+starlite-dsh/
+  apps/desktop/          StarLite for DSH
+  packages/dsh-plugin/   dsh-starlite / StarLite DSH Bridge
+  packages/protocol/     私有共享协议
+
+Weiguang for StarLite    单独授权的角色资源包
 ```
 
-`model-widget-core` is the dependency root. Applications select the backend
-before importing its renderer; a page never loads both renderers to display one
-model. Common animation metadata contains names and durations, not backend
-tracks. Pause/resume, completion results and cancellation are tested against
-both implementations. `setParameter` remains an Inochi2D API.
+本机两个源码目录已统一为 starlite 与 starlite-dsh。桌宠已有 identifier、deep link、原生可执行文件名和用户数据路径用于保持现有安装与设置；远端迁移状态见 [当前状态](status.md)。
 
-For VRM, `inspect.ts` validates untrusted containers, `prepare.ts` verifies and
-builds immutable bundles, `playback.ts` owns clip scheduling, `character.ts`
-coordinates expression/blink/ear data, and `index.ts` owns the browser lifecycle.
-The character source project owns gesture design and motion export. Neither
-Hexo nor DSH synthesizes missing motions or silently chooses an Idle mapping.
+## 依赖方向
 
-The Hexo package is `hexo-model-companion`. Its existing `inochi2d_widget`
-configuration key is retained for existing blogs and supports both backends.
-`inochi2d-blog` is still explicitly Inochi2D-only; generic naming must not imply
-that its native publishing workflow can prepare VRM.
-
-## Inochi2D implementation
-
-
-```text
-Creator .inp/.inx
-  -> inochi2d-pipeline
-     bounds + compatibility + rights report + bounded compression + manifest
-  -> inochi2d-blog
-     source attestation + immutable bundle + Hexo + browser gates + deploy
-  -> hexo-model-companion
-     verified hashed routes + mobile-first bootstrap + PJAX singleton
-  -> inochi2d-web
-     fetch + motion/lifecycle + official D-SDK WASM + WebGL2 draw-list renderer
+```mermaid
+flowchart TD
+  H["StarLite for Hexo：页面与交互"] --> C["core：公共契约、气泡和调度"]
+  D["StarLite for DSH：窗口、事件与状态"] --> C
+  H --> V["vrm：Three.js / three-vrm"]
+  D --> V
+  H --> I["inochi2d：官方 WASM"]
+  D --> I
+  V --> C
+  I --> C
+  A["模型、外部动作、可选角色配置"] --> V
 ```
 
-## Official SDK boundary
+`core` 不导入任何后端，公共动作目录只包含名称和时长。两种后端提供 `mountModelWidget` 与播放、停止、暂停、恢复、镜头复位、销毁契约；取消中的挂载以及迟到实例由公共生命周期处理。Inochi2D 参数接口不模拟成 VRM 骨骼接口。
 
-`tools/build-official-sdk.mjs` downloads the official Inochi2D D SDK and its
-WASM toolchain from fixed URLs, checks both archives by SHA-256, applies the
-documented browser compatibility patches, and builds with LLD 20. Binaryen 120
-then performs deterministic `-Oz` optimization. Both raw and optimized output
-hashes are pinned, so a source, dependency, compiler, linker, or optimizer drift
-stops the build.
+`vrm` 负责容器检查、带哈希资源包准备、VRMA 播放、材质、骨骼、视线、表达及物理。微光专属耳姿、眨眼和配饰只由其角色配置启用。通用模型不要求微光配置，也不能自动获得其自定义行为。
 
-The D SDK owns container parsing, the puppet object graph, parameter bindings,
-deformations, texture decode, update, and draw-list creation. Only 30 WebAssembly
-exports remain: memory, initialization, three allocator functions, and the 26
-puppet/parameter/texture/draw-list calls used by TypeScript. This permits link
-garbage collection and limits the browser-callable surface.
+`hexo` 读取唯一配置入口 `starlite:`，按后端收集资源并生成哈希路由。移动端在动态导入之前退出；页面空闲启动；PJAX 保留一个实例；完整页面导航会建立新实例，但同一标签页不会重复首次入场。浏览器只加载选中的后端。目前 npm 安装依赖仍包含两个后端；移除 VRM 默认路径对 Inochi2D 的安装依赖属于下一阶段。
 
-Rust is not part of the browser runtime. The TypeScript renderer uploads decoded
-textures transactionally, validates finite command and vertex data, maintains
-stencil/mask state and the RGB/alpha equations from the Inochi2D blend standard,
-and draws the SDK command list into a transparent WebGL2 canvas.
-The SDK does not choose URLs or CORS policy.
+DSH 的桥接插件在 DSH 宿主内运行，处理会话事件和受保护的本机连接；Windows 桌宠负责窗口、气泡、状态映射及渲染。核心渲染器不查询 API 余额，也不感知 DSH 会话协议。
 
-## Browser controller
+## 模型准备与许可
 
-The controller checks the mobile rule before importing runtime code or fetching
-WASM/model bytes. It mixes values in this order:
+VRM 使用 `@starcried/starlite-vrm/prepare` 检查模型、动作和可选 profile，写入新目录并生成逐项哈希清单。工具不制作动画、不自动减面，也不覆盖源工程。Hexo 再验证清单和发布确认；素材授权仍由操作者核实。
 
-1. neutral pose;
-2. breath and blink;
-3. pointer-driven eyes and head;
-4. drag feedback;
-5. procedural/model-authored ambient motion;
-6. the active model-authored foreground animation;
-7. explicit values supplied through `setParameter`.
+Inochi2D 保留 `inochi2d-pipeline` 和 `inochi2d-blog`，以及 `.inochi2d` 缓存路径。它们只处理该格式，不能准备 VRM。官方 SDK、构建 pin 与原生许可检查详见 [upstream](upstream.md)、[pipeline](pipeline.md)。
 
-`requestAnimationFrame` is throttled to the configured FPS. The loop pauses on
-visibility loss, reduced motion draws one neutral frame, and WebGL/model/network
-failures switch to a lazily loaded static fallback. Dragging moves the widget
-across the viewport rather than clipping motion inside the canvas; double-click
-restores its configured corner.
+## 尚待完成的产品边界
 
-After model loading, the official runtime temporarily samples each configured
-breath target at its lower and upper bound, compares vertices, indices, draw
-commands, and render variables, then restores the original value. If every
-target is draw-inert, the controller applies a small camera-scale breathing
-cycle instead. Gesture travel under six pixels is a click; crossing that
-threshold promotes the gesture to a whole-widget drag and suppresses the click.
-The browser player consumes only animation lanes that the native pipeline has
-resolved from Creator parameter UUIDs and validated for bounds, ordering,
-interpolation, merge mode, and finite values. It never reparses the model
-container in JavaScript and never synthesizes a missing click pose.
-
-## Native preparation
-
-`inochi2d-pipeline` parses the container with bounded allocations, validates the
-supported Creator schema, inspects texture headers before allocation, decodes
-PNG/TGA textures, and re-encodes pixels with a deterministic PNG encoder. It
-first keeps only smaller pixel-identical replacements. Source textures above
-4096 pixels are then resized with aspect ratio preserved, and an over-budget
-model receives bounded uniform adaptive texture passes until it is at most
-8 MiB or preparation fails. It preserves JSON semantics, texture order, and
-extended vendor bytes, then re-parses the emitted container.
-
-Output is written to a new sibling staging directory and atomically renamed.
-Existing output is never replaced. Reuse requires a byte-identical manifest and
-revalidates canonical non-symlink artifacts by size and SHA-256. The manifest
-contains content hashes, sizes, parameters, normalized model animations, compatibility, publication warnings,
-source/output texture dimensions, lossy-resize warnings, and optimization
-statistics; it contains no timestamp or machine-local source path.
-
-## Hexo and deployment
-
-The Hexo adapter verifies every local bundle path, size, SHA-256, fallback, and
-publication acknowledgement before generating immutable routes. An inline
-mobile check runs before the first dynamic import and on every PJAX completion.
-One global owner tracks the controller, in-flight mount, animation loop, and
-PJAX listener; a generation token discards mounts completed for a detached host.
-
-`inochi2d-blog` writes an isolated generated config beneath `.inochi2d`, runs
-Hexo clean/generate, launches a local preview, and verifies desktop rendering,
-one-canvas PJAX behavior, layout, and mobile no-fetch. On Windows it launches the
-installed Chrome and Edge channels. Only the explicit `deploy` command, without
-`--dry-run`, can proceed to `hexo deploy`, and only after all prior gates pass.
-An exception restores the previous generated config and propagates a non-zero
-exit.
+当前无动作 VRM 可以预览原始姿态；自然通用姿态／原创默认 Idle、轻呼吸、DSH 无动作导入和气泡脱离动作的配置仍需实现。已经确认的下一阶段目标见 [status](status.md)。本轮更名不改变播放、渲染、物理或性能策略。

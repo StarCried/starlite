@@ -1,8 +1,8 @@
 {
-  "name": "model-companion-web",
+  "name": "starlite",
   "version": "0.1.0-alpha.1",
   "private": true,
-  "description": "Shared model companion components with Inochi2D and VRM WebGL2 backends",
+  "description": "Lightweight VRM companions for web and desktop, with an optional Inochi2D backend",
   "license": "BSD-2-Clause",
   "engines": {
     "node": ">=22.12"
@@ -12,7 +12,7 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "npm run fixtures && npm run build:wasm && npm run build --workspace model-widget-core && npm run build --workspace inochi2d-web && npm run build --workspace vrm-web && npm run build --workspace hexo-model-companion && npm run build --workspace @inochi2d-web/vanilla-example && npm run build --workspace @inochi2d-web/hexo-example && npm run build --workspace @inochi2d-web/hexo-vrm-example",
+    "build": "npm run fixtures && npm run build:wasm && npm run build --workspace @starcried/starlite-core && npm run build --workspace @starcried/starlite-inochi2d && npm run build --workspace @starcried/starlite-vrm && npm run build --workspace hexo-starlite && npm run build --workspace @starcried/starlite-vanilla-example && npm run build --workspace @starcried/starlite-hexo-example && npm run build --workspace @starcried/starlite-hexo-vrm-example",
     "build:wasm": "node tools/build-official-sdk.mjs",
     "check:runtime-budget": "node tools/verify-runtime-budget.mjs",
     "check:licenses": "node tools/generate-third-party-licenses.mjs --check",
@@ -25,9 +25,11 @@
     "pack:release-check": "npm run check:licenses && INOCHI2D_RELEASE_PACK=1 node tools/verify-package-contents.mjs",
     "stage:native": "node tools/stage-native-pipeline.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "test:browser": "npm run test:browser --workspace @inochi2d-web/vanilla-example",
-    "validate": "npm run check:rust && npm run build && npm run lint && npm run typecheck && npm run check:runtime-budget && npm run check:licenses && npm run test && npm run pack:check"
+    "test": "npm run test --workspaces --if-present && npm run test:demo",
+    "test:browser": "npm run test:browser --workspace @starcried/starlite-vanilla-example",
+    "validate": "npm run check:rust && npm run build && npm run lint && npm run typecheck && npm run check:runtime-budget && npm run check:licenses && npm run test && npm run pack:check",
+    "demo": "node tools/demo.mjs",
+    "test:demo": "node --test tools/demo.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",
@@ -35,6 +37,7 @@
     "happy-dom": "20.11.0",
     "typescript": "7.0.2",
     "vite": "8.1.5",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "fflate": "0.8.3"
   }
 }
