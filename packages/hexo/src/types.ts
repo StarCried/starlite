@@ -17,7 +17,7 @@ export interface HexoWidgetOptions {
     requestTimeoutMs?: number;
     modelMaxBytes?: number;
   };
-  /** Directory containing manifest.json and assets emitted by inochi2d-pipeline. */
+  /** Advanced prepared asset directory; direct VRM files need no manifest. */
   bundle?: string;
   publication?: {
     /** Explicit acknowledgement that the operator may publish this model and fallback. */
@@ -74,7 +74,7 @@ export interface RuntimeAssetBundle {
 
 export interface ModelAssetBundle {
   backend?: "inochi2d" | "vrm";
-  vrm?: {animations: VrmAnimationSource[]; profile?: string};
+  vrm?: {animations: VrmAnimationSource[]; embeddedAnimations?: string[]; neutralAnimation?: string; profile?: string};
   hash: string;
   routePrefix: string;
   modelFile: string;

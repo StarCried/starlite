@@ -1,7 +1,7 @@
 import { lstatSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { collectModelAssets, collectVrmModelAssets, collectRuntimeAssets, resolveRuntimeDist } from "./assets";
+import { collectModelAssets, collectVrmModelAssets, collectVrmFileAssets, isLocalVrmFile, collectRuntimeAssets, resolveRuntimeDist } from "./assets";
 import { createBootstrapSource } from "./bootstrap";
 import { normalizeRoot, readEnabledConfig } from "./config";
 import type { HexoLike, ModelAssetBundle, RuntimeAssetBundle } from "./types";
@@ -26,7 +26,9 @@ export function registerHexoWidget(instance: HexoLike): void {
             instance.base_dir,
             { localPreview },
           ))
-        : undefined;
+        : input?.enable && input.backend === "vrm" && isLocalVrmFile(input.model, instance.base_dir)
+          ? (cachedModelBundle ??= collectVrmFileAssets(input.model, instance.base_dir, {localPreview}))
+          : undefined;
     if (localPreview && !localPreviewWarningLogged) {
       instance.log.warn(
         "StarLite local preview: publication rights checks are bypassed only for this isolated local output; deploy is disabled.",

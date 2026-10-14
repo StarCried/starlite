@@ -1,12 +1,13 @@
 import {afterEach,expect,it,vi} from "vitest";
-import {mkdtempSync,writeFileSync,rmSync} from "node:fs";
+import {mkdtempSync,writeFileSync,rmSync,symlinkSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {createRequire} from "node:module";
-import {collectVrmModelAssets,collectRuntimeAssets,resolveRuntimeDist} from "../src/assets";
+import {collectVrmModelAssets,collectVrmFileAssets,isLocalVrmFile,collectRuntimeAssets,resolveRuntimeDist} from "../src/assets";
 import {readEnabledConfig} from "../src/config";
+import {registerHexoWidget} from "../src/index";
 // @ts-expect-error plain JS fixture
-import {model,motion} from "../../../tests/fixtures/vrm.mjs";
+import {model,motion,glb} from "../../../tests/fixtures/vrm.mjs";
 const {prepareModel}=createRequire(import.meta.url)("@starcried/starlite-vrm/prepare");
 const roots:string[]=[];
 afterEach(()=>{for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true})});
@@ -32,4 +33,44 @@ it("keeps redistribution and source identity gates for VRM",async()=>{
  const hexo:any={config:{starlite:{backend:"vrm",enable:true,bundle:allowed,fallback:"fallback.png",publication:{confirm:true,allowRedistribution:true,sourceSha256:"0".repeat(64)}}}};
  expect(()=>readEnabledConfig(hexo,assets)).toThrow("sourceSha256");
  writeFileSync(join(allowed,"motions/0.vrma"),"broken");expect(()=>collectVrmModelAssets(allowed)).toThrow("hash mismatch");
+});
+
+function animatedModel() {
+ const original=model(), jsonSize=original.readUInt32LE(12), json=JSON.parse(original.subarray(20,20+jsonSize).toString());
+ const binary=Buffer.concat([original.subarray(28+jsonSize),Buffer.from(new Float32Array([0,1,0,0,0,1,0,0,.15,Math.sqrt(1-.15**2)]).buffer)]);
+ const offset=json.buffers[0].byteLength;json.buffers[0].byteLength=binary.byteLength;
+ json.bufferViews.push({buffer:0,byteOffset:offset,byteLength:8},{buffer:0,byteOffset:offset+8,byteLength:32});
+ json.accessors.push({bufferView:1,componentType:5126,type:"SCALAR",count:2,min:[0],max:[1]},{bufferView:2,componentType:5126,type:"VEC4",count:2});
+ json.animations=[{name:"Idle",samplers:[{input:1,output:2}],channels:[{sampler:0,target:{node:2,path:"rotation"}}]}];
+ return glb(json,binary);
+}
+it("direct local VRM needs no manifest and forwards embedded Idle as neutral pose",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-direct-vrm-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),animatedModel());
+ let generator:any, injector:any;
+ const hexo:any={base_dir:root,config:{root:"/blog/",starlite:{enable:true,backend:"vrm",model:"./avatar.vrm",fallback:"avatar.png",publication:{confirm:true,allowRedistribution:true},ambient:{animations:["Idle"]}}},extend:{generator:{register:(_n:any,f:any)=>generator=f},injector:{register:(_n:any,f:any)=>injector=f}},log:{warn:vi.fn()}};
+ registerHexoWidget(hexo);const routes=generator(), html=injector();
+ expect(routes.filter((r:any)=>r.path.endsWith(".vrm"))).toHaveLength(1);
+ expect(routes.some((r:any)=>r.path.endsWith(".vrma"))).toBe(false);
+ expect(html).toContain('"embeddedAnimations":["Idle"]');expect(html).toContain('"neutralAnimation":"Idle"');
+ expect(html).toContain('"model":"/blog/vrm-model/');
+ const assets=collectVrmFileAssets("./avatar.vrm",root);
+ delete hexo.config.starlite.fallback;
+ expect(readEnabledConfig(hexo,assets)?.widget.fallback).toBe(`/blog/${assets.routePrefix}/fallback.svg`);
+ hexo.config.starlite.publication.sourceSha256="0".repeat(64);
+ expect(()=>readEnabledConfig(hexo,assets)).toThrow("sourceSha256");
+ delete hexo.config.starlite.publication.sourceSha256;hexo.config.starlite.publication.confirm=false;
+ expect(()=>readEnabledConfig(hexo,assets)).toThrow("confirm");
+});
+it("direct import rejects broken/symlink sources and keeps URLs distinct from files",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-direct-invalid-"));roots.push(root);
+ writeFileSync(join(root,"broken.vrm"),"broken");expect(()=>collectVrmFileAssets("./broken.vrm",root)).toThrow("GLB");
+ writeFileSync(join(root,"avatar.vrm"),model());symlinkSync(join(root,"avatar.vrm"),join(root,"linked.vrm"));
+ expect(()=>collectVrmFileAssets("./linked.vrm",root)).toThrow("non-symlink");
+ expect(isLocalVrmFile("https://example.test/avatar.vrm",root)).toBe(false);
+ expect(isLocalVrmFile("/assets/avatar.vrm",root)).toBe(false);expect(isLocalVrmFile("./missing.vrm",root)).toBe(true);
+});
+it("prepared manifests also expose embedded animations without a second catalog",async()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-embedded-bundle-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),animatedModel());
+ await prepareModel({model:join(root,"avatar.vrm"),output:join(root,"bundle"),allowRedistribution:true});
+ expect(collectVrmModelAssets(join(root,"bundle")).vrm?.embeddedAnimations).toEqual(["Idle"]);
 });

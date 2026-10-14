@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type { ModelAssetBundle, RuntimeAsset, RuntimeAssetBundle } from "./types";
@@ -568,13 +568,40 @@ export function collectVrmModelAssets(location:string, baseDirectory=process.cwd
  const directory=resolve(baseDirectory,location);
  const {manifest,files}=(require("@starcried/starlite-vrm/prepare") as typeof import("@starcried/starlite-vrm/prepare", {with:{"resolution-mode":"import"}})).readPreparedBundleSync(directory);
  if (!options.localPreview && !manifest.publication.allowRedistribution) throw new Error("VRM bundle redistribution is not allowed");
- if (manifest.model.bytes > MAX_MODEL_BYTES) throw new Error("VRM exceeds the 8 MiB blog publication limit");
+ if (!options.localPreview && manifest.model.bytes > MAX_MODEL_BYTES) throw new Error("VRM exceeds the 8 MiB blog publication limit");
+ const {inspectVrm} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
+ const embeddedAnimations = inspectVrm(Uint8Array.from(files.get(manifest.model.file)!).buffer).animations.map(a=>a.name);
  const assets=[...files].map(([relativePath,contents])=>({relativePath,contents}));
  assets.push({relativePath:"manifest.json",contents:Buffer.from(JSON.stringify(manifest))});
  const digest=createHash("sha256");
  for(const asset of assets) digest.update(asset.relativePath).update("\0").update(asset.contents);
  const hash=digest.digest("hex").slice(0,12);
  return {backend:"vrm",hash,routePrefix:`vrm-model/${hash}`,modelFile:manifest.model.file,sourceSha256:manifest.model.sourceSha256,animations:[],
-   vrm:{animations:manifest.animations.map(a=>({name:a.name,url:a.file,durationMs:a.durationMs})),...(manifest.profile ? {profile:manifest.profile.file} : {})},
+   vrm:{animations:manifest.animations.map(a=>({name:a.name,url:a.file,durationMs:a.durationMs})),embeddedAnimations,...(manifest.profile ? {profile:manifest.profile.file} : {})},
    ...(options.localPreview ? {localPreview:true} : {}), assets};
+}
+
+/** Explicit ./ and ../ paths are local files; absolute web URLs remain URLs. */
+export function isLocalVrmFile(location: unknown, baseDirectory = process.cwd()): location is string {
+ if (typeof location !== "string" || /^(?:[a-z]+:)?\/\//iu.test(location)) return false;
+ return location.startsWith("./") || location.startsWith("../") || /^[a-z]:[\\/]/iu.test(location)
+   || (isAbsolute(location) && existsSync(resolve(baseDirectory, location)));
+}
+
+/** Standard VRM onboarding: inspect exact bytes and publish one content-addressed file. */
+export function collectVrmFileAssets(location: string, baseDirectory = process.cwd(), options: {localPreview?: boolean} = {}): ModelAssetBundle {
+ if (extension(location).toLowerCase() !== ".vrm") throw new Error("local VRM model must use the .vrm extension");
+ const contents = readBoundedRegularFile(resolve(baseDirectory, location), options.localPreview ? 64 * 1024 * 1024 : MAX_MODEL_BYTES, "VRM model");
+ const {inspectVrm} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
+ const inspected = inspectVrm(Uint8Array.from(contents).buffer);
+ const sourceSha256 = createHash("sha256").update(contents).digest("hex");
+ const fallback = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="260" height="360" viewBox="0 0 260 360"><rect width="260" height="360" rx="24" fill="#dfe5f0"/><text x="130" y="180" text-anchor="middle" fill="#46536a" font-family="system-ui,sans-serif">StarLite</text></svg>');
+ const hash = createHash("sha256").update(contents).update(fallback).digest("hex").slice(0,12);
+ const embeddedAnimations = inspected.animations.map(animation=>animation.name);
+ return {
+   backend:"vrm", hash, routePrefix:`vrm-model/${hash}`,
+   modelFile:"model.vrm", fallbackFile:"fallback.svg", sourceSha256, animations:[],
+   vrm:{animations:[],embeddedAnimations}, assets:[{relativePath:"model.vrm",contents},{relativePath:"fallback.svg",contents:fallback}],
+   ...(options.localPreview ? {localPreview:true} : {}),
+ };
 }

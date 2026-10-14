@@ -28,11 +28,16 @@ export function readEnabledConfig(
   const showOnMobile = input.mobile?.show ?? false;
   if (input.backend === "vrm") {
     const base = modelBundle ? `${root}${modelBundle.routePrefix}/` : root;
-    const animations = modelBundle?.vrm?.animations.map(a => ({...a,url:base+a.url})) ?? input.animations?.map(a => ({...a,url:resolveUrl(root,a.url)}));
+    const preparedAnimations = modelBundle?.vrm?.animations.map(a => ({...a,url:base+a.url}));
+    const animations = nonEmpty(input.bundle) ? preparedAnimations : input.animations?.map(a => ({...a,url:resolveUrl(root,a.url)})) ?? preparedAnimations;
+    const embeddedAnimations = modelBundle?.vrm?.embeddedAnimations ?? input.embeddedAnimations;
+    const animationNames = [...(embeddedAnimations ?? []), ...(animations ?? []).map(a=>a.name)];
+    const neutralAnimation = input.neutralAnimation ?? modelBundle?.vrm?.neutralAnimation ?? (animationNames.includes("Idle") ? "Idle" : undefined);
     const profile = modelBundle?.vrm?.profile ? base + modelBundle.vrm.profile : typeof input.profile === "string" ? resolveUrl(root,input.profile) : input.profile;
     const widget = {
       backend:"vrm" as const, ...artifactUrls,
       ...(animations ? {animations} : {}), ...(profile ? {profile} : {}),
+      ...(embeddedAnimations ? {embeddedAnimations} : {}), ...(neutralAnimation ? {neutralAnimation} : {}),
       ...(input.display ? {display:input.display} : {}), ...(input.mobile ? {mobile:input.mobile} : {}),
       ...(input.gaze ? {gaze:input.gaze} : {}),
       ...(input.camera ? {camera:input.camera} : {}),
@@ -65,7 +70,7 @@ function resolveArtifactUrls(
   root: string,
   modelBundle?: ModelAssetBundle,
 ): Pick<WidgetConfig, "fallback" | "model"> {
-  if (nonEmpty(input.bundle)) {
+  if (nonEmpty(input.bundle) || modelBundle) {
     if (!modelBundle) {
       throw new Error("starlite.bundle could not be loaded");
     }
@@ -84,6 +89,7 @@ function resolveArtifactUrls(
     }
     if (
       !modelBundle.localPreview &&
+      (nonEmpty(input.bundle) || input.publication?.sourceSha256 !== undefined) &&
       input.publication?.sourceSha256?.toLowerCase() !==
       modelBundle.sourceSha256.toLowerCase()
     ) {
@@ -97,7 +103,7 @@ function resolveArtifactUrls(
     const base = `${root}${modelBundle.routePrefix}`;
     return {
       model: `${base}/${modelBundle.modelFile}`,
-      fallback: modelBundle.fallbackFile ? `${base}/${modelBundle.fallbackFile}` : resolveUrl(root, input.fallback!),
+      fallback: input.backend === "vrm" && nonEmpty(input.fallback) ? resolveUrl(root,input.fallback) : modelBundle.fallbackFile ? `${base}/${modelBundle.fallbackFile}` : resolveUrl(root, input.fallback!),
     };
   }
 
