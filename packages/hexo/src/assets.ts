@@ -572,7 +572,9 @@ export function collectVrmModelAssets(location:string, baseDirectory=process.cwd
  if (!options.localPreview && !manifest.publication.allowRedistribution) throw new Error("VRM bundle redistribution is not allowed");
  if (!options.localPreview && manifest.model.bytes > MAX_MODEL_BYTES) throw new Error("VRM exceeds the 8 MiB blog publication limit");
  const {inspectVrm} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
- const embeddedAnimations = inspectVrm(Uint8Array.from(files.get(manifest.model.file)!).buffer).animations.map(a=>a.name);
+ const modelBytes = files.get(manifest.model.file)!;
+ validateEmbeddedProfile(modelBytes);
+ const embeddedAnimations = inspectVrm(Uint8Array.from(modelBytes).buffer).animations.map(a=>a.name);
  const assets=[...files].map(([relativePath,contents])=>({relativePath,contents}));
  assets.push({relativePath:"manifest.json",contents:Buffer.from(JSON.stringify(manifest))});
  const digest=createHash("sha256");
@@ -596,6 +598,7 @@ export function collectVrmFileAssets(location: string, baseDirectory = process.c
  const contents = readBoundedRegularFile(resolve(baseDirectory, location), options.localPreview ? 64 * 1024 * 1024 : MAX_MODEL_BYTES, "VRM model");
  const {inspectVrm} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
  const inspected = inspectVrm(Uint8Array.from(contents).buffer);
+ validateEmbeddedProfile(contents);
  const sourceSha256 = createHash("sha256").update(contents).digest("hex");
  const fallback = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="260" height="360" viewBox="0 0 260 360"><rect width="260" height="360" rx="24" fill="#dfe5f0"/><text x="130" y="180" text-anchor="middle" fill="#46536a" font-family="system-ui,sans-serif">StarLite</text></svg>');
  const hash = createHash("sha256").update(contents).update(fallback).digest("hex").slice(0,12);
@@ -606,4 +609,13 @@ export function collectVrmFileAssets(location: string, baseDirectory = process.c
    vrm:{animations:[],embeddedAnimations}, assets:[{relativePath:"model.vrm",contents},{relativePath:"fallback.svg",contents:fallback}],
    ...(options.localPreview ? {localPreview:true} : {}),
  };
+}
+
+function validateEmbeddedProfile(contents: Buffer): void {
+ const {parseGlb} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
+ const profile = parseGlb(Uint8Array.from(contents).buffer,"vrm").extras?.starlite?.profile;
+ if (profile !== undefined) {
+   const validateCharacterProfile: (input: unknown) => void = require("@starcried/starlite-vrm/config").validateCharacterProfile;
+   validateCharacterProfile(profile);
+ }
 }

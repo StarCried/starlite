@@ -83,3 +83,10 @@ it("large VRMs remain blocked for publication but may use authorized local previ
  expect(()=>collectVrmFileAssets("./large.vrm",root)).toThrow("8388608-byte limit");
  expect(collectVrmFileAssets("./large.vrm",root,{localPreview:true}).localPreview).toBe(true);
 });
+it("malformed embedded profiles fail before a model is published",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-direct-profile-"));roots.push(root);
+ const original=model(), jsonSize=original.readUInt32LE(12), json=JSON.parse(original.subarray(20,20+jsonSize).toString());
+ json.extras={starlite:{profile:{schemaVersion:1,type:"arbitrary-script"}}};
+ writeFileSync(join(root,"invalid-profile.vrm"),glb(json,original.subarray(28+jsonSize)));
+ expect(()=>collectVrmFileAssets("./invalid-profile.vrm",root)).toThrow("unsupported character profile");
+});
