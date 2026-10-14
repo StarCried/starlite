@@ -545,7 +545,9 @@ function readBoundedRegularFile(
   if (metadata.size > maximumBytes) {
     throw new Error(`Inochi2D ${label} exceeds the ${maximumBytes}-byte limit`);
   }
-  return readFileSync(path);
+  const contents = readFileSync(path);
+  if (contents.byteLength > maximumBytes) throw new Error(`${label} exceeds the ${maximumBytes}-byte limit`);
+  return contents;
 }
 
 export function resolveRuntimeDist(backend: "inochi2d" | "vrm" = "inochi2d"): string {
