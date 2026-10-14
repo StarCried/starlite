@@ -13,6 +13,7 @@ import type {
 const PUBLISHABLE_EXTENSIONS = new Set([".css", ".js", ".wasm"]);
 const MAX_MANIFEST_BYTES = 32 * 1024 * 1024;
 const MAX_MODEL_BYTES = 8 * 1024 * 1024;
+const MAX_VRM_MODEL_BYTES = 10 * 1024 * 1024;
 const MAX_FALLBACK_BYTES = 8 * 1024 * 1024;
 const MAX_PARAMETERS = 4_096;
 const MAX_ANIMATIONS = 64;
@@ -570,7 +571,7 @@ export function collectVrmModelAssets(location:string, baseDirectory=process.cwd
  const directory=resolve(baseDirectory,location);
  const {manifest,files}=(require("@starcried/starlite-vrm/prepare") as typeof import("@starcried/starlite-vrm/prepare", {with:{"resolution-mode":"import"}})).readPreparedBundleSync(directory);
  if (!options.localPreview && !manifest.publication.allowRedistribution) throw new Error("VRM bundle redistribution is not allowed");
- if (!options.localPreview && manifest.model.bytes > MAX_MODEL_BYTES) throw new Error("VRM exceeds the 8 MiB blog publication limit");
+ if (!options.localPreview && manifest.model.bytes > MAX_VRM_MODEL_BYTES) throw new Error("VRM exceeds the 10 MiB blog publication limit");
  const {inspectVrm} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
  const modelBytes = files.get(manifest.model.file)!;
  validateEmbeddedProfile(modelBytes);
@@ -595,7 +596,7 @@ export function isLocalVrmFile(location: unknown, baseDirectory = process.cwd())
 /** Standard VRM onboarding: inspect exact bytes and publish one content-addressed file. */
 export function collectVrmFileAssets(location: string, baseDirectory = process.cwd(), options: {localPreview?: boolean} = {}): ModelAssetBundle {
  if (extension(location).toLowerCase() !== ".vrm") throw new Error("local VRM model must use the .vrm extension");
- const contents = readBoundedRegularFile(resolve(baseDirectory, location), options.localPreview ? 64 * 1024 * 1024 : MAX_MODEL_BYTES, "VRM model");
+ const contents = readBoundedRegularFile(resolve(baseDirectory, location), options.localPreview ? 64 * 1024 * 1024 : MAX_VRM_MODEL_BYTES, "VRM model");
  const {inspectVrm} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
  const inspected = inspectVrm(Uint8Array.from(contents).buffer);
  validateEmbeddedProfile(contents);

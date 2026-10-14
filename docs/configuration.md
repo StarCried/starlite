@@ -60,7 +60,7 @@ VRM 点击不会打断已有前景动作；首次入场在同一标签页仅触�
 
 外部 VRMA 可放在博客 `source/motions/`，并配置 `animations: [{name: Wave, url: motions/Wave.vrma}]`。也可使用 [prepare-vrm.cjs](examples/prepare-vrm.cjs) 将模型、外部动作和 profile 准备为有哈希清单的目录，再填写 `bundle`；这是高级构建输入，不是用户导入所需的自定义分发包。配置 bundle 后以清单中的外部动作列表为准。
 
-底层准备工具上限：模型 64 MiB、单个 VRMA 16 MiB、动作总量 64 MiB、最多 64 个，profile 1 MiB。Hexo 公开本地资源另限制模型 8 MiB。工具只检查与复制，不自动缩图、减面或转换动作。配置的外部动作在 ready 前准备好，尚未按需加载。
+底层准备工具上限：模型 64 MiB、单个 VRMA 16 MiB、动作总量 64 MiB、最多 64 个，profile 1 MiB。Hexo 公开本地资源另限制模型 10 MiB。工具只检查与复制，不自动缩图、减面或转换动作。配置的外部动作在 ready 前准备好，尚未按需加载。
 
 远程 URL 模式使用 `model: https://...`、`fallback` 和可选动作 URL，须满足 CORS；没有本地资源的构建哈希校验。发布建议使用本地 VRM 或高级清单目录。
 

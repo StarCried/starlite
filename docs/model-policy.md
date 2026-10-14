@@ -48,7 +48,7 @@ again when they change, even if the source model digest stays the same.
 
 The direct Hexo VRM file path validates and hashes the exact model bytes;
 advanced prepared directories also validate declared motion and profile hashes.
-Both public paths limit the model to 8 MiB. Public browser use delivers the asset
+Both public VRM paths limit the model to 10 MiB. Public browser use delivers the asset
 files to visitors; permission must cover that use. The isolated local-preview
 capability is not a rights attestation, and technical validation of an import
 does not establish its permitted use.

@@ -75,13 +75,16 @@ it("prepared manifests also expose embedded animations without a second catalog"
  await prepareModel({model:join(root,"avatar.vrm"),output:join(root,"bundle"),allowRedistribution:true});
  expect(collectVrmModelAssets(join(root,"bundle")).vrm?.embeddedAnimations).toEqual(["Idle"]);
 });
-it("large VRMs remain blocked for publication but may use authorized local preview",()=>{
+it("VRM publication accepts 9 MiB while over 10 MiB requires authorized local preview",()=>{
  const root=mkdtempSync(join(tmpdir(),"hexo-direct-budget-"));roots.push(root);
  const original=model(), jsonSize=original.readUInt32LE(12), json=JSON.parse(original.subarray(20,20+jsonSize).toString());
- const binary=Buffer.alloc(8*1024*1024);original.subarray(28+jsonSize).copy(binary);json.buffers[0].byteLength=binary.length;
+ const binary=Buffer.alloc(10*1024*1024);original.subarray(28+jsonSize).copy(binary);json.buffers[0].byteLength=binary.length;
  writeFileSync(join(root,"large.vrm"),glb(json,binary));
- expect(()=>collectVrmFileAssets("./large.vrm",root)).toThrow("8388608-byte limit");
+ expect(()=>collectVrmFileAssets("./large.vrm",root)).toThrow("10485760-byte limit");
  expect(collectVrmFileAssets("./large.vrm",root,{localPreview:true}).localPreview).toBe(true);
+ const accepted=binary.subarray(0,9*1024*1024);json.buffers[0].byteLength=accepted.length;
+ writeFileSync(join(root,"accepted.vrm"),glb(json,accepted));
+ expect(collectVrmFileAssets("./accepted.vrm",root).localPreview).toBeUndefined();
 });
 it("malformed embedded profiles fail before a model is published",()=>{
  const root=mkdtempSync(join(tmpdir(),"hexo-direct-profile-"));roots.push(root);

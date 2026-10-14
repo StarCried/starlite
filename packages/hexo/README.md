@@ -22,7 +22,7 @@ starlite:
     allowRedistribution: true
 ```
 
-`publication` 两项表示你已确认模型、贴图及内嵌动作允许在博客中托管。公开生成的 VRM 上限为 **8 MiB**。
+`publication` 两项表示你已确认模型、贴图及内嵌动作允许在博客中托管。公开生成的 VRM 上限为 **10 MiB**。
 
 然后运行：
 

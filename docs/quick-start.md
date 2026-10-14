@@ -38,4 +38,4 @@ npm run demo -- --model "D:\\Downloads\\avatar.vrm"
 
 其他选项：`--no-open`、`--port 4185`、`--no-install`、`--accept-license`、`--help`。只有已阅读并同意模型许可时才使用 `--accept-license`。
 
-本机示例可预览最多 64 MiB 的模型，输出位于隔离预览目录，不作为部署产物。接入自己的博客见[安装说明](release-guide.md)，公开生成模型的上限为 8 MiB。
+本机示例可预览最多 64 MiB 的模型，输出位于隔离预览目录，不作为部署产物。接入自己的博客见[安装说明](release-guide.md)，公开生成模型的上限为 10 MiB。
