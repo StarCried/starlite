@@ -2,6 +2,11 @@ import { expect, it } from "vitest";
 import { validateVrmWidgetConfig } from "../src/config.js";
 import type { VrmWidgetConfig } from "../src/types.js";
 
+it("accepts built-in Idle and text-only dialogue without declaring animation assets", () => {
+  expect(() => validateVrmWidgetConfig({model:"/model.vrm",fallback:"/fallback.png",ambient:{animations:["StarLiteIdle"]},neutralAnimation:"StarLiteIdle",dialogue:{click:{lines:["Hello"]}}})).not.toThrow();
+  expect(() => validateVrmWidgetConfig({model:"/model.vrm",fallback:"/fallback.png",dialogue:{click:{linesByAnimation:{}}}})).toThrow("needs an animation");
+});
+
 it.each([undefined, 30, 60, "display"] as const)("accepts frame policy %s", (fps) => {
   expect(() => validateVrmWidgetConfig({ model: "/model.vrm", fallback: "/fallback.png", render: { fps } })).not.toThrow();
 });

@@ -41,6 +41,7 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
     if (animation.durationMs !== undefined && !finite(animation.durationMs, 1, 600000)) throw new Error("invalid animation duration");
     names.add(animation.name);
   }
+  names.add("StarLiteIdle");
   for (const name of config.ambient?.animations ?? []) if (!names.has(name)) throw new Error(`unknown ambient animation: ${name}`);
   if ((config.ambient?.animations?.length ?? 0) > 1) throw new Error("VRM supports one explicitly configured ambient clip");
   if (config.neutralAnimation !== undefined && !names.has(config.neutralAnimation)) throw new Error("unknown neutral animation");
@@ -50,8 +51,8 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   for (const [name, scene] of Object.entries(config.dialogue ?? {})) {
     if (!scene) continue;
     if (scene.animations !== undefined && !pool(scene.animations)) throw new Error("invalid dialogue animation pool");
-    if (!names.has(scene.animation)) throw new Error("invalid dialogue scene");
-    resolveDialogueSentences(scene, scene.animations ?? [scene.animation], `dialogue.${name}`);
+    if (scene.animation !== undefined && !names.has(scene.animation)) throw new Error("invalid dialogue scene");
+    resolveDialogueSentences(scene, scene.animations ?? (scene.animation ? [scene.animation] : []), `dialogue.${name}`);
   }
   if (config.profile && typeof config.profile !== "string") validateCharacterProfile(config.profile);
 }

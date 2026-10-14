@@ -12,6 +12,7 @@ import { HostMotion } from "./host-motion.js";
 import { PointerGaze } from "./gaze.js";
 import { CharacterBehavior } from "./character.js";
 import { prepareEmbeddedAnimations } from "./embedded.js";
+import { defaultIdleBytes } from "./default-idle.js";
 import type { CharacterProfile, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
 export { validateVrmWidgetConfig } from "./config.js";
@@ -67,6 +68,7 @@ class Controller implements VrmController {
   #paused = false;
   #elapsed = 0;
   #ambientSuppressed = false;
+  #baseAnimation: string | undefined;
   #reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
   constructor(host: HTMLElement, config: VrmWidgetConfig) {
@@ -75,9 +77,9 @@ class Controller implements VrmController {
     this.#bubble = new DialogueBubble(host);
     const d = config.dialogue;
     this.#dialogue = new DialogueScheduler({
-      enter: d?.enter ? { ...d.enter, ...resolveDialogueSentences(d.enter, d.enter.animations ?? [d.enter.animation], "dialogue.enter"), durationMs: d.enter.durationMs ?? 4000, delayMs: d.enter.delayMs ?? 1000 } : false,
-      idle: d?.idle ? { ...d.idle, ...resolveDialogueSentences(d.idle, d.idle.animations ?? [d.idle.animation], "dialogue.idle"), durationMs: d.idle.durationMs ?? 4000, intervalMinMs: d.idle.intervalMinMs ?? 30000, intervalMaxMs: d.idle.intervalMaxMs ?? 60000 } : false,
-      click: d?.click ? { ...d.click, ...resolveDialogueSentences(d.click, d.click.animations ?? [d.click.animation], "dialogue.click"), durationMs: d.click.durationMs ?? 4000 } : false,
+      enter: d?.enter ? { ...d.enter, ...resolveDialogueSentences(d.enter, d.enter.animations ?? (d.enter.animation ? [d.enter.animation] : []), "dialogue.enter"), durationMs: d.enter.durationMs ?? 4000, delayMs: d.enter.delayMs ?? 1000 } : false,
+      idle: d?.idle ? { ...d.idle, ...resolveDialogueSentences(d.idle, d.idle.animations ?? (d.idle.animation ? [d.idle.animation] : []), "dialogue.idle"), durationMs: d.idle.durationMs ?? 4000, intervalMinMs: d.idle.intervalMinMs ?? 30000, intervalMaxMs: d.idle.intervalMaxMs ?? 60000 } : false,
+      click: d?.click ? { ...d.click, ...resolveDialogueSentences(d.click, d.click.animations ?? (d.click.animation ? [d.click.animation] : []), "dialogue.click"), durationMs: d.click.durationMs ?? 4000 } : false,
     }, Math.random);
   }
   get status(): WidgetStatus { return this.#status; }
@@ -156,7 +158,20 @@ class Controller implements VrmController {
         if (this.#clips.has(source.name)) throw new Error("external animation duplicates embedded animation: " + source.name);
         clip.name = source.name; this.#clips.set(source.name, clip);
       }
-      const neutralAnimation = this.#config.neutralAnimation ?? this.#profile?.neutralAnimation;
+      this.#baseAnimation = this.#config.ambient?.animations?.[0] ?? (this.#config.ambient?.animations ? undefined
+        : this.#config.neutralAnimation ?? this.#profile?.neutralAnimation ?? (this.#clips.has("Idle") ? "Idle" : "StarLiteIdle"));
+      const neutralAnimation = this.#config.neutralAnimation ?? this.#profile?.neutralAnimation ?? this.#baseAnimation;
+      const requested = [this.#baseAnimation, neutralAnimation,
+        ...(this.#config.interactions?.click ? this.#config.interactions.click.animations ?? [this.#config.interactions.click.animation] : []),
+        ...Object.values(this.#config.dialogue ?? {}).flatMap(scene => scene ? scene.animations ?? (scene.animation ? [scene.animation] : []) : [])];
+      if (!this.#clips.has("StarLiteIdle") && requested.includes("StarLiteIdle")) {
+        const asset = await animationLoader.parseAsync(defaultIdleBytes(), "");
+        this.#abort.signal.throwIfAborted();
+        const animation = (asset.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0];
+        if (!animation) throw new Error("bundled Idle is invalid");
+        const clip = createVRMAnimationClip(animation, vrm);
+        clip.name = "StarLiteIdle"; this.#clips.set(clip.name, clip);
+      }
       if (neutralAnimation) {
         const clip = this.#clips.get(neutralAnimation);
         if (!clip) throw new Error("neutral animation is missing");
@@ -166,7 +181,7 @@ class Controller implements VrmController {
         sampler.stopAllAction(); sampler.uncacheRoot(vrm.scene);
         vrm.humanoid.setNormalizedPose(this.#neutral);
       }
-      this.#player = new VrmAnimationPlayer(vrm.scene, this.#clips, () => this.#restoreNeutral(), this.#config.ambient?.animations?.[0]);
+      this.#player = new VrmAnimationPlayer(vrm.scene, this.#clips, () => this.#restoreNeutral(), this.#baseAnimation);
       this.#renderer = new THREE.WebGLRenderer({ canvas: this.#canvas, alpha: true, antialias: true, premultipliedAlpha: true });
       this.#renderer.setClearColor(0x000000, 0);
       this.#renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -269,11 +284,11 @@ class Controller implements VrmController {
     this.#vrm?.expressionManager?.resetValues(); this.#character?.reset();
   }
   #startAmbient(): void {
-    const name = this.#config.ambient?.animations?.[0];
+    const name = this.#baseAnimation;
     if (name && !this.#player?.activeName && !this.#ambientSuppressed && !this.#reduced.matches) void this.#player?.play(name, { mode: "loop" });
   }
   #foregroundActive(): boolean {
-    return Boolean(this.#player?.isOneShot || (this.#player?.activeName && this.#player.activeName !== this.#config.ambient?.animations?.[0]));
+    return Boolean(this.#player?.isOneShot || (this.#player?.activeName && this.#player.activeName !== this.#baseAnimation));
   }
   #sync(): void {
     if (this.#status === "destroyed" || this.#status === "fallback" || this.#status === "disabled" || !this.#renderer) return;
@@ -413,7 +428,10 @@ class Controller implements VrmController {
       void this.playAnimation(names[Math.floor(Math.random() * names.length)]!, { mode: "once", restart: true });
     }
   }
-  #showDialogue(action: DialogueAction): void { this.#bubble.show(action, this.#elapsed * 1000, this.#reduced.matches); void this.playAnimation(action.animation, { mode: "once", restart: true }); }
+  #showDialogue(action: DialogueAction): void {
+    this.#bubble.show(action, this.#elapsed * 1000, this.#reduced.matches);
+    if (action.animation) void this.playAnimation(action.animation, { mode: "once", restart: true });
+  }
   #setStatus(status: WidgetStatus): void { this.#status = status; this.#host.dataset.modelStatus = status; }
   #dispose(): void {
     this.#hitMask.clear();

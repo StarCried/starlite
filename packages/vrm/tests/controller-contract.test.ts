@@ -26,7 +26,7 @@ vi.mock("three/addons/loaders/GLTFLoader.js",()=>({GLTFLoader:class {
  constructor(private manager: THREE.LoadingManager){}
  register(){return this}
  async parseAsync(bytes:ArrayBuffer){
-  if(bytes.byteLength===1){onAnimationParse?.();return {userData:{vrmAnimations:[{}]}};}
+  if(bytes.byteLength===1 || new TextDecoder().decode(bytes).includes('"VRMC_vrm_animation"')){onAnimationParse?.();return {userData:{vrmAnimations:[{}]}};}
   if(rejectTexture)this.manager.itemError("blob:blocked-texture");
   scene=new THREE.Scene();const mesh=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial());mesh.name="body";scene.add(mesh);
   const head=new THREE.Object3D();head.name="head";head.position.y=.4;scene.add(head);
@@ -65,13 +65,24 @@ afterEach(()=>{for(const c of resources.splice(0))c.destroy();vi.restoreAllMocks
 async function mount(backend:string,signal?:AbortSignal,dialogue?:any){
  const host=document.createElement("div");document.body.append(host);
  let c:ModelController;
- if(backend==='vrm')c=await mountModelWidget(host,{dialogue,model:'test.vrm',fallback:'fallback.png',animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],mobile:{show:true},interactions:{pointer:false,click:false,drag:false}},{...(signal?{signal}:{})});
+ if(backend==='vrm')c=await mountModelWidget(host,{dialogue,model:'test.vrm',fallback:'fallback.png',animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],ambient:{animations:[]},mobile:{show:true},interactions:{pointer:false,click:false,drag:false}},{...(signal?{signal}:{})});
  else{
   const clip={timestepMs:100,length:10,leadIn:0,leadOut:8,weight:1,lanes:[{parameter:'move',defaultValues:[0,0],interpolation:'linear',keyframes:[{frame:0,value:0,tension:0},{frame:5,value:1,tension:0},{frame:10,value:0,tension:0}]}]};
   c=await mountWithDependencies(host,{dialogue,model:'test.inp',fallback:'fallback.png',animations:[{...clip,name:'Action'},{...clip,name:'Other'}] as any,mobile:{show:true},interactions:{pointer:false,click:false,drag:false}},{fetchModel:async()=>new Uint8Array([1]),createRuntime:async()=>({loadModel(){},setParameterScalar(){},setParameterVector(){},setCameraTransform(){},resize(){},renderFrame(){},destroy(){}}),requestFrame,cancelFrame,isMobile:()=>false,prefersReducedMotion:()=>false,isWebGl2Available:()=>true,devicePixelRatio:()=>1,createResizeObserver:()=>undefined,random:()=>.5},signal);
  }
  resources.push(c);return c;
 }
+it('gives a model without motions a bundled Idle and allows text-only click bubbles',async()=>{
+ relaxedIdle=true;const host=document.createElement('div');document.body.append(host);
+ const fetched=vi.spyOn(globalThis,'fetch');
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},dialogue:{click:{lines:['Hello without gesture']}},interactions:{pointer:false}});resources.push(c);
+ expect(c.status).toBe('running');expect(c.getAnimations().map(a=>a.name)).toEqual(['StarLiteIdle']);
+ expect(fetched).toHaveBeenCalledOnce();expect(c.diagnostics().activeAnimation).toBe('StarLiteIdle');
+ const canvas=host.querySelector('canvas')!;canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));
+ expect(host.querySelector('.model-widget__bubble')!.textContent).toBe('Hello without gesture');
+ expect(c.diagnostics().activeAnimation).toBe('StarLiteIdle');
+ c.stopAnimation();expect(scene.getObjectByName('head')!.quaternion.angleTo(new THREE.Quaternion())).toBeGreaterThan(.3);
+});
 it('lists and plays a model embedded animation alongside the program-provided Idle',async()=>{
  embeddedModel=true;const host=document.createElement('div');document.body.append(host);
  const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},embeddedAnimations:['Jump'],
@@ -299,7 +310,7 @@ it('keeps the original viewport when transparent gesture expansion is disabled',
 it('preserves pointer gaze when an unrelated posed limb expands the transparent surface',async()=>{
  const host=document.createElement('div');document.body.append(host);
  vi.spyOn(host,'getBoundingClientRect').mockReturnValue(new DOMRect(100,100,320,480));
- const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true}});resources.push(c);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},ambient:{animations:[]}});resources.push(c);
  c.setPointerPosition(300,300);advance(1500);
  const gaze=c.diagnostics().gaze!,viewport=c.diagnostics().framing!.viewport;
  scene.getObjectByName('body')!.position.x=2;advance(1500);
@@ -322,7 +333,7 @@ it('prefetches at most four animations alongside the model and preserves configu
  expect(requested).toEqual(['test.vrm','0.vrma','1.vrma','2.vrma','3.vrma']);
  releaseModel(new Response(model()));const c=await loading;resources.push(c);
  expect(maximum).toBe(4);expect(c.status).toBe('running');
- expect(c.getAnimations().map(clip=>clip.name)).toEqual(animations.map(clip=>clip.name));
+ expect(c.getAnimations().map(clip=>clip.name)).toEqual([...animations.map(clip=>clip.name),'StarLiteIdle']);
 });
 
 it('aborts remaining downloads and does not start queued clips after an asset fails',async()=>{

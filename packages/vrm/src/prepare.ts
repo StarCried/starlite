@@ -30,7 +30,7 @@ function profileNames(profile: CharacterProfile, animations: {name:string}[]): v
 }
 /** Validate every source before creating output. Never overwrite an existing bundle. */
 export async function prepareModel(request: PrepareRequest): Promise<VrmManifest> {
- const bytes = await bounded(request.model, MAX_MODEL_BYTES); inspectVrm(arrayBuffer(bytes));
+ const bytes = await bounded(request.model, MAX_MODEL_BYTES); const inspected = inspectVrm(arrayBuffer(bytes));
  const animations = request.animations ?? []; animationNames(animations);
  const files = new Map<string, Buffer>([["model.vrm", bytes]]);
  const record = (file:string, data:Buffer): AssetRecord => ({ file, sha256:hash(data), bytes:data.byteLength });
@@ -43,7 +43,7 @@ export async function prepareModel(request: PrepareRequest): Promise<VrmManifest
   files.set(file,data); manifest.animations.push({...record(file,data),name:source.name,durationMs});
  }
  if (request.profile) {
-  const data = await bounded(request.profile, 1024*1024); const profile:unknown = JSON.parse(data.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,animations);
+  const data = await bounded(request.profile, 1024*1024); const profile:unknown = JSON.parse(data.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,[...animations,...inspected.animations,{name:"StarLiteIdle"}]);
   files.set("profile.json",data); manifest.profile = record("profile.json",data);
  }
  const output = resolve(request.output); await mkdir(dirname(output),{recursive:true});
@@ -75,7 +75,7 @@ export function readPreparedBundleSync(directory: string): {manifest:VrmManifest
   if (bytes.byteLength !== item.bytes || hash(bytes) !== item.sha256) throw new Error("manifest asset hash mismatch");
   files.set(item.file,bytes); return bytes;
  };
- inspectVrm(arrayBuffer(load(manifest.model,MAX_MODEL_BYTES)));
+ const inspected = inspectVrm(arrayBuffer(load(manifest.model,MAX_MODEL_BYTES)));
  let total = 0;
  for (const item of manifest.animations) {
   const bytes = load(item,MAX_ANIMATION_BYTES); total += bytes.byteLength;
@@ -83,6 +83,6 @@ export function readPreparedBundleSync(directory: string): {manifest:VrmManifest
   const inspected = inspectVrma(arrayBuffer(bytes));
   if (!Number.isFinite(item.durationMs) || Math.abs(inspected.durationMs-item.durationMs) > 1) throw new Error("manifest animation duration mismatch");
  }
- if (manifest.profile) { const bytes = load(manifest.profile,1024*1024); const profile:unknown = JSON.parse(bytes.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,manifest.animations); }
+ if (manifest.profile) { const bytes = load(manifest.profile,1024*1024); const profile:unknown = JSON.parse(bytes.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,[...manifest.animations,...inspected.animations,{name:"StarLiteIdle"}]); }
  return {manifest,files};
 }
