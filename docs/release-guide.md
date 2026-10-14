@@ -1,6 +1,6 @@
 # StarLite for Hexo：安装与使用
 
-本指南适用于 `0.1.0-alpha.1`。普通启动步骤见 [Hexo README](../packages/hexo/README.md)；本页补充安装、更新和本地验收。
+本指南适用于已发布的 [0.1.0-alpha.1](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)。普通启动步骤见 [Hexo README](../packages/hexo/README.md)；本页补充安装、更新和本地验收。
 
 ## 安装
 
@@ -36,7 +36,7 @@ starlite:
 
 静态占位图自动提供。可选 `fallback: images/avatar.png` 使用自己的图片，图片放在 `source/images/avatar.png`。
 
-微光模型单独授权、单文件分发；博客应使用 10 MiB 以内的博客派生文件，桌面版可能更大。模型源工程、其他软件导出和自定义 ZIP 均不是此安装流程的输入。
+微光模型从[独立模型发行](https://github.com/StarCried/starlite/releases/tag/weiguang-v3.0.0-starlite.1)下载；博客选择 `Weiguang-StarLite-Blog.vrm`，放到上面的模型路径并遵守随附许可。博客模型保留全部 13 个内嵌动作，约 8.69 MiB；桌面版可能更大。模型源工程、其他软件导出和自定义 ZIP 均不是此安装流程的输入。
 
 ## 本地验收
 

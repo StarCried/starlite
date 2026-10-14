@@ -1,6 +1,6 @@
 # StarLite 当前状态
 
-更新于 2026-10-14。当前版本为 `0.1.0-alpha.1`，安装时显式使用 `@alpha` 或完整版本号。源码、本地验证、公共 registry 安装和托管 CI 的结果分别记录，不相互代替。
+更新于 2026-10-15。[0.1.0-alpha.1 已公开发行](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)，五个程序包已发布到 npm。安装时显式使用 `@alpha` 或完整版本号。发行源码固定为 `a103ca9`，运行时基线为 `986443cc`；发布后的文档更新不改变该 tag 或程序产物。
 
 ## 已实现
 
@@ -20,13 +20,18 @@
 
 2026-10-14 的运行时基线 `986443cc` 已完成完整 `npm run validate`：Rust 26 项、JavaScript 与 demo 296 项通过，7 项依赖外部真实模型的测试跳过；浏览器 11 项通过、2 项外部模型测试跳过。两种后端构建、lint、typecheck、许可、预算与五包内容检查均通过。共享运行时代码变化后，DSH 必须更新固定 revision 并重建；文档更新不改变运行时基线。自动回归不代替目标设备的视觉与性能验收。
 
-## 发布边界
+## 公开发行与安装验收
 
-- 公开 npm 发布后，还需从公共 registry 复测安装；本地 tarball 或临时 registry 成功不等于公共发布成功。
-- 托管 CI、Windows 签名、跨设备长期性能和用户手动视觉验收只按实际完成情况记录。
+发行提交 `a103ca9` 的[托管 CI](https://github.com/StarCried/starlite/actions/runs/38588191042)和[原生产物／五包构建](https://github.com/StarCried/starlite/actions/runs/38588219594)均通过。随后在隔离目录从公共 registry 执行 `npm install hexo@7 hexo-starlite@alpha` 与 `npx --no-install hexo generate`，Hexo 7.3.0 和四个 StarLite 依赖安装正常，均无工作区替代；四包 registry／lock 完整性与该 CI 的 tarball SHA-512 一致。
+
+公开微光博客文件生成后长度和 SHA-256 保持一致，13 个内嵌动作及 profile／许可保留。页面只生成 VRM 后端资源、一个组件和一个启动模块，资源路由哈希重算一致；移动端判断位于运行时导入之前。该项验证实际安装与生成，没有额外重跑浏览器长期测试。
+
+## 使用边界
+
+- `inochi2d-blog` 的原生 CLI 为未签名的实验性 alpha；跨设备性能和用户视觉验收只按实际完成情况记录。
 - Hexo 7 是当前验收目标，Hexo 8 尚未单独验收。浏览器目标为桌面 Chrome／Edge、WebGL2。
 - 公开本地模型预算为 10 MiB；本机隔离 demo 可验证最多 64 MiB，不能把其预览输出用于部署。
 - 外部动作在 ready 前准备好，尚未按需加载。Hexo 插件的安装依赖包含两个后端；浏览器只加载选中的后端。
-- 微光单 VRM 独立授权与分发，只使用模型提供者给出的下载来源。程序包不含模型，也不会替使用者授予其他资产的托管权。
+- 微光从[独立模型发行](https://github.com/StarCried/starlite/releases/tag/weiguang-v3.0.0-starlite.1)取得并遵守随附许可。程序包不含模型，也不会替使用者授予其他资产的托管权。
 
-较早的 Inochi2D 与博客数据见 [validation](validation.md)，它们是历史记录，不代表当前所有发布门已经通过。
+详细检查及较早的 Inochi2D 与博客数据见 [validation](validation.md)。历史记录保留当时的身份与结果，不作为当前版本的安装输入。

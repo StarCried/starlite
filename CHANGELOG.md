@@ -5,6 +5,10 @@ versioning; prereleases use the explicit npm `alpha` channel.
 
 ## 0.1.0-alpha.1 - 2026-10-14
 
+[Published release](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)
+from source `a103ca9`, with all five npm packages on the `alpha` channel.
+Post-release documentation does not change the tagged program artifacts.
+
 - Renamed the project to StarLite, the Hexo adapter to hexo-starlite and
   runtime packages to @starcried/starlite-core, starlite-vrm and starlite-inochi2d.
   Consolidated package directories and changed the Hexo config key to starlite.
