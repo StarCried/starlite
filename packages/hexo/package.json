@@ -26,7 +26,7 @@
     "@starcried/starlite-vrm": "0.1.0-alpha.1"
   },
   "peerDependencies": {
-    "hexo": ">=7 <9"
+    "hexo": ">=7 <8"
   },
   "peerDependenciesMeta": {
     "hexo": {
