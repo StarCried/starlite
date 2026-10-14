@@ -540,10 +540,10 @@ function readBoundedRegularFile(
 ): Buffer {
   const metadata = lstatSync(path);
   if (!metadata.isFile() || metadata.isSymbolicLink()) {
-    throw new Error(`Inochi2D ${label} must be a regular non-symlink file`);
+    throw new Error(`${label} must be a regular non-symlink file`);
   }
   if (metadata.size > maximumBytes) {
-    throw new Error(`Inochi2D ${label} exceeds the ${maximumBytes}-byte limit`);
+    throw new Error(`${label} exceeds the ${maximumBytes}-byte limit`);
   }
   const contents = readFileSync(path);
   if (contents.byteLength > maximumBytes) throw new Error(`${label} exceeds the ${maximumBytes}-byte limit`);
