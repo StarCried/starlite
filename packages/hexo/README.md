@@ -4,7 +4,7 @@
 
 ## 启动
 
-需要 Node.js 22.12+、Hexo 7 和一个标准人形 VRM。**当前 alpha 尚未发布**；本地候选安装见[安装说明](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/release-guide.md)。公开发布后，在博客目录执行：
+需要 Node.js 22.12+、Hexo 7 和一个标准人形 VRM。在博客目录安装 alpha 版本：
 
 ```sh
 npm install hexo-starlite@alpha
@@ -36,6 +36,6 @@ npx hexo server
 
 ## 进阶
 
-[动作、气泡与性能](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/configuration.md) · [完整配置示例](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/examples/hexo-vrm.yml) · [安装、更新与卸载](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/release-guide.md) · [VRM API](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/packages/vrm/README.md)
+[动作、气泡与性能](https://github.com/StarCried/starlite/blob/main/docs/configuration.md) · [完整配置示例](https://github.com/StarCried/starlite/blob/main/docs/examples/hexo-vrm.yml) · [安装、更新与卸载](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md) · [VRM API](https://github.com/StarCried/starlite/blob/main/packages/vrm/README.md)
 
 BSD-2-Clause；微光模型独立授权，其他模型和动作由使用者按各自许可提供。

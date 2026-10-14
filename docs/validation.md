@@ -1,9 +1,30 @@
 # Validation checklist
 
-Current naming is StarLite (2026-10-13). Dated results below describe historical
+Current naming is StarLite (2026-10-14). Dated results below describe historical
 Inochi2D candidates; their old package labels and hashes are retained only as
 evidence, not as current installation inputs or release approval. Commands use
 the new package names. See [current status](status.md) before release.
+
+## 2026-10-14 current runtime baseline
+
+Runtime source `986443cc07018ba99240b0dd217bbdf31484b57d` passed the full local
+release checks on Node 22.22.1:
+
+- `npm run validate`: Rust 26 passed; JavaScript workspace and demo tests
+  296 passed, 7 skipped for optional external real-model fixtures.
+- Both backend builds, official WASM rebuild, examples, lint, typecheck,
+  third-party license checks and all five `npm pack --dry-run` content checks
+  passed. Raw Inochi2D runtime JavaScript + WASM was 589,016 bytes against
+  the 1,572,864-byte budget; this is not a VRM performance measurement.
+- `npm run test:browser`: 11 passed, 2 skipped for optional external
+  pipeline/Mannequin model inputs.
+- `git diff --check` passed and the source tree remained clean. Logs are ignored
+  under `target/release-output/starlite-validate.log` and
+  `target/release-output/starlite-browser.log`, with source and exit status.
+
+Hosted CI, native release artifact provenance and public-registry installation
+remain separate checks. Later documentation changes do not change this runtime
+baseline or turn local package checks into proof of publication.
 
 ## 2026-10-13 local StarLite rename
 

@@ -1,22 +1,24 @@
 # Changelog
 
 All notable changes will be recorded here. The project follows semantic
-versioning once packages are published.
+versioning; prereleases use the explicit npm `alpha` channel.
 
-## 0.1.0-alpha.1 - Unreleased
+## 0.1.0-alpha.1 - 2026-10-14
 
-- Renamed the local project to StarLite, the Hexo adapter to hexo-starlite and
+- Renamed the project to StarLite, the Hexo adapter to hexo-starlite and
   runtime packages to @starcried/starlite-core, starlite-vrm and starlite-inochi2d.
   Consolidated package directories and changed the Hexo config key to starlite.
-  Existing remote identities are unchanged pending a separate release step.
+  Repository identities are StarCried/starlite and StarCried/starlite-dsh.
 - Added the format-neutral playback contract, cancellable mounts, shared bubbles
   and per-animation sentence libraries.
 - Added VRM 0/1 inspection, immutable bundle preparation, VRMA playback, limited
   pointer gaze and optional data-only character adaptation through Three.js.
 - Added page click-through interaction, PJAX persistence, load preparation yields
   and spring rest-pose handling for animated host motion.
-- Rewrote installation and configuration documentation to distinguish current
-  behavior from the planned original default Idle and animation-free setup.
+- Added the original bundled StarLiteIdle, automatic embedded-motion discovery,
+  single-file VRM import and text-only bubbles for animation-free models.
+- Simplified alpha installation, one-command local VRM preview and Hexo
+  configuration documentation.
 
 ### Inochi2D implementation history
 
@@ -71,5 +73,5 @@ versioning once packages are published.
   invoked experimental unsigned alpha. Installation has no native lifecycle
   script; integrity, authorization, or execution failures remain fail-closed.
 
-The program packages remain unpublished. Separately approved site deployments
-do not constitute a package release.
+Models and third-party animation libraries remain separately licensed; they
+are not included in the npm packages.

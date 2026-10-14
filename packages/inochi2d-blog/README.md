@@ -1,8 +1,8 @@
 # inochi2d-blog
 
 Optional Inochi2D-specific tooling in the StarLite workspace. It is not needed
-for VRM-only users. New StarLite package names are local candidates, not yet
-published registry packages; see [installation instructions](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/release-guide.md).
+for VRM-only users. Use the explicit `alpha` channel; see
+[installation instructions](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md).
 
 
 Fail-closed, local orchestration from a Creator-exported `.inp` or `.inx` to an
@@ -20,17 +20,19 @@ immutable Hexo bundle and optional deployment.
 Install it in the Hexo blog together with the adapter and browser validator:
 
 ```sh
-# Install the locally built candidate tarballs described in docs/release-guide.md.
-npm install ./inochi2d-blog-0.1.0-alpha.1.tgz ./hexo-starlite-0.1.0-alpha.1.tgz ./starcried-starlite-core-0.1.0-alpha.1.tgz ./starcried-starlite-inochi2d-0.1.0-alpha.1.tgz ./starcried-starlite-vrm-0.1.0-alpha.1.tgz playwright
+npm install inochi2d-blog@alpha hexo-starlite@alpha playwright
 ```
+
+On Linux, also run `npx playwright install chromium`. Windows browser checks
+use the installed Chrome and Edge applications.
 
 Copy `inochi2d-blog.config.example.json`, set the original model, fallback, blog
 root, and widget behavior. Start with an isolated local preview; it does not
 need a redistribution attestation:
 
 ```sh
-inochi2d-blog inspect --config inochi2d-blog.config.json
-inochi2d-blog preview --config inochi2d-blog.config.json
+npx inochi2d-blog inspect --config inochi2d-blog.config.json
+npx inochi2d-blog preview --config inochi2d-blog.config.json
 ```
 
 `preview` compresses the original model into a one-run directory below
@@ -66,8 +68,8 @@ After inspection, add the publication attestation tied to the exact source
 hash before any production workflow:
 
 ```sh
-inochi2d-blog deploy --dry-run --config inochi2d-blog.config.json
-inochi2d-blog deploy --config inochi2d-blog.config.json
+npx inochi2d-blog deploy --dry-run --config inochi2d-blog.config.json
+npx inochi2d-blog deploy --config inochi2d-blog.config.json
 ```
 
 `inspect` is read-only and reveals the source SHA-256 and blockers. `prepare`,
@@ -91,9 +93,9 @@ is loaded and advanced by the browser runtime without a synthetic hair/sleeve
 fallback.
 
 Read the repository
-[pipeline](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/pipeline.md)
+[pipeline](https://github.com/StarCried/starlite/blob/main/docs/pipeline.md)
 and
-[configuration](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/configuration.md)
+[configuration](https://github.com/StarCried/starlite/blob/main/docs/configuration.md)
 guides. The blog must provide compatible Hexo,
 `hexo-starlite`, and Playwright installations; Windows gates use installed
 Chrome and Edge.

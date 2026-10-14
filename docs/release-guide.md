@@ -1,22 +1,18 @@
 # StarLite for Hexo：安装与使用
 
-当前为 `0.1.0-alpha.1` 本地候选，尚未公开发布。普通启动步骤见 [Hexo README](../packages/hexo/README.md)；本页补充候选安装、更新和验收。
+本指南适用于 `0.1.0-alpha.1`。普通启动步骤见 [Hexo README](../packages/hexo/README.md)；本页补充安装、更新和本地验收。
 
 ## 安装
 
 需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust 或 Blender。
 
-公开 alpha 后：
+安装 alpha 版本：
 
 ```sh
 npm install hexo-starlite@alpha
 ```
 
-目前本地验收使用维护者从同一源码构建的四个 npm tarball：
-
-```sh
-npm install /path/to/starcried-starlite-core-0.1.0-alpha.1.tgz /path/to/starcried-starlite-inochi2d-0.1.0-alpha.1.tgz /path/to/starcried-starlite-vrm-0.1.0-alpha.1.tgz /path/to/hexo-starlite-0.1.0-alpha.1.tgz
-```
+如需固定版本，使用 `npm install --save-exact hexo-starlite@0.1.0-alpha.1`。alpha 使用独立发布标签，安装和更新时均显式写 `@alpha` 或完整版本号。
 
 插件自动加载，浏览器只请求选中的后端。安装依赖目前包含两个后端；VRM 用户不需要原生 Inochi2D 工具。不要同时安装旧的 `hexo-model-companion`；旧的 `inochi2d_widget:` 配置须改为 `starlite:`。
 
@@ -60,18 +56,12 @@ PJAX 保留实例，完整文档导航重新挂载但同一标签页不重复首
 
 ## 更新、停用与卸载
 
-更新模型时替换本地 VRM，复核许可和动作名后重新生成；若固定了 `sourceSha256`，先审阅新文件再更新哈希。动作、文案和相机见[完整配置](configuration.md)。
+更新插件时执行 `npm install hexo-starlite@alpha`，再本地生成并检查。更新模型时替换本地 VRM，复核许可和动作名后重新生成；若固定了 `sourceSha256`，先审阅新文件再更新哈希。动作、文案和相机见[完整配置](configuration.md)。
 
 停用：设 `starlite.enable: false` 并重新生成。卸载：
 
 ```sh
 npm uninstall hexo-starlite
-```
-
-若本地候选测试曾直接安装三个运行时 tarball，再卸载相应直接依赖：
-
-```sh
-npm uninstall @starcried/starlite-core @starcried/starlite-vrm @starcried/starlite-inochi2d
 ```
 
 删除不再使用的 `starlite` 配置和模型文件，执行 `hexo clean` 后重新生成；确认部署目录没有遗留模型路由。不要删除其他功能仍使用的图片。

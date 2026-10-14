@@ -225,7 +225,7 @@ packages. Chrome and Edge must be installed for Windows release gates.
 Start the isolated local workflow with:
 
 ```sh
-inochi2d-blog preview --config inochi2d-blog.config.json
+npx inochi2d-blog preview --config inochi2d-blog.config.json
 ```
 
 The generated local-preview token is an internal, one-run capability. It is
