@@ -741,7 +741,7 @@ class ActiveController implements WidgetController {
   }
 
   #activateDialogue(action: DialogueAction, timestamp: number): void {
-    this.#animations.trigger(action.animation, timestamp);
+    if (action.animation) this.#animations.trigger(action.animation, timestamp);
     this.#bubble.show(action, timestamp, this.#dependencies.prefersReducedMotion());
   }
 

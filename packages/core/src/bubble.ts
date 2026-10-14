@@ -22,7 +22,7 @@ export class DialogueBubble {
     content.textContent = action.line;
     this.element.replaceChildren(content);
     this.element.dataset.modelScene = action.scene;
-    this.element.dataset.modelAnimation = action.animation;
+    if (action.animation) this.element.dataset.modelAnimation = action.animation;
     this.element.hidden = false;
     this.#until = timestamp + action.durationMs;
     this.position();

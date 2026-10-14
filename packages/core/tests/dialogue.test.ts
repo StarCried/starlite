@@ -1,6 +1,13 @@
 import { expect, it } from "vitest";
 import { DialogueScheduler, resolveDialogueSentences } from "../src/dialogue.js";
 
+it("schedules text-only scenes without inventing an animation", () => {
+  const sentences = resolveDialogueSentences({lines:["Hello"]}, [], "dialogue.click");
+  const scheduler = new DialogueScheduler({enter:false,idle:false,click:{...sentences,durationMs:1000}}, () => 0);
+  expect(scheduler.triggerClick(0)).toEqual({scene:"click",line:"Hello",durationMs:1000});
+  expect(() => resolveDialogueSentences({linesByAnimation:{}}, [], "dialogue.click")).toThrow("needs an animation");
+});
+
 it("draws from click and idle pools on each trigger and respects foreground priority", () => {
   let value = 0;
   const scheduler = new DialogueScheduler({

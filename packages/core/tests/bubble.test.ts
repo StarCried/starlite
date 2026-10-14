@@ -3,6 +3,12 @@ import { afterEach, expect, it, vi } from "vitest";
 import { DialogueBubble } from "../src/bubble.js";
 const action = {scene:"click" as const,animation:"Click",line:"<img src=x onerror=alert(1)>",durationMs:1000};
 afterEach(()=>{vi.useRealTimers();document.body.replaceChildren()});
+it("shows text without a model or an animation and clears the old binding",()=>{
+ const host=document.createElement("div"),bubble=new DialogueBubble(host);host.append(bubble.element);document.body.append(host);
+ bubble.show(action,0);bubble.show({scene:"click",line:"Text only",durationMs:1000},100);
+ expect(bubble.element.textContent).toBe("Text only");expect(bubble.element.dataset.modelAnimation).toBeUndefined();
+ bubble.update(1100);expect(bubble.element.hidden).toBe(true);bubble.destroy();
+});
 it("renders safe accessible text and expires on the host clock",()=>{
  const host=document.createElement("div"),bubble=new DialogueBubble(host);host.append(bubble.element);document.body.append(host);
  bubble.show(action,100);expect(bubble.element.textContent).toBe(action.line);expect(bubble.element.querySelector("img")).toBeNull();

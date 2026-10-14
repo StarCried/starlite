@@ -1,6 +1,6 @@
 export type DialogueSceneName = 'enter' | 'idle' | 'click';
 export interface DialogueSceneConfig {
-  animation: string;
+  animation?: string;
   animations?: readonly string[];
   /** Shared sentence library used when linesByAnimation is absent. */
   lines?: readonly string[];
@@ -37,6 +37,7 @@ export function resolveDialogueSentences(
   if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
     throw new Error(`${field}.linesByAnimation must be an animation-to-sentences object`);
   }
+  if (!animations.length) throw new Error(`${field}.linesByAnimation needs an animation`);
   const selected = new Set(animations);
   const keys = Object.keys(mapping);
   if (keys.length !== selected.size || keys.some(name => !selected.has(name)) || animations.some(name => !Object.hasOwn(mapping, name))) {
@@ -52,7 +53,7 @@ export interface DialogueSchedule {
 }
 export interface DialogueAction {
   scene: DialogueSceneName;
-  animation: string;
+  animation?: string;
   line: string;
   durationMs: number;
 }
@@ -146,9 +147,10 @@ export class DialogueScheduler {
     const animation = config.linesByAnimation ? chooseAnimation() : undefined;
     const lines = animation === undefined ? config.lines! : config.linesByAnimation![animation]!;
     const index = Math.floor(this.#unitRandom() * lines.length);
+    const chosenAnimation = animation ?? chooseAnimation();
     return {
       scene,
-      animation: animation ?? chooseAnimation(),
+      ...(chosenAnimation !== undefined ? { animation: chosenAnimation } : {}),
       line: lines[index]!,
       durationMs: config.durationMs,
     };
