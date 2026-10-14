@@ -4,8 +4,8 @@ The full StarCried character project remains private on Windows. It must not
 enter this repository, package archives, upstream contributions, CI artifacts,
 or a public blog deployment.
 
-An independently licensed example pack is separate from the BSD-licensed code.
-Only expressly approved derived assets may be distributed under that pack's own
+An independently licensed example VRM is separate from the BSD-licensed code.
+Only expressly approved derived assets may be distributed under the model's own
 license; it never grants rights to the private source project or third-party
 motions. Public blog delivery must be an expressly permitted use, since visitors
 receive the files needed to render the character. Restrictions on re-use cannot
@@ -46,8 +46,9 @@ the reviewed model bytes; it neither identifies the animation licenses nor
 proves their approval. Review motions, textures, profiles and fallback content
 again when they change, even if the source model digest stays the same.
 
-The direct Hexo VRM bundle path validates declared model, motion and profile
-hashes and limits the model to 8 MiB. Public browser use delivers the asset
+The direct Hexo VRM file path validates and hashes the exact model bytes;
+advanced prepared directories also validate declared motion and profile hashes.
+Both public paths limit the model to 8 MiB. Public browser use delivers the asset
 files to visitors; permission must cover that use. The isolated local-preview
 capability is not a rights attestation, and technical validation of an import
 does not establish its permitted use.

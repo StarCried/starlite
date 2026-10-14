@@ -56,4 +56,4 @@ Inochi2D 保留 `inochi2d-pipeline` 和 `inochi2d-blog`，以及 `.inochi2d` 缓
 
 ## 尚待完成的产品边界
 
-当前无动作 VRM 可以预览原始姿态；自然通用姿态／原创默认 Idle、轻呼吸、DSH 无动作导入和气泡脱离动作的配置仍需实现。已经确认的下一阶段目标见 [status](status.md)。本轮更名不改变播放、渲染、物理或性能策略。
+标准人形 VRM 可直接使用程序唯一内置的 `StarLiteIdle`，获得基础站姿与轻呼吸；眨眼依赖 Blink，眼球跟随依赖 lookAt。模型内嵌动作自动列出，其他动作由用户提供；公共气泡可独立配置。Hexo 直读本地 VRM 并生成哈希路由，DSH 直导入 VRM；不再以自定义 ZIP 作为模型导入格式。当前限制与验收边界见 [status](status.md)。

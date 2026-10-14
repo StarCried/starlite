@@ -39,9 +39,10 @@ function animatedModel() {
  const original=model(), jsonSize=original.readUInt32LE(12), json=JSON.parse(original.subarray(20,20+jsonSize).toString());
  const binary=Buffer.concat([original.subarray(28+jsonSize),Buffer.from(new Float32Array([0,1,0,0,0,1,0,0,.15,Math.sqrt(1-.15**2)]).buffer)]);
  const offset=json.buffers[0].byteLength;json.buffers[0].byteLength=binary.byteLength;
+ const view=json.bufferViews.length, accessor=json.accessors.length;
  json.bufferViews.push({buffer:0,byteOffset:offset,byteLength:8},{buffer:0,byteOffset:offset+8,byteLength:32});
- json.accessors.push({bufferView:1,componentType:5126,type:"SCALAR",count:2,min:[0],max:[1]},{bufferView:2,componentType:5126,type:"VEC4",count:2});
- json.animations=[{name:"Idle",samplers:[{input:1,output:2}],channels:[{sampler:0,target:{node:2,path:"rotation"}}]}];
+ json.accessors.push({bufferView:view,componentType:5126,type:"SCALAR",count:2,min:[0],max:[1]},{bufferView:view+1,componentType:5126,type:"VEC4",count:2});
+ json.animations=[{name:"Idle",samplers:[{input:accessor,output:accessor+1}],channels:[{sampler:0,target:{node:2,path:"rotation"}}]}];
  return glb(json,binary);
 }
 it("direct local VRM needs no manifest and forwards embedded Idle as neutral pose",()=>{

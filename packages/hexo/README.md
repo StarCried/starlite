@@ -1,31 +1,41 @@
 # StarLite for Hexo
 
-把 VRM 角色放到 Hexo 博客中，用动作和气泡回应点击，安静陪伴阅读。
+把 VRM 角色放到 Hexo 博客，用动作和气泡回应点击，安静陪伴阅读。
 
 ## 启动
 
-需要 Node.js 22.12+、可正常运行的 Hexo 7 博客和单独授权的微光资源 ZIP。**当前 alpha 尚未发布到 npm**，请先按[候选安装说明](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/release-guide.md#2-安装插件)安装；公开发布后只需在博客目录运行：
+需要 Node.js 22.12+、Hexo 7 和一个标准人形 VRM。**当前 alpha 尚未发布**；本地候选安装见[安装说明](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/release-guide.md)。公开发布后，在博客目录执行：
 
 ```sh
 npm install hexo-starlite@alpha
 ```
 
-然后：
+将有权托管的模型放到博客根目录的 `models/avatar.vrm`（不放进 `source/`），把下面内容加入 `_config.yml`：
 
-1. 将微光 ZIP 解压到博客根目录的 `weiguang/`。
-2. 将其中的 `fallback.png` 复制到 `source/images/weiguang.png`。
-3. 在博客目录启动：
-
-```sh
-npx hexo server --config _config.yml,weiguang/hexo-config.yml
+```yaml
+starlite:
+  enable: true
+  backend: vrm
+  model: ./models/avatar.vrm
+  publication:
+    confirm: true
+    allowRedistribution: true
 ```
 
-打开终端显示的本机网址。资源包已配好模型、动作和句库，无需逐个填写；手机默认不加载模型。生成或部署时沿用相同的 `--config` 参数。
+`publication` 两项表示你已确认模型、贴图及内嵌动作允许在博客中托管。公开生成的 VRM 上限为 **8 MiB**。
 
-还没有博客？在 StarLite 源码目录运行 `npm run demo -- --bundle "/path/to/Weiguang-v3.0-companion-example.zip"` 即可体验；依赖自动安装，阅读许可后打开本机预览，按 **Ctrl+C** 结束。[体验页启动说明](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/quick-start.md)
+然后运行：
+
+```sh
+npx hexo server
+```
+
+打开终端中的网址即可。无动作模型使用内置默认 Idle；内嵌动作自动识别。手机默认不下载模型，加载失败显示静态占位。日常使用沿用原 Hexo 命令。
+
+没有博客？在 StarLite 源码目录运行 `npm run demo -- --model "/path/to/avatar.vrm"`，即可打开隔离的本机示例。
 
 ## 进阶
 
-[接入、更新与卸载](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/release-guide.md) · [换模型、动作和气泡文案](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/configuration.md) · [配置示例](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/examples/hexo-vrm.yml) · [VRM API](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/packages/vrm/README.md)
+[动作、气泡与性能](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/configuration.md) · [完整配置示例](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/examples/hexo-vrm.yml) · [安装、更新与卸载](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/docs/release-guide.md) · [VRM API](https://github.com/StarCried/starlite/blob/feat/dual-model-backends/packages/vrm/README.md)
 
-程序采用 BSD-2-Clause；微光模型独立授权，模型和动作均须按各自许可使用。使用自己的模型需要自备动作；程序尚不附带通用 Idle。
+BSD-2-Clause；微光模型独立授权，其他模型和动作由使用者按各自许可提供。

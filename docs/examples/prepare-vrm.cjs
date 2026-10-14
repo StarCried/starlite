@@ -1,5 +1,6 @@
 // node prepare-vrm.cjs
 // 路径相对当前工作目录；output 必须尚不存在。
+// 仅在需要打包外部 VRMA/profile 的高级构建中使用；普通 VRM 无需此步。
 // 仅复制模型与现成 VRMA，不导出 Blender 动作，也不压缩模型。
 const { prepareModel } = require('@starcried/starlite-vrm/prepare');
 
@@ -11,7 +12,7 @@ prepareModel({
     { name: 'Nod', path: './my-assets/Nod.vrma' },
     { name: 'Stretch', path: './my-assets/Stretch.vrma' },
   ],
-  // 标准 VRM 不需要 profile；微光等角色按资源包说明提供。
+  // 标准 VRM 不需要 profile；已内嵌 profile 的角色无需再提供。
   // profile: './my-assets/profile.json',
   output: './starlite-bundle',
   // 默认保留 false。核实所有模型、贴图、动作许可后才改为 true。

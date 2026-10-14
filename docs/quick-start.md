@@ -1,35 +1,41 @@
-# 用微光体验 StarLite
+# 本机体验 StarLite
 
-先取得单独提供的 **Weiguang for StarLite** 资源 ZIP，并阅读其中的模型使用许可。当前候选尚未公开下载，维护者会另行提供资源包；无需 Blender、Rust 或 DSH。
-
-在 StarLite 源码目录，用 Node.js 22.12+ 运行：
+准备 Node.js 22.12+、StarLite 源码和一个标准人形 `.vrm` 文件：
 
 ```sh
-npm run demo -- --bundle "/path/to/Weiguang-v3.0-companion-example.zip"
+npm run demo -- --model "/path/to/avatar.vrm"
 ```
 
-把引号中的路径改为你的 ZIP 路径。也可以指定已经解压的完整资源包目录。首次缺少依赖时自动运行 `npm ci`；阅读终端显示的模型许可并输入 `y` 后，会打开独立的本机 Hexo 体验页。
-
-移动光标体验视线跟随，点击角色查看动作和气泡，等待偶发小动作。手机尺寸默认隐藏模型。按 **Ctrl-C** 停止，临时站点与资源副本会自动清理；原 ZIP、源码和自己的博客均不修改。
-
-Windows 路径示例：
+Windows 示例：
 
 ```powershell
-npm run demo -- --bundle "D:\Downloads\Weiguang-v3.0-companion-example.zip"
+npm run demo -- --model "D:\\Downloads\\avatar.vrm"
 ```
 
-若源码在 WSL 中，请在 WSL 终端运行，并使用 `/mnt/d/Downloads/Weiguang-v3.0-companion-example.zip` 这样的路径。示例只监听 `127.0.0.1`，默认端口 `4183`，占用时自动换下一个；自动打开失败时，复制终端中的网址到浏览器即可。
+源码在 WSL 时使用 `/mnt/d/Downloads/avatar.vrm` 这样的路径。首次缺少依赖会自动执行 `npm ci`；工具展示模型内嵌许可，确认后打开本机 Hexo 页。微光使用另行授权的单 VRM 文件；无需自定义 ZIP、Rust、Blender 或 DSH。
 
-## 接到自己的博客
+无动作模型使用默认 Idle，并启用眨眼和限角光标跟随。眨眼依赖有效的 VRM Blink 表达，眼球跟随依赖 lookAt 配置。内嵌动作可通过可选配置映射到点击或偶发互动；没有映射的动作不会随机播放。
 
-体验满意后，按 [Hexo 安装说明](release-guide.md) 和 [配置示例](examples/hexo-vrm.yml) 安装到自己的博客。微光模型与程序独立分发，使用范围和署名以资源包内许可为准。
+按 **Ctrl+C** 停止。临时站点和模型副本会自动清理，源模型与真实博客不变。示例只监听 `127.0.0.1`，默认端口 `4183`，占用时自动换下一个；自动打开失败时复制终端网址即可。
 
-## 其他启动选项
+## 可选配置
 
-- `--no-open`：只输出网址。
-- `--port 4185`：指定首选端口。
-- `--no-install`：不自动安装依赖，缺少依赖时报错。
-- `--accept-license`：已经阅读并同意资源包许可时，跳过交互确认，供自动验收使用。
-- `--help`：查看帮助。
+用 `--config "/path/to/widget.json"` 指定相机、显示或互动。例如，模型有名为 `Wave` 的内嵌动作时：
 
-资源包的 SHA256SUMS 和模型清单都会校验；损坏、非法路径、符号链接、未批准分发或不一致资源会被拒绝。哈希用于检查包内一致性，不能代替从作者可信渠道取得资源。
+```json
+{
+  "dialogue": {
+    "click": {
+      "animation": "Wave",
+      "lines": ["你好，欢迎来坐坐。"],
+      "durationMs": 7200
+    }
+  }
+}
+```
+
+也可省略 `animation`，仅使用气泡。体验配置不接受外部动作 URL 或外部 profile 文件；模型内嵌 profile 会由运行时读取。
+
+其他选项：`--no-open`、`--port 4185`、`--no-install`、`--accept-license`、`--help`。只有已阅读并同意模型许可时才使用 `--accept-license`。
+
+本机示例可预览最多 64 MiB 的模型，输出位于隔离预览目录，不作为部署产物。接入自己的博客见[安装说明](release-guide.md)，公开生成模型的上限为 8 MiB。

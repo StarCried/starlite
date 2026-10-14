@@ -1,40 +1,37 @@
 # StarLite 配置
 
-优先阅读 [Hexo 安装说明](release-guide.md)，并使用 [完整 YAML 示例](examples/hexo-vrm.yml)和[资源准备脚本](examples/prepare-vrm.cjs)。本页记录当前候选的真实配置；默认 Idle、无动作自动放松姿态和独立气泡仍是下一阶段目标。
+普通启动见 [Hexo README](../packages/hexo/README.md)，可直接复制[完整 YAML 示例](examples/hexo-vrm.yml)。
 
 ## VRM 模型约定
 
-当前输入为自包含的 VRM 0／1，动作采用外部 VRMA 1.0；不接受 FBX、普通 GLB 或带外部纹理／buffer 引用的模型。模型应有标准人形骨骼；眨眼需要有效的标准 Blink 表达，眼球跟随需要正确的 VRM lookAt 映射。仅有名字相似的自定义形态键不保证会被自动识别。
+输入为自包含的 VRM 0／1：贴图和 buffer 必须在文件内，不接受 FBX、普通 GLB 或 Unity `.anim`。人形骨骼按 VRM Humanoid 映射识别，Blender 对象名称无需按英文重命名。必需映射为 `hips / spine / head` 及两侧 `UpperArm / LowerArm / Hand / UpperLeg / LowerLeg / Foot`；手指、肩、颈、胸、脚趾和眼骨可选。
 
-目标发布约定是「人形骨骼 + 可用眨眼」即可入门，其他动作可选。当前无动作资源包可以准备和预览，但会保留模型原始姿态；完整博客互动和 DSH 的 Idle 映射仍需用户动作。
+眨眼需要有实际 morph 绑定的标准 Blink：VRM0 的 `blink` 或一对 `blink_l / blink_r`，VRM1 的 `blink` 或一对 `blinkLeft / blinkRight`。仅重命名形态键不够；形态键自身名称可自定。眼球跟随需要正确配置 VRM lookAt（眼骨或视线表达）；头部跟随有角度限制。
 
-## Hexo VRM 配置入口
+程序仅自带 `StarLiteIdle`，为无动作模型提供基础站姿和轻呼吸。有自己的 `Idle` 时优先使用；其他动作均由用户提供。模型内嵌 glTF 动作自动列出；名字建议为唯一英文，区分大小写，`StarLiteIdle` 为保留名。
 
-唯一入口为 `starlite:`，显式填写 `backend: vrm`。未指定 backend 时仍选择 Inochi2D，这是本轮保留的现有行为。不要保留旧的 `inochi2d_widget:` 配置块。
+## Hexo：直接放入 VRM
 
-本地 `bundle` 包含 `manifest.json`；插件读取其中的模型、动作和可选 profile，核对大小和 SHA-256，并生成哈希路由。此时不要另写重复的 `model`／`animations` 列表。静态 fallback 位于博客 `source` 下。
+`backend: vrm`、`model: ./models/avatar.vrm` 指向博客根目录内的普通文件，插件检查后生成哈希资源；无需自定义 ZIP 或 manifest。模型应放在 `source/` 外。静态占位图自动生成，也可通过 `fallback: images/avatar.png` 替换。
 
-`publication.confirm`、`publication.allowRedistribution` 与清单的分发标记都必须为 true，`publication.sourceSha256` 必须匹配 `manifest.model.sourceSha256`。它们是操作者的确认，不是许可证明。新示例默认关闭，填写完整后再开启。
+公开生成需要 `publication.confirm: true` 和 `publication.allowRedistribution: true`，表示已核实模型、贴图、内嵌动作的托管权。源码哈希自动绑定；可选 `publication.sourceSha256` 固定已审阅文件，变化时拒绝生成。这些开关不是许可证或技术防提取措施。
 
-直接远程 URL 模式使用 `model`、`fallback`、`animations: [{name, url}]`；资源服务须满足 CORS。此模式不提供本地清单的逐项构建校验，推荐发布时使用本地 bundle。模型、动作和贴图的托管权仍由使用者负责。
-
-| 配置 | 当前含义与默认值 |
+| 配置 | 含义与默认值 |
 | --- | --- |
-| `display.width / height` | CSS 画布尺寸；VRM 运行时默认 320 × 480。 |
-| `render.fps` | 默认 30，可选 60；`display` 跟随刷新率，GPU 成本可能显著增加。 |
-| `render.maxDevicePixelRatio` | 默认 1.5，范围 1–1.5；博客可先用 1，抗锯齿保持现有开启行为。 |
-| `camera` | `yawDegrees`、`pitchDegrees`、`fovDegrees`、`targetHeight`；依据模型实际构图调整。 |
-| `gaze` | 最大水平 25°、垂直 15°，平滑 100 ms；动画接管视线时不叠加鼠标覆盖。 |
-| `mobile` | 默认 `show: false`、`breakpoint: 768`；Hexo 在运行时导入之前判断。 |
-| `interactions.pointer` | 光标跟随，默认开启；效果取决于模型人形／lookAt 配置。 |
-| `interactions.passThrough` | 默认 false；博客推荐 true，保留下层页面原生点击。 |
-| `interactions.drag` | 穿透时必须 false；两者同时开启会报错。 |
-| `ambient.animations` | VRM 最多一个基础循环，名称必须存在；没有配置就不播放循环。 |
-| `profile` | 可选数据配置，目前仅支持微光适配类型；普通 VRM 省略。 |
+| `display.width / height` | CSS 画布尺寸；VRM 默认 320 × 480。 |
+| `render.fps` | 默认 30，可选 60；`display` 跟随刷新率，GPU 成本可能增加。 |
+| `render.maxDevicePixelRatio` | 默认 1.5，范围 1–1.5；博客可先用 1，保持抗锯齿。 |
+| `camera` | `yawDegrees`、`pitchDegrees`、`fovDegrees`、`targetHeight`。 |
+| `gaze` | 默认最大水平 25°、垂直 15°，平滑 100 ms；动作接管视线时暂停光标覆盖。 |
+| `mobile` | 默认 `show: false`、`breakpoint: 768`，在运行时导入前判断。 |
+| `interactions.pointer` | 光标跟随，默认开启。 |
+| `interactions.passThrough` | 博客建议 true，让下层页面同时处理点击。 |
+| `interactions.drag` | 穿透时必须 false。 |
+| `ambient.animations` | 最多一个基础循环；省略时使用模型 Idle 或程序默认 Idle，显式空数组停用循环。 |
+| `neutralAnimation` | 停止动作后采用该动作首帧的基础站姿。 |
+| `profile` | 可选数据型微光适配；标准 VRM 无需配置。也可嵌入 `extras.starlite.profile`。 |
 
-大幅动作可用 `render.viewportPadding: {left, top, right, bottom}`（CSS px）提供固定画布余量，四项都须填写。不借由动作动态改变窗口尺寸；需逐一检查动作边界。
-
-默认宿主在右下角。位置用自己的站点 CSS 调整，例如：
+大幅动作可用 `render.viewportPadding: {left, top, right, bottom}`（CSS px）保留固定余量，四项均须填写；不随动作动态改变画布大小。位置可放入站点原有 CSS：
 
 ```css
 [data-starlite-widget-host],
@@ -44,26 +41,28 @@
 }
 ```
 
-加入博客原有 CSS 引入流程，不改主题或 node_modules。位置、余量和画布大小应一起验收，不能保证任意摔倒动作都不裁切。
+## 动作和气泡
 
-## 动作与句子
+基础 `Idle` 循环不触发句子。`dialogue.enter` 为首次入场，`dialogue.idle` 为偶发互动，`dialogue.click` 为点击回应。只要文字、不播放动作时：
 
-资源准备时的 `name` 是稳定英文动作标识，区分大小写。网页显示名称不改变 VRMA 内骨骼映射。加载器目前不会把内嵌 glTF 动作自动列入目录；配置的全部 VRMA 在 ready 前下载并完成重定向。
+```yaml
+dialogue:
+  click:
+    lines: ["你好。", "我在这里。"]
+    durationMs: 7200
+```
 
-- `ambient.animations: [Idle]` 是基础循环，没有气泡，不触发偶发句子。
-- `dialogue.enter` 是首次入场。
-- `dialogue.idle` 是定时偶发小动作，与基础 Idle 循环不同。
-- `dialogue.click` 是点击回应；VRM 只在没有前景动作时接受，不中断正在播放的入场／偶发动作。
+有动作时再加 `animation: Wave`；多个候选使用 `animations: [Wave, Nod]`。用 `linesByAnimation` 将每个动作绑定多句文字，键必须完整覆盖动作池，不含池外名称；普通 `lines` 则为共用句库。先选动作，再选对应句子。动作必须在内嵌目录或外部动作清单中存在。
 
-每个场景仍须提供有效 `animation`；可加 `animations` 随机池，再通过 `linesByAnimation` 给每个动作绑定多句文字。先抽动作，再从它自己的语句库抽句子。映射必须完整覆盖池，不能缺项或多项；若没有映射，可用共同的 `lines`。详见 YAML 示例。不要把独立作者的 `dialogue.json`（如含 `scene` 列表）直接当作公共运行时配置；需要先转成上述结构。
+VRM 点击不会打断已有前景动作；首次入场在同一标签页仅触发一次。时间单位为毫秒，默认气泡持续 4000 ms，长文可增加 `durationMs`。文字以纯文本显示，两个后端共用 core 的气泡与调度。作者自己的 `dialogue.json`（例如 scene 列表）不是此公共配置格式，须先转换。
 
-时间单位为毫秒。气泡文字按纯文本呈现；入场、点击与偶发场景默认展示 4000 ms。可为长句增大 `durationMs`；示例为 7200 ms。所有公共气泡样式、逐动作句库和调度归 `core`；当前公共场景配置尚不能不带动作。
+## 外部动作与高级资源目录
 
-## 资源限制
+外部 VRMA 可放在博客 `source/motions/`，并配置 `animations: [{name: Wave, url: motions/Wave.vrma}]`。也可使用 [prepare-vrm.cjs](examples/prepare-vrm.cjs) 将模型、外部动作和 profile 准备为有哈希清单的目录，再填写 `bundle`；这是高级构建输入，不是用户导入所需的自定义分发包。配置 bundle 后以清单中的外部动作列表为准。
 
-`@starcried/starlite-vrm/prepare` 的模型上限 64 MiB，单个 VRMA 16 MiB，动作总量 64 MiB、最多 64 个，profile 1 MiB。Hexo 的本地发布路径另要求模型不超过 8 MiB。工具只检查、复制并生成清单，不压缩贴图或减面；输出目录必须不存在。
+底层准备工具上限：模型 64 MiB、单个 VRMA 16 MiB、动作总量 64 MiB、最多 64 个，profile 1 MiB。Hexo 公开本地资源另限制模型 8 MiB。工具只检查与复制，不自动缩图、减面或转换动作。配置的外部动作在 ready 前准备好，尚未按需加载。
 
-VRM 的骨骼、表情、相机和视线不使用下方 Inochi2D 参数映射。暂停／隐藏时停止动画和物理；恢复时不补算长时间离线物理。完整文档导航会重新挂载，PJAX 保持一个实例；首入状态在同一标签页保留。
+远程 URL 模式使用 `model: https://...`、`fallback` 和可选动作 URL，须满足 CORS；没有本地资源的构建哈希校验。发布建议使用本地 VRM 或高级清单目录。
 
 ## 直接使用 VRM 运行时
 
@@ -75,8 +74,8 @@ const controller = await mountModelWidget(element, {
   backend: "vrm",
   model: "/assets/avatar.vrm",
   fallback: "/assets/avatar.png",
-  // 不提供动作可以预览原始姿态；尚不自动获得通用 Idle／呼吸。
   interactions: { pointer: true },
+  dialogue: { click: { lines: ["你好。"] } },
 });
 controller.pause();
 controller.resume();
@@ -84,7 +83,9 @@ controller.resetCamera();
 controller.destroy();
 ```
 
-静态 import 会下载运行时代码；只有 Hexo 的导入前 mobile guard 能保证手机不下载该代码。独立网页也要零运行时请求时，应在判断屏宽之后再动态 import。
+底层调用引用内嵌动作时，将 `inspectVrm(bytes).animations` 的名称放进 `embeddedAnimations`；Hexo 对本地模型会自动完成。隐藏／暂停时停止动画和物理，恢复不补算离线时长。PJAX 保留实例，完整文档导航重新挂载。
+
+静态 import 会下载运行时代码；独立网页如要手机零运行时请求，应先判断屏宽再动态 import。Hexo 已内置该判断。
 
 ## Inochi2D 专用配置与 CLI
 
