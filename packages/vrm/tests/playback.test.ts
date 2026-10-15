@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { AnimationClip, NumberKeyframeTrack, QuaternionKeyframeTrack, Quaternion, Object3D } from "three";
+import { describe, expect, it, vi } from "vitest";
+import { AnimationClip, NumberKeyframeTrack, QuaternionKeyframeTrack, Quaternion, Object3D, Vector3, VectorKeyframeTrack, type Interpolant } from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VrmAnimationPlayer } from "../src/playback.js";
 import { sampleCurve } from "../src/character.js";
+// @ts-expect-error test fixture generator is plain JavaScript
+import { glb } from "../../../tests/fixtures/vrm.mjs";
 
 function harness() {
   const root = new Object3D(); root.name = "root";
@@ -156,6 +159,97 @@ describe("VRM animation contract", () => {
     player.update(.21); expect(root.position.x).toBe(0);
     expect(player.mixer.stats.actions.inUse).toBe(1);
     player.destroy();
+  });
+  it.each([["Embedded", "External"], ["External", "Embedded"]])("blends %s into %s when bone and expression targets have UUID/name aliases", (from, to) => {
+    const root = new Object3D(), hips = new Object3D(), expression = Object.assign(new Object3D(), { weight: 0 });
+    hips.name = "Normalized_Hips"; expression.name = "VRMExpression_happy"; root.add(hips, expression);
+    const raised = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+    const embedded = new AnimationClip("Embedded", 1, [
+      new QuaternionKeyframeTrack(hips.uuid + ".quaternion", [0, 1], [0, 0, 0, 1, ...raised.toArray()]),
+      new VectorKeyframeTrack(hips.uuid + ".position", [0, 1], [0, 0, 0, 1, 2, 3]),
+      new NumberKeyframeTrack(expression.uuid + ".weight", [0, 1], [0, 1]),
+    ]);
+    const external = new AnimationClip("External", 1, [
+      new QuaternionKeyframeTrack(hips.name + ".quaternion", [0, 1], [0, 0, 0, 1, ...raised.toArray()]),
+      new VectorKeyframeTrack(hips.name + ".position", [0, 1], [0, 0, 0, 1, 2, 3]),
+      new NumberKeyframeTrack(expression.name + ".weight", [0, 1], [0, 1]),
+    ]);
+    const player = new VrmAnimationPlayer(root, new Map([["Embedded", embedded], ["External", external]]), () => {
+      hips.quaternion.identity(); hips.position.set(0, 0, 0); expression.weight = 0;
+    });
+    void player.play(from, { mode: "loop" }); player.update(.3);
+    void player.play(to, { mode: "loop" });
+    for (let i = 1; i <= 16; i++) {
+      player.update(1 / 30);
+      const t = Math.min(1, i / 30 / VrmAnimationPlayer.transitionSeconds), blend = t * t * (3 - 2 * t);
+      const weight = .3 * (1 - blend) + i / 30 * blend;
+      expect(hips.quaternion.angleTo(new Quaternion())).toBeCloseTo(weight * Math.PI / 2, 5);
+      expect(hips.position.distanceTo(new Vector3(weight, 2 * weight, 3 * weight))).toBeCloseTo(0, 6);
+      expect(expression.weight).toBeCloseTo(weight, 6);
+    }
+    expect(embedded.tracks[0]!.name).toBe(hips.uuid + ".quaternion");
+    expect(external.tracks[0]!.name).toBe(hips.name + ".quaternion");
+    expect(player.mixer.stats.actions.inUse).toBe(1);
+    player.destroy();
+  });
+  it("returns an absent destination track to neutral even when an unused clip aliases it", () => {
+    const root = new Object3D(), bone = new Object3D(); bone.name = "Normalized_Arm"; root.add(bone);
+    const first = new AnimationClip("First", 1, [new NumberKeyframeTrack(bone.uuid + ".position[x]", [0, 1], [2, 2])]);
+    const second = new AnimationClip("Second", 1, [new NumberKeyframeTrack(".position[y]", [0, 1], [1, 1])]);
+    const alias = new AnimationClip("Unused", 1, [new NumberKeyframeTrack(bone.name + ".position[x]", [0, 1], [3, 3])]);
+    const player = new VrmAnimationPlayer(root, new Map([["First", first], ["Second", second], ["Unused", alias]]), () => {
+      root.position.set(0, 0, 0); bone.position.set(0, 0, 0);
+    });
+    void player.play("First", { mode: "loop" }); player.update(.3); void player.play("Second", { mode: "loop" });
+    player.update(.2); expect(bone.position.x).toBeCloseTo(1); expect(root.position.y).toBeCloseTo(.5);
+    player.update(.2); player.update(1 / 30);
+    expect(bone.position.x).toBe(0); expect(root.position.y).toBe(1);
+    player.destroy();
+  });
+  it("keeps authored blink and look-at detection after target aliases are normalized", () => {
+    const root = new Object3D(), lookAt = new Object3D(), blink = Object.assign(new Object3D(), { weight: 0 });
+    lookAt.name = "VRMLookAtQuaternionProxy"; blink.name = "VRMExpression_blink"; root.add(lookAt, blink);
+    const clip = new AnimationClip("Authored", 1, [
+      new QuaternionKeyframeTrack(lookAt.name + ".quaternion", [0, 1], [0, 0, 0, 1, 0, 0, 0, 1]),
+      new NumberKeyframeTrack(blink.name + ".weight", [0, 1], [0, 1]),
+    ]);
+    const player = new VrmAnimationPlayer(root, new Map([["Authored", clip]]), () => undefined);
+    expect(player.hasLookAtTrack).toBe(false); expect(player.hasBlinkTrack).toBe(false);
+    void player.play("Authored"); expect(player.hasLookAtTrack).toBe(true); expect(player.hasBlinkTrack).toBe(true);
+    player.stop(); expect(player.hasLookAtTrack).toBe(false); expect(player.hasBlinkTrack).toBe(false);
+    player.destroy();
+  });
+  it("preserves GLTF cubic sampling and shares source keyframe arrays when rebinding aliases", async () => {
+    const raised = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+    const values = new Float32Array([
+      0, 1,
+      0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+      0, 0, 0, 0, ...raised.toArray(), 0, 0, 0, 0,
+    ]);
+    const bytes = glb({
+      asset: { version: "2.0" }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ name: "Normalized_Head" }],
+      buffers: [{ byteLength: values.byteLength }],
+      bufferViews: [{ buffer: 0, byteLength: 8 }, { buffer: 0, byteOffset: 8, byteLength: values.byteLength - 8 }],
+      accessors: [
+        { bufferView: 0, componentType: 5126, count: 2, type: "SCALAR", min: [0], max: [1] },
+        { bufferView: 1, componentType: 5126, count: 6, type: "VEC4" },
+      ],
+      animations: [{ name: "Cubic", samplers: [{ input: 0, output: 1, interpolation: "CUBICSPLINE" }], channels: [{ sampler: 0, target: { node: 0, path: "rotation" } }] }],
+    }, Buffer.from(values.buffer));
+    const { scene: root, animations: [clip] } = await new GLTFLoader().parseAsync(Uint8Array.from(bytes).buffer, "");
+    const bone = root.children[0]!, track = clip!.tracks[0]! as QuaternionKeyframeTrack & { createInterpolant(result?: Float32Array): Interpolant };
+    const player = new VrmAnimationPlayer(root, new Map([["Cubic", clip!]]), () => bone.quaternion.identity());
+    const actions = vi.spyOn(player.mixer, "clipAction");
+    void player.play("Cubic", { mode: "loop" });
+    const rebound = (actions.mock.calls[0]![0] as AnimationClip).tracks[0]! as typeof track;
+    expect(rebound).not.toBe(track); expect(rebound.name).toBe(bone.uuid + ".quaternion");
+    expect(rebound.times).toBe(track.times); expect(rebound.values).toBe(track.values);
+    expect(rebound.createInterpolant).toBe(track.createInterpolant);
+    player.update(.25);
+    const expected = new Quaternion().fromArray(track.createInterpolant().evaluate(.25));
+    expect(bone.quaternion.angleTo(expected)).toBeCloseTo(0, 6);
+    expect(track.name).toBe(bone.name + ".quaternion");
+    player.destroy(); actions.mockRestore();
   });
   it("samples the authored blink closure and reopening", () => {
     const curve: [number, number][]=[[0,0],[3.4,0],[3.48,1],[3.52,1],[3.65,0],[4.7,0]];

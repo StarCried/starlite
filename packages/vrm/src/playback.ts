@@ -7,19 +7,39 @@ export class VrmAnimationPlayer {
   readonly #clips: ReadonlyMap<string, AnimationClip>;
   readonly #restore: () => void;
   readonly #returnTo: string | undefined;
+  readonly #lookAtClips = new Set<string>();
+  readonly #blinkClips = new Set<string>();
   #active: { name: string; action: AnimationAction; promise: Promise<AnimationPlaybackResult>; resolve: (result: AnimationPlaybackResult) => void } | undefined;
   #finished = false;
   #transition: { clip: AnimationClip; action: AnimationAction; elapsed: number } | undefined;
   static readonly transitionSeconds = .4;
   constructor(root: Object3D, clips: ReadonlyMap<string, AnimationClip>, restore: () => void, returnTo?: string) {
     if (returnTo && !clips.has(returnTo)) throw new Error(`return animation does not exist: ${returnTo}`);
-    this.mixer = new AnimationMixer(root); this.#clips = clips; this.#restore = restore; this.#returnTo = returnTo;
+    this.mixer = new AnimationMixer(root); this.#restore = restore; this.#returnTo = returnTo;
+    this.#clips = new Map([...clips].map(([name, clip]) => {
+      if (clip.tracks.some(track => track.name.includes("LookAt"))) this.#lookAtClips.add(name);
+      if (clip.tracks.some(track => /VRMExpression_blink(?:Left|Right)?\.weight$/.test(track.name))) this.#blinkClips.add(name);
+      // Embedded glTF uses UUIDs while VRMA uses names for the same rig nodes.
+      // Both actions and snapshots must share a binding key; otherwise two
+      // PropertyMixers overwrite each other and restore a stale pose on exit.
+      const tracks = clip.tracks.map(track => {
+        const parsed = PropertyBinding.parseTrackName(track.name);
+        const node = PropertyBinding.findNode(root, parsed.nodeName) as Object3D | null;
+        if (!node) return track;
+        const object = parsed.objectName ? "." + parsed.objectName + (parsed.objectIndex !== undefined ? "[" + parsed.objectIndex + "]" : "") : "";
+        const canonical = node.uuid + object + "." + parsed.propertyName + (parsed.propertyIndex !== undefined ? "[" + parsed.propertyIndex + "]" : "");
+        // A shallow track wrapper retains cubic interpolants and shares the
+        // potentially large immutable time/value arrays with the source clip.
+        return canonical === track.name ? track : Object.assign(Object.create(Object.getPrototypeOf(track)) as KeyframeTrack, track, { name: canonical });
+      });
+      return [name, new AnimationClip(clip.name, clip.duration, tracks, clip.blendMode)];
+    }));
     this.mixer.addEventListener("finished", (event) => { if (event.action === this.#active?.action) this.#finished = true; });
   }
   get activeName(): string | undefined { return this.#active?.name; }
   get isOneShot(): boolean { return this.#active?.action.loop === LoopOnce; }
-  get hasLookAtTrack(): boolean { return this.#clips.get(this.#active?.name ?? "")?.tracks.some((track) => track.name.includes("LookAt")) ?? false; }
-  get hasBlinkTrack(): boolean { return this.#clips.get(this.#active?.name ?? "")?.tracks.some((track) => /VRMExpression_blink(?:Left|Right)?\.weight$/.test(track.name)) ?? false; }
+  get hasLookAtTrack(): boolean { return this.#lookAtClips.has(this.#active?.name ?? ""); }
+  get hasBlinkTrack(): boolean { return this.#blinkClips.has(this.#active?.name ?? ""); }
   play(name: string, options: AnimationPlaybackOptions = {}): Promise<AnimationPlaybackResult> {
     const clip = this.#clips.get(name);
     if (!clip) return Promise.reject(new Error(`animation does not exist: ${name}`));
