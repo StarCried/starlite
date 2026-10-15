@@ -2,6 +2,8 @@
 
 小小星光，静静相伴。把 VRM 角色放到博客或桌面，用动作和气泡回应点击与应用事件。
 
+**[直接打开在线演示](https://starcried.github.io/)**：无需安装，用桌面浏览器体验微光的动作、气泡和视线跟随。手机默认隐藏角色。
+
 ## 先体验
 
 准备 **Node.js 22.12+**、本项目源码和一个标准人形 **`.vrm`** 文件，在项目目录运行：
@@ -10,7 +12,7 @@
 npm run demo -- --model "/path/to/avatar.vrm"
 ```
 
-首次自动安装依赖，并打开本机 Hexo 示例。模型没有动作也能获得默认站姿、轻呼吸、眨眼和限角光标跟随；眨眼与眼球转动需要模型的标准表达与 lookAt 映射。按 **Ctrl+C** 关闭。
+首次自动安装依赖，并打开本机 Hexo 示例。模型没有动作也有默认站姿、轻呼吸和限角头部跟随；有 Blink 表达时自动眨眼，有 lookAt 配置时眼球跟随。缺少这些可选配置仍可使用。按 **Ctrl+C** 关闭。
 
 想使用微光？从[独立授权模型发行](https://github.com/StarCried/starlite/releases/tag/weiguang-v3.0.0-starlite.1)下载 `Weiguang-StarLite-Blog.vrm`，把命令中的路径换成它即可。模型不随程序包分发。
 

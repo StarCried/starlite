@@ -2,6 +2,8 @@
 
 把 VRM 角色放到 Hexo 博客，用动作和气泡回应点击，安静陪伴阅读。
 
+[直接打开在线演示](https://starcried.github.io/)（桌面浏览器，无需安装）。
+
 ## 启动
 
 需要 Node.js 22.12+、Hexo 7 和一个标准人形 VRM。在博客目录安装 alpha 版本：
