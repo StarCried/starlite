@@ -16,6 +16,34 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   const stateKey = "__hexoStarLiteWidgetState";
   const state = (globalThis[stateKey] ??= {});
   const media = globalThis.matchMedia(mobileQuery);
+  const retryDelays = [2000, 5000, 15000];
+  state.retryCount ??= 0;
+  const canLoad = () => document.visibilityState !== "hidden" && globalThis.navigator.onLine !== false &&
+    (options.showOnMobile || !media.matches);
+  const clearRetry = () => {
+    globalThis.clearTimeout(state.retryTimer);
+    state.retryTimer = undefined;
+  };
+  const unavailable = (host) => {
+    // Keep dimensions for camera/layout measurement, but never cover the page.
+    host.style.setProperty("visibility", "hidden", "important");
+    host.style.setProperty("pointer-events", "none", "important");
+  };
+  const scheduleRetry = () => {
+    if (!state.failed || state.retryTimer !== undefined || state.retryCount >= retryDelays.length || !canLoad()) return;
+    const generation = state.generation;
+    state.retryTimer = globalThis.setTimeout(() => {
+      state.retryTimer = undefined;
+      if (state.generation !== generation || !state.failed || !canLoad()) return;
+      state.pendingRetry = true;
+      state.failed = false;
+      // A timed-out shader compilation can settle late. Give the next attempt
+      // its own host so that destroying the old controller cannot alter it.
+      state.host?.remove();
+      state.host = undefined;
+      state.scheduleMount();
+    }, Math.max(0, state.retryAt - globalThis.Date.now()));
+  };
   const entryKey = "model-companion:entered:" + (options.config.backend ?? "inochi2d") + ":" + options.config.model;
   const hasEntered = () => {
     try { return state.entered === entryKey || globalThis.sessionStorage.getItem(entryKey) === "1"; }
@@ -35,11 +63,15 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     const hosts = Array.from(document.querySelectorAll("[data-starlite-widget-host]"));
     if (!options.showOnMobile && media.matches) {
       nextGeneration();
+      clearRetry();
+      state.observer?.disconnect();
+      state.observer = undefined;
       state.abort?.abort();
       state.controller?.destroy();
       state.controller = undefined;
       state.host = undefined;
       state.mountHost = undefined;
+      state.mounting = undefined;
       hosts.forEach((node) => node.remove());
       return;
     }
@@ -58,7 +90,13 @@ export function createBootstrapSource(options: BootstrapOptions): string {
 
     if (state.controller && state.host === host && host.isConnected) return;
     if (state.mounting && state.mountHost === host) return state.mounting;
+    state.host = host;
+    unavailable(host);
+    if (state.failed) { scheduleRetry(); return; }
+    if (!canLoad()) return;
+    if (state.pendingRetry) { state.retryCount += 1; state.pendingRetry = false; }
     const generation = nextGeneration();
+    state.observer?.disconnect();
     state.abort?.abort();
     const abort = new AbortController();
     state.abort = abort;
@@ -66,9 +104,37 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     state.controller = undefined;
     state.host = host;
     state.mountHost = host;
-    const mounting = import(options.entryUrl)
+    const fail = () => {
+      if (state.generation !== generation || abort.signal.aborted) return;
+      nextGeneration();
+      state.observer?.disconnect();
+      state.observer = undefined;
+      unavailable(host);
+      abort.abort();
+      state.controller?.destroy();
+      state.controller = undefined;
+      state.mounting = undefined;
+      state.mountHost = undefined;
+      host.replaceChildren();
+      state.failed = true;
+      state.retryAt = globalThis.Date.now() + (retryDelays[state.retryCount] ?? 0);
+      scheduleRetry();
+    };
+    // Context loss does not necessarily emit an error event. Both backends
+    // expose their terminal fallback status on the host before mount settles.
+    const observer = new globalThis.MutationObserver(() => {
+      if (host.dataset.modelStatus === "fallback" || host.dataset.inochi2dStatus === "fallback") fail();
+    });
+    observer.observe(host, {attributes:true,attributeFilter:["data-model-status","data-inochi2d-status"]});
+    state.observer = observer;
+    // Failed module imports can remain cached by the browser. Only failed
+    // imports get a bounded new URL; a loaded runtime is reused for model retries.
+    const entryUrl = new URL(options.entryUrl, document.baseURI);
+    if (state.retryCount) entryUrl.searchParams.set("starlite-retry", String(state.retryCount));
+    const mounting = (state.runtime ? Promise.resolve(state.runtime) : import(entryUrl.href))
       .then(async (runtime) => {
         abort.signal.throwIfAborted();
+        state.runtime = runtime;
         const config = hasEntered()
           ? {...options.config, dialogue:{...options.config.dialogue, enter:false}}
           : options.config;
@@ -86,17 +152,15 @@ export function createBootstrapSource(options: BootstrapOptions): string {
           return;
         }
         state.controller = controller;
-        if (controller.status !== "fallback" && controller.status !== "disabled") rememberEntry();
+        if (controller.status === "fallback") { fail(); return; }
+        if (controller.status !== "disabled") {
+          host.style.removeProperty("visibility");
+          host.style.removeProperty("pointer-events");
+          if (options.config.interactions?.passThrough) host.style.pointerEvents = "none";
+          rememberEntry();
+        }
       })
-      .catch(() => {
-        if (state.generation !== generation || abort.signal.aborted || !host.isConnected) return;
-        host.replaceChildren();
-        host.style.width = (options.config.display?.width ?? 320) + "px";
-        host.style.height = (options.config.display?.height ?? 480) + "px";
-        const image = document.createElement("img"); image.src = options.config.fallback; image.alt = "角色暂时无法加载";
-        image.style.cssText = "width:100%;height:100%;object-fit:contain";
-        host.append(image);
-      })
+      .catch(fail)
       .finally(() => {
         if (state.mounting === mounting) {
           state.mounting = undefined;
@@ -118,9 +182,17 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     else globalThis.setTimeout(run, 0);
   };
   state.scheduleMount = scheduleMount;
+  state.resumeRecovery = () => {
+    if (!canLoad()) { clearRetry(); return; }
+    if (state.failed) scheduleRetry();
+    else scheduleMount();
+  };
   if (!state.listenerBound) {
     document.addEventListener("pjax:complete", () => state.scheduleMount());
     media.addEventListener("change", () => state.scheduleMount());
+    document.addEventListener("visibilitychange", () => state.resumeRecovery());
+    globalThis.addEventListener("online", () => state.resumeRecovery());
+    globalThis.addEventListener("offline", () => state.resumeRecovery());
     state.listenerBound = true;
   }
   if (document.readyState !== "loading") scheduleMount();

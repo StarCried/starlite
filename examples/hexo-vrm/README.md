@@ -6,4 +6,6 @@ artwork-free VRM 1.0 triangle and a head motion, verifies its prepared manifest,
 and runs Hexo in `.generated`. It does not read or deploy a real blog.
 On a desktop viewport, the triangle loads after the document load and an idle
 opportunity. Mobile loads no model or renderer. The PJAX button retains one
-instance. Block the renderer request to exercise the static fallback.
+instance. Block the renderer or model request to exercise hidden failure and
+bounded recovery: retries wait 2, 5 and 15 seconds, pause offline/in background,
+and restore the model without covering the article or repeating its entrance.

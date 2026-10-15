@@ -12,7 +12,11 @@
 
 ## Hexo：直接放入 VRM
 
-`backend: vrm`、`model: ./models/avatar.vrm` 指向博客根目录内的普通文件，插件检查后生成哈希资源；无需自定义 ZIP 或 manifest。模型应放在 `source/` 外。静态占位图自动生成，也可通过 `fallback: images/avatar.png` 替换。
+`backend: vrm`、`model: ./models/avatar.vrm` 指向博客根目录内的普通文件，插件检查后生成哈希资源；无需自定义 ZIP 或 manifest。模型应放在 `source/` 外。
+
+博客在加载期间及失败时隐藏角色，不展示静态替代图片，也不拦截下层页面点击。加载、运行时渲染或 WebGL 上下文失败后，分别等待 2、5、15 秒，最多后台重试三次；成功后自动恢复。重试沿用页面空闲调度，离线或页面隐藏时暂停，恢复联网／显示后继续；手机默认不重试。次数在当前文档中共用，不因 PJAX、切换可见性或恢复联网而重置，耗尽后保持隐藏，刷新页面可重新尝试。同一标签页已完成首次入场时，重试不会再次入场。
+
+`fallback` 仍属于底层播放器配置，独立使用运行时可显示自定义图片；Hexo 隐藏失败状态，不显示该图片。
 
 公开生成需要 `publication.confirm: true` 和 `publication.allowRedistribution: true`，表示已核实模型、贴图、内嵌动作的托管权。源码哈希自动绑定；可选 `publication.sourceSha256` 固定已审阅文件，变化时拒绝生成。这些开关不是许可证或技术防提取措施。
 

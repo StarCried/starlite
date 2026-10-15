@@ -638,11 +638,11 @@ describe("Hexo adapter", () => {
       showOnMobile: false,
     });
 
-    expect(source.indexOf("matchMedia")).toBeLessThan(source.indexOf("import(options.entryUrl)"));
+    expect(source.indexOf("matchMedia")).toBeLessThan(source.indexOf("import(entryUrl.href)"));
     expect(source).toContain("__hexoStarLiteWidgetState");
     expect(source).toContain("listenerBound");
     expect(source).toContain("state.generation !== generation");
-    expect(source.indexOf("media.matches")).toBeLessThan(source.indexOf("import(options.entryUrl)"));
+    expect(source.indexOf("media.matches")).toBeLessThan(source.indexOf("import(entryUrl.href)"));
   });
 
   it("refuses a local-preview output path containing a symbolic link", () => {
