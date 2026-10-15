@@ -1,4 +1,25 @@
 import {expect,test} from "@playwright/test";
+// @ts-expect-error artwork-free JavaScript fixture
+import {model,glb} from "../../../tests/fixtures/vrm.mjs";
+
+for(const version of ["0","1"])test(`VRM${version} without optional expressions still renders, idles and passes through clicks`,async({page})=>{
+ const original=model(version), jsonSize=original.readUInt32LE(12), json=JSON.parse(original.subarray(20,20+jsonSize).toString());
+ if(version==="0")delete json.extensions.VRM.blendShapeMaster;
+ else delete json.extensions.VRMC_vrm.expressions;
+ const bytes=glb(json,original.subarray(28+jsonSize));
+ await page.route("**/vrm-model/**/model.vrm",route=>route.fulfill({status:200,contentType:"model/gltf-binary",body:bytes}));
+ const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
+ await page.goto("http://127.0.0.1:4182/");
+ const host=page.locator('[data-model-status="running"]');await expect(host).toHaveCount(1);await expect(host).toHaveCSS("pointer-events","none");
+ const catalog=await page.evaluate(()=>(globalThis as any).__hexoStarLiteWidgetState.controller.getAnimations());
+ expect(catalog.map((clip:any)=>clip.name)).toContain("StarLiteIdle");await expect(page.locator("canvas")).toHaveCount(1);
+ await page.evaluate(()=>{
+  const link=document.createElement("a");link.href="#underlying";link.id="underlying-link";
+  link.style.cssText="position:fixed;right:16px;bottom:0;width:320px;height:480px;z-index:1";link.textContent="Read under the character";document.body.append(link);
+ });
+ await page.mouse.click(1200,650);await expect(page).toHaveURL(/#underlying$/);
+ expect(errors).toEqual([]);
+});
 test("single VRM gets default Idle and text-only dialogue, waits for load and survives PJAX",async({page})=>{
  let loaded=false;const requests:{url:string;loaded:boolean}[]=[];
  page.on("load",()=>{loaded=true});page.on("request",r=>requests.push({url:r.url(),loaded}));
