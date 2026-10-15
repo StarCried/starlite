@@ -34,7 +34,9 @@
 
 `0.1.0-alpha.2` 于 2026-10-15 08:19:02 UTC 公开为 prerelease。公开 tag、`SOURCE_REVISION` 与发行源码均为 `903fe2cab9e0f37ad36cd904e301fa482af2508e`。[托管 CI](https://github.com/StarCried/starlite/actions/runs/38700801035)及[Linux／Windows 原生与五包构建](https://github.com/StarCried/starlite/actions/runs/38701298960)均通过；正式 CLI 包使用该 CI 的 Windows MSVC／Linux 产物，而非本地 GNU 候选。
 
-已匿名下载全部五个 npm tarball，长度、SHA-256、SHA-512 SRI 与精确 CI 产物一致；五个 `alpha` 均为 `0.1.0-alpha.2`。GitHub 七项公开资产也已实际匿名下载，逐一匹配摘要，公开校验清单使用平铺文件名。逐包哈希见 [validation](validation.md)，完整证据位于 `target/release-output/0.1.0-alpha.2/registry-z2hZbT/publication-proof.json`。这些结果记录发行物交付，真实博客的安装、生成及部署验收另行记录。
+已匿名下载全部五个 npm tarball，长度、SHA-256、SHA-512 SRI 与精确 CI 产物一致；五个 `alpha` 均为 `0.1.0-alpha.2`。GitHub 七项公开资产也已实际匿名下载，逐一匹配摘要，公开校验清单使用平铺文件名。逐包哈希见 [validation](validation.md)，完整证据位于 `target/release-output/0.1.0-alpha.2/registry-z2hZbT/publication-proof.json`。
+
+真实博客已从公共 npm 安装本版，并用 Hexo 7.3.0 正常生成 449 个文件。本地内置浏览器验证首页、关于页显示与导航后仍只有一个组件和画布。[Pages 部署](https://github.com/StarCried/StarCried.github.io/actions/runs/38705481249)通过，线上首页、关于页和全部 15 个模型资源均返回 200，匿名下载的运行时 SHA-256 与本地生成文件一致。线上浏览器控制超时，因此不将这些网络检查记为线上视觉人工验收。
 
 ### 0.1.0-alpha.1 历史安装验收
 
