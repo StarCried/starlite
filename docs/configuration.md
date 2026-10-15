@@ -29,11 +29,11 @@
 | `gaze` | 默认最大水平 25°、垂直 15°，平滑 100 ms；动作接管视线时暂停光标覆盖。 |
 | `mobile` | 默认 `show: false`、`breakpoint: 768`，在运行时导入前判断。 |
 | `interactions.pointer` | 光标跟随，默认开启。 |
-| `interactions.passThrough` | 博客建议 true，让下层页面同时处理点击。 |
+| `interactions.passThrough` | VRM 博客默认 true，让下层页面同时处理点击；显式开启拖动时默认 false，可手动指定。 |
 | `interactions.drag` | 穿透时必须 false。 |
 | `ambient.animations` | 最多一个基础循环；省略时使用模型 Idle 或程序默认 Idle，显式空数组停用循环。 |
-| `neutralAnimation` | 停止动作后采用该动作首帧的基础站姿。 |
-| `profile` | 可选数据型微光适配；标准 VRM 无需配置。也可嵌入 `extras.starlite.profile`。 |
+| `neutralAnimation` | 停止动作后采用该动作首帧的基础站姿；显式配置优先于角色 profile，随后才自动选择 Idle。 |
+| `profile` | 可选数据型微光适配；标准 VRM 无需配置。也可嵌入 `extras.starlite.profile`；其中的 `neutralAnimation` 必须存在于模型或已配置 VRMA 中，也可用内置 `StarLiteIdle`。 |
 
 大幅动作可用 `render.viewportPadding: {left, top, right, bottom}`（CSS px）保留固定余量，四项均须填写；不随动作动态改变画布大小。位置可放入站点原有 CSS：
 

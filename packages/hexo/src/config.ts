@@ -32,8 +32,18 @@ export function readEnabledConfig(
     const animations = nonEmpty(input.bundle) ? preparedAnimations : input.animations?.map(a => ({...a,url:resolveUrl(root,a.url)})) ?? preparedAnimations;
     const embeddedAnimations = modelBundle?.vrm?.embeddedAnimations ?? input.embeddedAnimations;
     const animationNames = [...(embeddedAnimations ?? []), ...(animations ?? []).map(a=>a.name)];
-    const neutralAnimation = input.neutralAnimation ?? modelBundle?.vrm?.neutralAnimation ?? (animationNames.includes("Idle") ? "Idle" : undefined);
     const profile = modelBundle?.vrm?.profile ? base + modelBundle.vrm.profile : typeof input.profile === "string" ? resolveUrl(root,input.profile) : input.profile;
+    const profileNeutralAnimation = profile && typeof profile !== "string" ? profile.neutralAnimation
+      : (modelBundle?.vrm?.profile || profile === undefined) ? modelBundle?.vrm?.neutralAnimation : undefined;
+    if (profileNeutralAnimation !== undefined && profileNeutralAnimation !== "StarLiteIdle" && !animationNames.includes(profileNeutralAnimation)) {
+      throw new Error(`starlite.profile.neutralAnimation references unavailable animation ${JSON.stringify(profileNeutralAnimation)}; choose an embedded/configured VRMA animation or StarLiteIdle`);
+    }
+    // A fetched profile owns its baseline once loaded. Do not silently replace
+    // that unknown choice with the discovered Idle; explicit user settings win.
+    const neutralAnimation = input.neutralAnimation ?? profileNeutralAnimation ?? (profile === undefined && animationNames.includes("Idle") ? "Idle" : undefined);
+    if (neutralAnimation !== undefined && neutralAnimation !== "StarLiteIdle" && !animationNames.includes(neutralAnimation)) {
+      throw new Error(`starlite.neutralAnimation references unavailable animation ${JSON.stringify(neutralAnimation)}; choose an embedded/configured VRMA animation or StarLiteIdle`);
+    }
     const widget = {
       backend:"vrm" as const, ...artifactUrls,
       ...(animations ? {animations} : {}), ...(profile ? {profile} : {}),
@@ -44,7 +54,7 @@ export function readEnabledConfig(
       render:{fps:30,maxDevicePixelRatio:1.5,autoFit:true,...input.render},
       ...(input.network ? {network:input.network} : {}),
       ...(input.ambient ? {ambient:input.ambient} : {}), ...(input.dialogue ? {dialogue:input.dialogue} : {}),
-      interactions:{...input.interactions,click:input.interactions?.click ?? false},
+      interactions:{...input.interactions,passThrough:input.interactions?.passThrough ?? !input.interactions?.drag,click:input.interactions?.click ?? false},
     };
     (require("@starcried/starlite-vrm/config") as typeof import("@starcried/starlite-vrm/config", {with:{"resolution-mode":"import"}})).validateVrmWidgetConfig(widget);
     return {widget,breakpoint,showOnMobile};

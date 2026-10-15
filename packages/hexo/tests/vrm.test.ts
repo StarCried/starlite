@@ -3,6 +3,7 @@ import {mkdtempSync,writeFileSync,rmSync,symlinkSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {createRequire} from "node:module";
+import {Window,type HTMLElement} from "happy-dom";
 import {collectVrmModelAssets,collectVrmFileAssets,isLocalVrmFile,collectRuntimeAssets,resolveRuntimeDist} from "../src/assets";
 import {readEnabledConfig} from "../src/config";
 import {registerHexoWidget} from "../src/index";
@@ -92,4 +93,121 @@ it("malformed embedded profiles fail before a model is published",()=>{
  json.extras={starlite:{profile:{schemaVersion:1,type:"arbitrary-script"}}};
  writeFileSync(join(root,"invalid-profile.vrm"),glb(json,original.subarray(28+jsonSize)));
  expect(()=>collectVrmFileAssets("./invalid-profile.vrm",root)).toThrow("unsupported character profile");
+});
+
+function characterProfile(neutralAnimation: string) {
+ return {schemaVersion:1,type:"weiguang",neutralAnimation,neutralPose:{},earBones:[],earPoses:{Neutral:{}},expressions:{},accessories:{collar:"head",cone:"spine",collarVisible:true,coneVisible:true},blink:{period:4,curve:[[0,0],[4,0]]}};
+}
+function profileModel(neutralAnimation: string, embedded = false, alternative?: string) {
+ const original=embedded?animatedModel():model(), jsonSize=original.readUInt32LE(12), json=JSON.parse(original.subarray(20,20+jsonSize).toString());
+ if(alternative)json.animations.push({...structuredClone(json.animations[0]),name:alternative});
+ json.extras={starlite:{profile:characterProfile(neutralAnimation)}};
+ return glb(json,original.subarray(28+jsonSize));
+}
+function simpleHexo(root: string, options: Record<string, unknown> = {}) {
+ let generator:any,injector:any;
+ const hexo:any={base_dir:root,config:{starlite:{enable:true,backend:"vrm",model:"./avatar.vrm",publication:{confirm:true,allowRedistribution:true},...options}},extend:{generator:{register:(_n:any,f:any)=>generator=f},injector:{register:(_n:any,f:any)=>injector=f}},log:{warn:vi.fn()}};
+ registerHexoWidget(hexo);
+ return {hexo,generate:()=>generator(),inject:()=>injector() as string};
+}
+
+it("the README's minimal VRM configuration leaves the ready host transparent to blog clicks",async()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-readme-"));roots.push(root);
+ const original=model(),jsonSize=original.readUInt32LE(12),json=JSON.parse(original.subarray(20,20+jsonSize).toString());delete json.extensions.VRMC_vrm.expressions;
+ writeFileSync(join(root,"avatar.vrm"),glb(json,original.subarray(28+jsonSize)));
+ const blog=simpleHexo(root);expect(blog.generate().some((route:any)=>route.path.endsWith(".vrm"))).toBe(true);
+ const html=blog.inject(), source=html.match(/<script type="module">([\s\S]*)<\/script>/)![1]!.replace("import(entryUrl.href)","load(entryUrl.href)");
+ const win=new Window({url:"https://blog.example/"}),idle: (()=>void)[]=[];
+ Object.defineProperty(win.document,"readyState",{value:"complete",configurable:true});Object.defineProperty(win.document,"visibilityState",{value:"visible",configurable:true});
+ win.matchMedia=vi.fn(()=>({matches:false,addEventListener(){}})) as any;(win as any).requestIdleCallback=(callback:()=>void)=>{idle.push(callback);return 1};
+ const mount=vi.fn(async(..._args:any[])=>({status:"running",destroy(){}})),load=vi.fn(async()=>({mountModelWidget:mount}));
+ try {
+  new Function("globalThis","document","load",source)(win,win.document,load);idle.shift()?.();await new Promise(resolve=>setTimeout(resolve,0));
+  expect(mount).toHaveBeenCalledOnce();expect(mount.mock.calls[0]?.[1]).toMatchObject({interactions:{passThrough:true,click:false}});
+  const host=win.document.querySelector("[data-starlite-widget-host]") as HTMLElement;
+  expect(host.style.visibility).toBe("");expect(win.getComputedStyle(host).pointerEvents).toBe("none");
+ } finally {await win.happyDOM.close()}
+});
+
+it.each([
+ [{},true],
+ [{drag:true},false],
+ [{drag:false},true],
+ [{passThrough:false},false],
+ [{passThrough:false,drag:true},false],
+ [{passThrough:true},true],
+] as const)("keeps explicit VRM interaction choices while choosing a safe blog default: %j",(interactions,expected)=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-interactions-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),model());
+ const assets=collectVrmFileAssets("./avatar.vrm",root),blog=simpleHexo(root,{interactions});
+ expect(readEnabledConfig(blog.hexo,assets)?.widget.interactions).toMatchObject({...interactions,passThrough:expected});
+});
+
+it("still rejects explicit drag and pass-through together",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-drag-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),model());
+ expect(()=>simpleHexo(root,{interactions:{drag:true,passThrough:true}}).generate()).toThrow("passThrough and drag");
+});
+
+it("rejects a missing embedded profile neutral animation during generation with the field and name",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-profile-action-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),profileModel("Missing"));
+ expect(()=>collectVrmFileAssets("./avatar.vrm",root)).toThrow('extras.starlite.profile.neutralAnimation references unavailable animation "Missing"');
+ expect(()=>simpleHexo(root).generate()).toThrow("choose an embedded/configured VRMA animation or StarLiteIdle");
+});
+
+it.each([["Idle",true],["StarLiteIdle",false]] as const)("accepts an embedded profile's available neutral animation %s",(name,embedded)=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-profile-valid-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),profileModel(name,embedded));
+ expect(()=>simpleHexo(root).generate()).not.toThrow();
+});
+
+it("validates embedded profiles against configured external VRMA names too",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-profile-external-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),profileModel("ExternalPose"));
+ const blog=simpleHexo(root,{animations:[{name:"ExternalPose",url:"motions/Pose.vrma"}]});
+ expect(()=>blog.generate()).not.toThrow();expect(blog.inject()).toContain('"name":"ExternalPose","url":"/motions/Pose.vrma"');
+});
+
+it("validates embedded profiles against prepared bundle motions",async()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-profile-bundle-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),profileModel("ExternalPose"));writeFileSync(join(root,"Pose.vrma"),motion());
+ await prepareModel({model:join(root,"avatar.vrm"),animations:[{name:"ExternalPose",path:join(root,"Pose.vrma")}],output:join(root,"bundle"),allowRedistribution:true});
+ expect(()=>collectVrmModelAssets(join(root,"bundle"))).not.toThrow();
+});
+
+it("names a missing explicit neutral animation before runtime loading",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-neutral-missing-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),model());
+ expect(()=>simpleHexo(root,{neutralAnimation:"Missing"}).generate()).toThrow('starlite.neutralAnimation references unavailable animation "Missing"');
+ expect(()=>simpleHexo(root,{neutralAnimation:"StarLiteIdle"}).generate()).not.toThrow();
+});
+
+it.each([false,true])("rejects a missing inline profile baseline even when embedded Idle exists: %s",(idle)=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-inline-profile-missing-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),idle?animatedModel():model());
+ expect(()=>simpleHexo(root,{profile:characterProfile("Missing")}).generate()).toThrow('starlite.profile.neutralAnimation references unavailable animation "Missing"');
+});
+
+it("uses the embedded profile baseline before discovered Idle and preserves an explicit override",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-embedded-profile-baseline-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),profileModel("Pose",true,"Pose"));
+ const assets=collectVrmFileAssets("./avatar.vrm",root);
+ expect(assets.vrm?.neutralAnimation).toBe("Pose");
+ expect(readEnabledConfig(simpleHexo(root).hexo,assets)?.widget).toHaveProperty("neutralAnimation","Pose");
+ expect(readEnabledConfig(simpleHexo(root,{neutralAnimation:"Idle"}).hexo,assets)?.widget).toHaveProperty("neutralAnimation","Idle");
+});
+
+it("uses inline profile baseline ahead of model profile and Idle, allowing an explicit override",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-inline-profile-baseline-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),profileModel("Idle",true,"Pose"));
+ const assets=collectVrmFileAssets("./avatar.vrm",root);
+ expect(readEnabledConfig(simpleHexo(root,{profile:characterProfile("Pose")}).hexo,assets)?.widget).toHaveProperty("neutralAnimation","Pose");
+ expect(readEnabledConfig(simpleHexo(root,{profile:characterProfile("Pose"),neutralAnimation:"Idle"}).hexo,assets)?.widget).toHaveProperty("neutralAnimation","Idle");
+ expect(readEnabledConfig(simpleHexo(root,{profile:characterProfile("StarLiteIdle")}).hexo,assets)?.widget).toHaveProperty("neutralAnimation","StarLiteIdle");
+});
+
+it("lets a URL profile choose its loaded baseline instead of forcing discovered or embedded Idle",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-url-profile-baseline-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),profileModel("Pose",true,"Pose"));
+ const assets=collectVrmFileAssets("./avatar.vrm",root),profile="https://example.test/profile.json";
+ const widget=readEnabledConfig(simpleHexo(root,{profile}).hexo,assets)?.widget;
+ expect(widget).toMatchObject({profile});expect(widget).not.toHaveProperty("neutralAnimation");
+ expect(readEnabledConfig(simpleHexo(root,{profile,neutralAnimation:"Idle"}).hexo,assets)?.widget).toHaveProperty("neutralAnimation","Idle");
+});
+
+it("retains a prepared external profile's baseline ahead of model profile and discovered Idle",async()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-prepared-profile-baseline-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),profileModel("Idle",true));writeFileSync(join(root,"Pose.vrma"),motion());writeFileSync(join(root,"profile.json"),JSON.stringify(characterProfile("Pose")));
+ await prepareModel({model:join(root,"avatar.vrm"),animations:[{name:"Pose",path:join(root,"Pose.vrma")}],profile:join(root,"profile.json"),output:join(root,"bundle"),allowRedistribution:true});
+ const assets=collectVrmModelAssets(join(root,"bundle")),blog=simpleHexo(root,{bundle:join(root,"bundle"),fallback:"fallback.png",publication:{confirm:true,allowRedistribution:true,sourceSha256:assets.sourceSha256}});
+ expect(assets.vrm?.neutralAnimation).toBe("Pose");expect(readEnabledConfig(blog.hexo,assets)?.widget).toHaveProperty("neutralAnimation","Pose");
 });

@@ -27,7 +27,7 @@ export function registerHexoWidget(instance: HexoLike): void {
             { localPreview },
           ))
         : input?.enable && input.backend === "vrm" && isLocalVrmFile(input.model, instance.base_dir)
-          ? (cachedModelBundle ??= collectVrmFileAssets(input.model, instance.base_dir, {localPreview}))
+          ? (cachedModelBundle ??= collectVrmFileAssets(input.model, instance.base_dir, {localPreview,animationNames:(input.animations ?? []).map(animation=>animation.name)}))
           : undefined;
     if (localPreview && !localPreviewWarningLogged) {
       instance.log.warn(
