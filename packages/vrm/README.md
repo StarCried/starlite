@@ -29,7 +29,7 @@ const controller = await mountModelWidget(host, {
 });
 ```
 
-上例不需要另备动作文件。运行时自动使用模型名为 `Idle` 的动作，否则采用程序唯一内置的 `StarLiteIdle`（基础站姿与轻呼吸）。可通过 `animations: [{name: "Wave", url: "/Wave.vrma"}]` 添加自己的外部动作，或用 `ambient` 和 `neutralAnimation` 指定基础循环与站姿。不附带模型或其他动作库。显式 `ambient: {animations: []}` 可停用基础循环。眨眼需要有效的标准 Blink 表达，眼球跟随需要正确的 VRM lookAt 映射。模型必须自包含，不接受外部纹理或 buffer 引用。
+上例不需要另备动作文件。运行时自动使用模型名为 `Idle` 的动作，否则采用程序唯一内置的 `StarLiteIdle`（基础站姿与轻呼吸）。可通过 `animations: [{name: "Wave", url: "/Wave.vrma"}]` 添加自己的外部动作，或用 `ambient` 和 `neutralAnimation` 指定基础循环与站姿。不附带模型或其他动作库。显式 `ambient: {animations: []}` 可停用基础循环。眨眼为可选能力：需要有效的标准 Blink 表达，或完整的左右 Blink 表达；缺少时模型仍可使用，只停用自动眨眼。眼球跟随需要正确的 VRM lookAt 映射。模型必须自包含，不接受外部纹理或 buffer 引用。
 
 `inspectVrm(bytes).animations` 返回模型内嵌动作的名称和时长；将名称列表传入 `embeddedAnimations`，即可在 `ambient`、点击与气泡配置中引用。实际加载后 `getAnimations()` 自动列出内嵌动作和外部 VRMA。未命名动作按顺序显示为 `Animation_1` 等；内嵌动作、外部动作名称不得重复，`StarLiteIdle` 为默认 Idle 保留名。角色配置也可放在模型 JSON 的 `extras.starlite.profile`，内容须符合数据型角色配置规范。
 

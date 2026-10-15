@@ -1,5 +1,5 @@
 import { Quaternion, Vector3, type Object3D, type SkinnedMesh } from "three";
-import type { VRM } from "@pixiv/three-vrm";
+import { VRMExpressionMorphTargetBind, type VRM } from "@pixiv/three-vrm";
 import type { CharacterProfile } from "./types.js";
 
 export function sampleCurve(curve: readonly (readonly [number, number])[], time: number): number {
@@ -13,15 +13,23 @@ export function sampleCurve(curve: readonly (readonly [number, number])[], time:
 export class CharacterBehavior {
   readonly #vrm: VRM;
   readonly #profile: CharacterProfile | undefined;
+  readonly #blinkExpressions: readonly string[];
   readonly #morphs = new Map<string, { mesh: SkinnedMesh; index: number }[]>();
   readonly #earBones = new Map<string, Object3D>();
   readonly #baseEar = new Map<string, { rotation: Quaternion; position: Vector3 }>();
   #time = 0;
   #weights = "";
   #blinkAmount = 0;
-  #authoredBlink: number | undefined;
+  #authoredBlink: ReadonlyMap<string, number> | undefined;
   constructor(vrm: VRM, profile?: CharacterProfile) {
     this.#vrm = vrm; this.#profile = profile;
+    const usable = (name: string): boolean => vrm.expressionManager?.getExpression(name)?.binds.some(bind =>
+      bind instanceof VRMExpressionMorphTargetBind && bind.weight > 0
+      && bind.primitives.some(mesh => mesh.morphTargetInfluences?.[bind.index] !== undefined)) ?? false;
+    // Prefer a combined Blink. A complete left/right pair is equivalent; a
+    // lone eyelid must not turn an ordinary blink into an unintended wink.
+    this.#blinkExpressions = usable("blink") ? ["blink"]
+      : usable("blinkLeft") && usable("blinkRight") ? ["blinkLeft", "blinkRight"] : [];
     if (!profile) return;
     vrm.scene.traverse((object) => {
       const mesh = object as SkinnedMesh;
@@ -55,9 +63,12 @@ export class CharacterBehavior {
     // Each custom correction closes its expression's share of the eyelids.
     // Ordinary blink must still close the remaining Basis share during fades.
     const curve = this.#profile?.blink.curve ?? [[0, 0], [3.4, 0], [3.48, 1], [3.52, 1], [3.65, 0], [4.7, 0]];
-    this.#authoredBlink = authoredBlink ? manager?.getValue("blink") ?? 0 : undefined;
-    this.#blinkAmount = this.#authoredBlink ?? sampleCurve(curve, this.#time % (this.#profile?.blink.period ?? 4.7));
-    manager?.setValue("blink", Math.max(0, 1 - total) * this.#blinkAmount);
+    this.#authoredBlink = authoredBlink ? new Map(this.#blinkExpressions.map(name => [name, manager?.getValue(name) ?? 0])) : undefined;
+    this.#blinkAmount = this.#authoredBlink ? Math.max(0, ...this.#authoredBlink.values()) : sampleCurve(curve, this.#time % (this.#profile?.blink.period ?? 4.7));
+    for (const name of this.#blinkExpressions) {
+      const amount = this.#authoredBlink?.get(name) ?? this.#blinkAmount;
+      manager?.setValue(name, Math.max(0, 1 - total) * amount);
+    }
   }
   afterExpressions(): void {
     const profile = this.#profile;
@@ -106,7 +117,7 @@ export class CharacterBehavior {
     }
     // Only the applied neutral share changes; the animation's sampled value
     // remains available to the next authored frame or captured-pose transition.
-    if (this.#authoredBlink !== undefined) this.#vrm.expressionManager?.setValue("blink", this.#authoredBlink);
+    for (const [name, value] of this.#authoredBlink ?? []) this.#vrm.expressionManager?.setValue(name, value);
     this.#authoredBlink = undefined;
   }
   reset(): void { this.#time = 0; this.#weights = ""; this.#blinkAmount = 0; this.#authoredBlink = undefined; }

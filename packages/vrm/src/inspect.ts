@@ -82,20 +82,32 @@ export function inspectVrm(bytes: ArrayBuffer): { version: "0" | "1"; name?: str
     if (!Number.isSafeInteger(node) || !json.nodes?.[node] || used.has(node)) throw new Error("invalid required humanoid bone");
     used.add(node);
   }
-  const usableBlink = (name: string): boolean => {
-    const expressions = v0?.blendShapeMaster?.blendShapeGroups;
-    const binds = v0 ? expressions?.find((item: Json) => item.presetName === name)?.binds
-      : json.extensions.VRMC_vrm.expressions?.preset?.[name]?.morphTargetBinds;
-    return Array.isArray(binds) && binds.some((bind: Json) => {
-      const mesh = v0 ? bind.mesh : json.nodes?.[bind.node]?.mesh;
-      const primitives = json.meshes?.[mesh]?.primitives;
-      return Number.isSafeInteger(mesh) && Number.isSafeInteger(bind.index) && bind.index >= 0
-        && Number.isFinite(bind.weight) && bind.weight > 0 && bind.weight <= (v0 ? 100 : 1)
-        && Array.isArray(primitives) && primitives.some((primitive: Json) => primitive.targets?.[bind.index] !== undefined);
+  // Blink is an optional capability. Declared bindings must still be valid;
+  // missing, empty or zero-weight presets simply provide no automatic blink.
+  const blinkNames = v0 ? ["blink", "blink_l", "blink_r"] : ["blink", "blinkLeft", "blinkRight"];
+  const groups = v0?.blendShapeMaster?.blendShapeGroups;
+  if (groups !== undefined && !Array.isArray(groups)) throw new Error("invalid VRM blink expressions");
+  const blinkPresets = v0 ? (groups ?? []).filter((item: Json) => blinkNames.includes(item?.presetName))
+    : blinkNames.flatMap(name => {
+      const expression = json.extensions.VRMC_vrm.expressions?.preset?.[name];
+      return expression === undefined ? [] : [expression];
     });
-  };
-  if (!usableBlink("blink") && !(v0 ? usableBlink("blink_l") && usableBlink("blink_r") : usableBlink("blinkLeft") && usableBlink("blinkRight"))) {
-    throw new Error("VRM needs usable blink morph bindings, or both left and right blink presets");
+  for (const expression of blinkPresets) {
+    if (!expression || typeof expression !== "object" || Array.isArray(expression)) throw new Error("invalid VRM blink expression");
+    const binds = v0 ? expression.binds : expression.morphTargetBinds;
+    if (binds === undefined) continue;
+    if (!Array.isArray(binds)) throw new Error("invalid VRM blink bindings");
+    for (const bind of binds) {
+      const mesh = v0 ? bind?.mesh : json.nodes?.[bind?.node]?.mesh;
+      const primitives = json.meshes?.[mesh]?.primitives;
+      if (!bind || !Number.isSafeInteger(mesh) || mesh < 0
+        || (!v0 && (!Number.isSafeInteger(bind.node) || bind.node < 0))
+        || !Number.isSafeInteger(bind.index) || bind.index < 0
+        || !Number.isFinite(bind.weight) || bind.weight < 0 || bind.weight > (v0 ? 100 : 1)
+        || !Array.isArray(primitives) || !primitives.some((primitive: Json) => primitive.targets?.[bind.index] !== undefined)) {
+        throw new Error("invalid VRM blink morph binding");
+      }
+    }
   }
   const meta = (v0 ?? json.extensions.VRMC_vrm).meta ?? {};
   const name = v0 ? meta.title : meta.name;

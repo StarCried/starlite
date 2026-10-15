@@ -6,7 +6,7 @@
 
 输入为自包含的 VRM 0／1：贴图和 buffer 必须在文件内，不接受 FBX、普通 GLB 或 Unity `.anim`。人形骨骼按 VRM Humanoid 映射识别，Blender 对象名称无需按英文重命名。必需映射为 `hips / spine / head` 及两侧 `UpperArm / LowerArm / Hand / UpperLeg / LowerLeg / Foot`；手指、肩、颈、胸、脚趾和眼骨可选。
 
-眨眼需要有实际 morph 绑定的标准 Blink：VRM0 的 `blink` 或一对 `blink_l / blink_r`，VRM1 的 `blink` 或一对 `blinkLeft / blinkRight`。仅重命名形态键不够；形态键自身名称可自定。眼球跟随需要正确配置 VRM lookAt（眼骨或视线表达）；头部跟随有角度限制。
+眨眼为可选能力，缺少时仍可加载、播放动作和使用气泡，只停用自动眨眼。自动眨眼使用有实际 morph 绑定的标准 Blink：VRM0 的 `blink` 或一对 `blink_l / blink_r`，VRM1 的 `blink` 或一对 `blinkLeft / blinkRight`。仅重命名形态键不够；形态键自身名称可自定。只有单侧 Blink、空绑定或全部零权重时不自动眨眼，不会猜测其他形态键。已声明的错误绑定仍会拒绝导入。眼球跟随需要正确配置 VRM lookAt（眼骨或视线表达）；头部跟随有角度限制。
 
 程序仅自带 `StarLiteIdle`，为无动作模型提供基础站姿和轻呼吸。有自己的 `Idle` 时优先使用；其他动作均由用户提供。模型内嵌 glTF 动作自动列出；名字建议为唯一英文，区分大小写，`StarLiteIdle` 为保留名。
 

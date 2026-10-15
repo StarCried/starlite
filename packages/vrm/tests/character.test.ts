@@ -1,6 +1,6 @@
 import {expect,it,vi} from "vitest";
 import {Object3D,Quaternion,SkinnedMesh,Vector3} from "three";
-import {VRMSpringBoneJoint,VRMSpringBoneManager,type VRM} from "@pixiv/three-vrm";
+import {VRMSpringBoneJoint,VRMSpringBoneManager,VRMExpression,VRMExpressionMorphTargetBind,type VRM} from "@pixiv/three-vrm";
 import {CharacterBehavior} from "../src/character.js";
 import type {CharacterProfile} from "../src/types.js";
 function fixture(){
@@ -8,7 +8,8 @@ function fixture(){
  ear.name="EarL";ear.userData.name="Ear.L";collar.name="Collar";cone.name="Cone";scene.add(ear,collar,cone,mesh);
  mesh.morphTargetDictionary={ExprBlink_Happy:0,ExprBlink_Tease:1};mesh.morphTargetInfluences=[0,0];
  const values=new Map<string,number>(),init=vi.fn();
- const manager={getExpression:()=>({}),getValue:(name:string)=>values.get(name)??0,setValue:(name:string,value:number)=>values.set(name,value)};
+ const blinkMesh=new SkinnedMesh();blinkMesh.morphTargetInfluences=[0];const blink=new VRMExpression("blink");blink.addBind(new VRMExpressionMorphTargetBind({primitives:[blinkMesh],index:0,weight:1}));
+ const manager={getExpression:(name:string)=>name==="blink"?blink:({}),getValue:(name:string)=>values.get(name)??0,setValue:(name:string,value:number)=>values.set(name,value)};
  const vrm={scene,expressionManager:manager,springBoneManager:{joints:[{bone:ear,setInitState:init}]}} as unknown as VRM;
  const pose={"Ear.L":{rotation:[0,0,0,1] as [number,number,number,number]}};
  const profile:CharacterProfile={schemaVersion:1,type:"weiguang",neutralPose:{},earBones:["Ear.L"],earPoses:{Neutral:pose,Happy:pose,Tease:pose,Proud:pose},expressions:{Happy:{expression:"happy",blink:"ExprBlink_Happy"},Tease:{expression:"Tease",blink:"ExprBlink_Tease"},Proud:{expression:"relaxed"}},accessories:{collar:"Collar",cone:"Cone",collarVisible:true,coneVisible:false},blink:{period:5,curve:[[0,0],[.1,1],[.2,0],[5,0]]}};

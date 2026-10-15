@@ -32,7 +32,7 @@ vi.mock("three/addons/loaders/GLTFLoader.js",()=>({GLTFLoader:class {
   const head=new THREE.Object3D();head.name="head";head.position.y=.4;scene.add(head);
   const humanoid={getNormalizedBoneNode:()=>head,getRawBoneNode:()=>head,getNormalizedPose:()=>({head:{rotation:head.quaternion.toArray()}}),setNormalizedPose:(pose:any)=>{mesh.position.x=0;head.quaternion.fromArray(pose.head?.rotation??[0,0,0,1])},update:()=>{}};
   const lookAt=new VRMLookAt(humanoid as unknown as VRMHumanoid,{applyYawPitch(){}});
-  return {scene,animations:embeddedModel?[new THREE.AnimationClip("Jump",1,[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])]:[],userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[{update:(delta:number)=>{if(throwMaterial)throw new Error('material update failed');materialDeltas.push(delta)}}],humanoid,lookAt,expressionManager:{resetValues(){},expressions:[],setValue(){},update(){}}}}};
+  return {scene,animations:embeddedModel?[new THREE.AnimationClip("Jump",1,[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])]:[],userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[{update:(delta:number)=>{if(throwMaterial)throw new Error('material update failed');materialDeltas.push(delta)}}],humanoid,lookAt,expressionManager:{getExpression(){return null},resetValues(){},expressions:[],setValue(){},update(){}}}}};
  }
 }}));
 vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,relaxedIdle?[new THREE.QuaternionKeyframeTrack("head.quaternion",[0,1],[0,0,.2,Math.sqrt(.96),0,0,.2,Math.sqrt(.96)])]:[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));

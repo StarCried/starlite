@@ -110,3 +110,61 @@ it("switches from authored timing back to natural timing without retaining its c
   f.frame(.2, true); expect(f.gap()).toBeCloseTo(0);
   f.frame(0); expect(f.gap()).toBeCloseTo(.9); expect(f.mesh.morphTargetInfluences![2]).toBe(0);
 });
+
+// Separate left/right lids prove that the paired standard presets affect both
+// eyes, rather than merely writing expression names without visible movement.
+function standardEyelids(presets: readonly string[]) {
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute([-.5, .5, 0, -.5, -.5, 0, .5, .5, 0, .5, -.5, 0], 3));
+  geometry.morphTargetsRelative = true;
+  geometry.morphAttributes.position = [
+    [0, -.5, 0, 0, .5, 0, 0, -.5, 0, 0, .5, 0],
+    [0, -.5, 0, 0, .5, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, -.5, 0, 0, .5, 0],
+  ].map(values => new Float32BufferAttribute(values, 3));
+  const mesh = new Mesh(geometry, new MeshBasicMaterial()), scene = new Object3D(), manager = new VRMExpressionManager();
+  scene.add(mesh);
+  for (const name of presets) {
+    const expression = new VRMExpression(name);
+    if (name !== "emptyBlink") expression.addBind(new VRMExpressionMorphTargetBind({ primitives: [mesh], index: name === "blinkLeft" ? 1 : name === "blinkRight" ? 2 : 0, weight: 1 }));
+    else expression.expressionName = "blink";
+    manager.registerExpression(expression);
+  }
+  const behavior = new CharacterBehavior({ scene, expressionManager: manager } as unknown as VRM);
+  return {
+    manager,
+    frame(delta: number, authored = false) { behavior.beforeExpressions(delta, authored); manager.update(); behavior.afterExpressions(); },
+    gaps() { return [0, 2].map(index => mesh.getVertexPosition(index, new Vector3()).y - mesh.getVertexPosition(index + 1, new Vector3()).y); },
+  };
+}
+
+it.each([["blinkLeft", "blinkRight"], ["emptyBlink", "blinkLeft", "blinkRight"]])("naturally closes and reopens both lids through %j", (...presets) => {
+  const f = standardEyelids(presets);
+  f.frame(3.5); expect(f.gaps()).toEqual([0, 0]);
+  f.frame(.2); expect(f.gaps()).toEqual([1, 1]);
+});
+
+it.each([[], ["blinkLeft"], ["blinkRight"], ["emptyBlink"]])("keeps lids open without a complete usable blink capability: %j", (...presets) => {
+  const f = standardEyelids(presets), names = f.manager.expressions.map(expression => expression.expressionName);
+  f.frame(3.5); expect(f.gaps()).toEqual([1, 1]);
+  expect(f.manager.expressions.map(expression => expression.expressionName)).toEqual(names);
+});
+
+it("preserves authored asymmetric blinks on a standard paired model", () => {
+  const f = standardEyelids(["blinkLeft", "blinkRight"]);
+  f.manager.setValue("blinkLeft", .25); f.manager.setValue("blinkRight", .75);
+  f.frame(3.5, true); expect(f.gaps()).toEqual([.75, .25]);
+  f.frame(0); expect(f.gaps()).toEqual([0, 0]);
+});
+
+it("keeps an authored wink available when automatic blink is unavailable", () => {
+  const f = standardEyelids(["blinkLeft"]);
+  f.manager.setValue("blinkLeft", 1); f.frame(3.5, true);
+  expect(f.gaps()).toEqual([0, 1]);
+});
+
+it("prefers a usable combined Blink without double-closing through the paired presets", () => {
+  const f = standardEyelids(["blink", "blinkLeft", "blinkRight"]);
+  f.frame(3.5); expect(f.gaps()).toEqual([0, 0]);
+  expect(f.manager.getValue("blinkLeft")).toBe(0); expect(f.manager.getValue("blinkRight")).toBe(0);
+});
