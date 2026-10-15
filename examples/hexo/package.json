@@ -1,6 +1,6 @@
 {
   "name": "@starcried/starlite-hexo-example",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "hexo": {
     "version": "7.3.0"
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "hexo": "7.3.0",
-    "hexo-starlite": "0.1.0-alpha.1",
+    "hexo-starlite": "0.1.0-alpha.2",
     "hexo-renderer-marked": "7.0.1"
   }
 }

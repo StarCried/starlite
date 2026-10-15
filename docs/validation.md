@@ -5,6 +5,30 @@ Inochi2D candidates; their old package labels and hashes are retained only as
 evidence, not as current installation inputs or release approval. Commands use
 the new package names. See [current status](status.md) before release.
 
+## 2026-10-15 alpha.2 release candidate
+
+All workspace package versions and internal dependencies, npm lock metadata and
+Cargo package metadata use `0.1.0-alpha.2`. Third-party versions are unchanged.
+The versioned source passed:
+
+- `npm run validate`: Rust 26 and JavaScript/demo 349 passed; 7 optional external
+  real-model tests skipped. Both backends, official WASM, examples, lint,
+  typecheck, license inventory, runtime budget and five package-content gates passed.
+- `npm run test:browser`: actual Chromium 14 passed, 2 optional external-model
+  tests skipped. VRM0/1 without optional expressions render with the bundled Idle;
+  underlying links remain clickable. Import/model/context failures recover.
+- Fresh Linux x64 and Windows x64 GNU pipeline builds both report
+  `0.1.0-alpha.2`. The Windows executable ran and inspected the artwork-free
+  synthetic puppet successfully on Windows. Only Windows system DLLs are required.
+- `npm run pack:release-check` and `git diff --check` passed. The native vendor
+  manifest records both exact binary hashes; package checks exclude character
+  files and source artwork.
+
+Logs, reviewed tarballs, checksums and their exact source revision are under
+ignored `target/release-output/0.1.0-alpha.2/`. These are local release checks;
+hosted CI, public-registry installation and production-blog verification remain
+separate evidence. The earlier alpha.1 publication and hashes below are unchanged.
+
 ## 2026-10-15 public alpha verification
 
 [StarLite 0.1.0-alpha.1](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)
@@ -127,7 +151,7 @@ binaries, stages a SHA-256 manifest, checks all npm package contents, creates
 tarballs, and uploads artifacts. It never publishes npm packages or deploys a
 blog.
 
-## First public alpha
+## Publishing an alpha
 
 For dual-backend installation and usage see [the release guide](release-guide.md).
 
@@ -136,11 +160,11 @@ and hosted release-dry-run succeed. Publish the exact reviewed tarballs in
 dependency order, using the non-default `alpha` dist-tag:
 
 ```sh
-npm publish starcried-starlite-core-0.1.0-alpha.1.tgz --tag alpha --access public
-npm publish starcried-starlite-inochi2d-0.1.0-alpha.1.tgz --tag alpha --access public
-npm publish starcried-starlite-vrm-0.1.0-alpha.1.tgz --tag alpha --access public
-npm publish hexo-starlite-0.1.0-alpha.1.tgz --tag alpha
-npm publish inochi2d-blog-0.1.0-alpha.1.tgz --tag alpha
+npm publish starcried-starlite-core-0.1.0-alpha.2.tgz --tag alpha --access public
+npm publish starcried-starlite-inochi2d-0.1.0-alpha.2.tgz --tag alpha --access public
+npm publish starcried-starlite-vrm-0.1.0-alpha.2.tgz --tag alpha --access public
+npm publish hexo-starlite-0.1.0-alpha.2.tgz --tag alpha
+npm publish inochi2d-blog-0.1.0-alpha.2.tgz --tag alpha
 ```
 
 Before the first command, verify npm authentication/MFA, package-name

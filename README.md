@@ -16,7 +16,7 @@ npm run demo -- --model "/path/to/avatar.vrm"
 
 想使用微光？从[独立授权模型发行](https://github.com/StarCried/starlite/releases/tag/weiguang-v3.0.0-starlite.1)下载 `Weiguang-StarLite-Blog.vrm`，把命令中的路径换成它即可。模型不随程序包分发。
 
-当前已发布 **[0.1.0-alpha.1](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)**。接入已有 Hexo 博客只需 `npm install hexo-starlite@alpha`，再按[安装说明](packages/hexo/README.md)添加模型。[本机体验说明](docs/quick-start.md)
+当前版本 **[0.1.0-alpha.2](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.2)**。接入已有 Hexo 博客只需 `npm install hexo-starlite@alpha`，再按[安装说明](packages/hexo/README.md)添加模型。[本机体验说明](docs/quick-start.md)
 
 ## 用到自己的应用里
 

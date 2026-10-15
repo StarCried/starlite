@@ -3,6 +3,25 @@
 All notable changes will be recorded here. The project follows semantic
 versioning; prereleases use the explicit npm `alpha` channel.
 
+## 0.1.0-alpha.2 - 2026-10-15
+
+- Allow standard humanoid VRM 0/1 models without Blink expressions. Missing,
+  empty, zero-weight or incomplete blink capability disables automatic blinking;
+  malformed declared bindings remain errors. Complete left/right presets now
+  blink together, while authored asymmetric blinks remain intact.
+- Hide failed Hexo companions and retry up to three times in the background.
+  Successful retries restore the model without replaying an entrance, retaining
+  stale canvases or blocking the page. Hidden/offline/mobile guards remain active.
+- Make page click-through the default for VRM blogs, while preserving explicit
+  drag and click-ownership settings.
+- Validate character-profile baseline actions against embedded and configured
+  external animations before generation. Explicit settings take precedence over
+  the profile, then automatic Idle selection; URL profiles retain their choice.
+- Check local preview model/config paths before dependency installation or
+  builds, with actionable guidance for Windows and WSL paths.
+- Add an installation-free online demonstration and clarify optional model
+  capabilities, version boundaries and user installation instructions.
+
 ## 0.1.0-alpha.1 - 2026-10-14
 
 [Published release](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)

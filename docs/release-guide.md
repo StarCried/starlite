@@ -1,6 +1,6 @@
 # StarLite for Hexo：安装与使用
 
-本指南适用于已发布的 [0.1.0-alpha.1](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)。普通启动步骤见 [Hexo README](../packages/hexo/README.md)；本页补充安装、更新和本地验收。
+本指南适用于 [0.1.0-alpha.2](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.2)。普通启动步骤见 [Hexo README](../packages/hexo/README.md)；本页补充安装、更新和本地验收。
 
 ## 安装
 
@@ -12,7 +12,7 @@
 npm install hexo-starlite@alpha
 ```
 
-如需固定版本，使用 `npm install --save-exact hexo-starlite@0.1.0-alpha.1`。alpha 使用独立发布标签，安装和更新时均显式写 `@alpha` 或完整版本号。
+如需固定版本，使用 `npm install --save-exact hexo-starlite@0.1.0-alpha.2`。alpha 使用独立发布标签，安装和更新时均显式写 `@alpha` 或完整版本号。
 
 插件自动加载，浏览器只请求选中的后端。安装依赖目前包含两个后端；VRM 用户不需要原生 Inochi2D 工具。不要同时安装旧的 `hexo-model-companion`；旧的 `inochi2d_widget:` 配置须改为 `starlite:`。
 
@@ -34,7 +34,7 @@ starlite:
 
 无动作模型使用程序唯一内置的 `StarLiteIdle`。有名为 `Idle` 的模型动作时优先作为基础循环；其他内嵌动作自动识别，按需配置点击或应用映射。缺少动作也可单独配置气泡。人形骨骼为必需，Blink 和 lookAt 为可选能力，约定见[配置](configuration.md)。
 
-当前本地候选在加载失败时隐藏角色并有限重试，成功后自动恢复，不展示静态替代图片。已发布的 `0.1.0-alpha.1` 尚未包含这项恢复及可选 Blink 调整；具体交付状态见[当前状态](status.md)。
+本版本在加载失败时隐藏角色并有限重试，成功后自动恢复，不展示静态替代图片；默认保留下层博客的点击行为。早期 `0.1.0-alpha.1` 不包含这些恢复与可选 Blink 调整，更新时请使用 `0.1.0-alpha.2` 或更新版本。
 
 微光模型从[独立模型发行](https://github.com/StarCried/starlite/releases/tag/weiguang-v3.0.0-starlite.1)下载；博客选择 `Weiguang-StarLite-Blog.vrm`，放到上面的模型路径并遵守随附许可。博客模型保留全部 13 个内嵌动作，约 8.69 MiB；桌面版可能更大。模型源工程、其他软件导出和自定义 ZIP 均不是此安装流程的输入。
 
@@ -46,9 +46,9 @@ npx hexo generate
 npx hexo server -p 4000
 ```
 
-检查正文优先显示、材质与基础站姿正常、已配置的眼睛与头部跟随、点击气泡及所选动作、偶发互动、页面切换无重复实例。手机尺寸不应下载模型或 VRM 运行时；本地候选模拟加载失败时应隐藏并自动恢复，下层页面始终可点击。较大动作还须检查画布与页面底部裁切。
+检查正文优先显示、材质与基础站姿正常、已配置的眼睛与头部跟随、点击气泡及所选动作、偶发互动、页面切换无重复实例。手机尺寸不应下载模型或 VRM 运行时；模拟加载失败时应隐藏并自动恢复，下层页面始终可点击。较大动作还须检查画布与页面底部裁切。
 
-博客建议 `interactions.passThrough: true`、`drag: false`，保留角色下方页面的点击行为。默认 30 FPS，DPR 上限 1.5；博客可先用 DPR 1，保持抗锯齿，再按设备验收。
+VRM 博客默认 `interactions.passThrough: true`；显式开启拖动时默认为 false。可配置 `drag: false`，保留角色下方页面的点击行为。默认 30 FPS，DPR 上限 1.5；博客可先用 DPR 1，保持抗锯齿，再按设备验收。
 
 PJAX 保留实例，完整文档导航重新挂载但同一标签页不重复首次入场。CSP 需允许内嵌贴图使用的 `blob:`。公开博客会把必要模型文件交给访客；许可约束再利用，无法保证文件不能被下载。
 
@@ -68,6 +68,6 @@ npm uninstall hexo-starlite
 
 ## 维护者：npm 发布标签
 
-本次新包首次发布时，虽使用 `--tag alpha`，npm 仍自动建立了 `latest`，与 `alpha` 一同指向该包的 alpha 版本。这不表示已有稳定版，也没有覆盖此前的稳定版本。
+`0.1.0-alpha.1` 首次发布时，虽使用 `--tag alpha`，npm 仍自动建立了 `latest`，与 `alpha` 一同指向该包的 alpha 版本。这不表示已有稳定版，也没有覆盖此前的稳定版本。
 
 安装和更新继续显式使用 `@alpha` 或完整版本号。以后发布真正的稳定版时，再核对并管理 `latest` 的指向；不能仅凭 `latest` 标签判断版本稳定性。

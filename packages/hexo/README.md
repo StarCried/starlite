@@ -6,7 +6,7 @@
 
 ## 启动
 
-需要 Node.js 22.12+、Hexo 7 和一个标准人形 VRM。当前 npm 发行版 `0.1.0-alpha.1` 还要求有效的 Blink 表达。在博客目录安装 alpha 版本：
+需要 Node.js 22.12+、Hexo 7 和一个标准人形 VRM。Blink 表达为可选能力，缺少时仍可使用。在博客目录安装 alpha 版本：
 
 ```sh
 npm install hexo-starlite@alpha
@@ -34,7 +34,7 @@ npx hexo server
 
 打开终端中的网址即可。无动作模型使用内置默认 Idle；内嵌动作自动识别。手机默认不下载模型，日常使用沿用原 Hexo 命令。
 
-源码本地候选已允许缺少 Blink 的模型，并在加载失败时隐藏角色、后台有限重试、成功后恢复；这些修改尚未发布到 npm，见[当前状态](https://github.com/StarCried/starlite/blob/main/docs/status.md)。
+`0.1.0-alpha.2` 在加载失败时隐藏角色、后台有限重试，成功后自动恢复；下层页面仍可正常点击。
 
 没有博客？在 StarLite 源码目录运行 `npm run demo -- --model "/path/to/avatar.vrm"`，即可打开隔离的本机示例。
 

@@ -1,6 +1,6 @@
 {
   "name": "starlite",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "description": "Lightweight VRM companions for web and desktop, with an optional Inochi2D backend",
   "license": "BSD-2-Clause",
