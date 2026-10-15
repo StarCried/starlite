@@ -8,7 +8,7 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve, extname, relative, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createInterface} from 'node:readline/promises';
-import {prepareDemoModel} from './demo-model.mjs';
+import {prepareDemoModel, validateDemoInputs} from './demo-model.mjs';
 
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -134,6 +134,7 @@ function openBrowser(url) {
 
 export async function main(args = process.argv.slice(2)) {
   const options = parseOptions(args); if (options.help) { console.log(help); return; }
+  await validateDemoInputs(options.model, options.config);
   await ensureDependencies(options.install);
   const temporary = await mkdtemp(join(tmpdir(), 'starlite-demo-'));
   let active, cleaned = false;

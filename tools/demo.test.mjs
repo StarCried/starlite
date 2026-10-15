@@ -7,7 +7,7 @@ import {mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink} from 'node:fs
 import {tmpdir} from 'node:os';
 import {resolve, join} from 'node:path';
 import {model} from '../tests/fixtures/vrm.mjs';
-import {prepareDemoModel} from './demo-model.mjs';
+import {prepareDemoModel,validateDemoInputs} from './demo-model.mjs';
 import {parseOptions} from './demo.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -32,6 +32,24 @@ test('CLI requires a VRM file, retires ZIP options and validates the port', () =
   assert.throws(()=>parseOptions(['--bundle','old.zip']), /未知参数/u);
   assert.throws(()=>parseOptions(['--model','input','--port','NaN']), /port/u);
   assert.equal(parseOptions(['--model','avatar.vrm','--no-open','--no-install','--accept-license']).acceptLicense,true);
+});
+
+test('bad model and config paths fail with actionable guidance before dependency setup or builds',async t=>{
+  const root=await sandbox(t), missing=join(root,'not downloaded.vrm');
+  const isolated=join(root,'without-dependencies');await mkdir(join(isolated,'tools'),{recursive:true});
+  for(const name of ['demo.mjs','demo-model.mjs']) await writeFile(join(isolated,'tools',name),await readFile(join(import.meta.dirname,name)));
+  const result=await new Promise((done,reject)=>{
+    const child=spawn(process.execPath,['tools/demo.mjs','--model',missing,'--no-install'],{cwd:isolated,stdio:['ignore','pipe','pipe']});
+    let output='';child.stdout.on('data',bytes=>output+=bytes);child.stderr.on('data',bytes=>output+=bytes);
+    child.once('error',reject);child.once('exit',code=>done({code,output}));
+  });
+  assert.equal(result.code,1);assert.match(result.output,/找不到模型文件/u);assert.match(result.output,/--model/u);assert.match(result.output,/WSL/u);
+  assert.doesNotMatch(result.output,/npm ci|准备 StarLite|ENOENT|build|缺少开发依赖/u);
+  const source=join(root,'avatar.vrm');await writeFile(source,model());
+  await assert.rejects(validateDemoInputs(source,join(root,'missing.json')),/找不到配置文件.*[\s\S]*--config/u);
+  await assert.rejects(validateDemoInputs(root),/普通 \.vrm 文件/u);
+  const config=join(root,'settings.json');await writeFile(config,'{"dialogue":');
+  await assert.rejects(validateDemoInputs(source,config),/配置不是有效的 JSON/u);
 });
 test('single VRM snapshot retains exact bytes and embedded license metadata', async t => {
   const root=await sandbox(t), source=join(root,'avatar.vrm'); await writeFile(source,model());

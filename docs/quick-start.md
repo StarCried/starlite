@@ -9,12 +9,14 @@ npm run demo -- --model "/path/to/avatar.vrm"
 Windows 示例：
 
 ```powershell
-npm run demo -- --model "D:\\Downloads\\avatar.vrm"
+npm run demo -- --model "D:\Downloads\avatar.vrm"
 ```
 
 源码在 WSL 时使用 `/mnt/d/Downloads/avatar.vrm` 这样的路径。首次缺少依赖会自动执行 `npm ci`；工具展示模型内嵌许可，确认后打开本机 Hexo 页。微光使用另行授权的单 VRM 文件；无需自定义 ZIP、Rust、Blender 或 DSH。
 
-无动作模型使用默认 Idle，并启用眨眼和限角光标跟随。眨眼依赖有效的 VRM Blink 表达，眼球跟随依赖 lookAt 配置。内嵌动作可通过可选配置映射到点击或偶发互动；没有映射的动作不会随机播放。
+无动作模型使用默认 Idle、轻呼吸和限角头部跟随。有效的 VRM Blink 表达启用自动眨眼，lookAt 配置启用眼球跟随；缺少这些可选配置时仍能使用模型，只停用对应能力。内嵌动作可通过可选配置映射到点击或偶发互动；没有映射的动作不会随机播放。
+
+工具先检查模型和可选配置路径，再安装依赖、构建。找不到文件时，请将示例路径换成自己的实际路径；Windows 可将文件拖入终端取得路径，并保留两侧引号。WSL 需使用 `/mnt/d/...` 路径。
 
 按 **Ctrl+C** 停止。临时站点和模型副本会自动清理，源模型与真实博客不变。示例只监听 `127.0.0.1`，默认端口 `4183`，占用时自动换下一个；自动打开失败时复制终端网址即可。
 
