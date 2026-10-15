@@ -1,9 +1,43 @@
 # Validation checklist
 
-Current naming is StarLite (2026-10-14). Dated results below describe historical
-Inochi2D candidates; their old package labels and hashes are retained only as
-evidence, not as current installation inputs or release approval. Commands use
-the new package names. See [current status](status.md) before release.
+Current naming is StarLite. Current publication proof appears first; older dated
+results retain their package labels and hashes as historical evidence, not as
+current installation inputs or release approval. Commands use the current
+package names. See [current status](status.md) before release.
+
+## 2026-10-15 public alpha.2 verification
+
+[StarLite 0.1.0-alpha.2](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.2)
+was published at `2026-10-15T08:19:02Z` as a prerelease. The public tag and
+`SOURCE_REVISION` both resolve to
+`903fe2cab9e0f37ad36cd904e301fa482af2508e`. Hosted
+[CI](https://github.com/StarCried/starlite/actions/runs/38700801035) and
+[native/five-package release build](https://github.com/StarCried/starlite/actions/runs/38701298960)
+passed for this exact source. The published CLI archive contains the official
+Windows MSVC and Linux binaries, not the local GNU candidate binaries.
+
+All five public npm tarballs were downloaded anonymously and matched the exact
+CI artifacts byte-for-byte, including their lengths, SHA-256 and SHA-512 SRI.
+Every `alpha` tag points to `0.1.0-alpha.2`; `latest` remains at
+`0.1.0-alpha.1`, so installation and updates still specify `@alpha` or a version.
+
+| Package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `hexo-starlite` | 24,846 | `b6a58b9a9733164434d3bc630b278b7a08025371df365d3583352747767d93cf` |
+| `inochi2d-blog` | 1,328,547 | `a8d77c8b8fbb97bb087e0d537858745d4c66233f52a3c9c97a0638fcf448b71a` |
+| `@starcried/starlite-core` | 9,607 | `a5c9d10b1f7681298b5e6dd1789a354aaf95373e8b606adfd7bca8c527b6d244` |
+| `@starcried/starlite-inochi2d` | 234,432 | `e236ef4184bb6c47171cf36535b279aa39f502dc0a86ce954c32966cfbaf3d62` |
+| `@starcried/starlite-vrm` | 393,004 | `094b221327acdf6aa6837aa073649b20979afdd66802d73b81116ed46aa927b0` |
+
+All seven GitHub public assets were also downloaded anonymously and matched
+their reviewed digests: five tarballs, the flat `SHA256SUMS` manifest and
+`SOURCE_REVISION`. Public filenames contain no CI directory prefix. The focused
+ignored proof, including registry URLs, SRI, source and CI identities, is
+`target/release-output/0.1.0-alpha.2/registry-z2hZbT/publication-proof.json`.
+
+This verifies published artifact delivery. Actual blog installation, generation
+and deployment are separate checks and are not claimed by this record. Later
+documentation does not move the release tag or replace its program artifacts.
 
 ## 2026-10-15 alpha.2 release candidate
 

@@ -1,6 +1,6 @@
 # StarLite 当前状态
 
-更新于 2026-10-15。当前版本为 `0.1.0-alpha.2`，包含下述可选 Blink、加载恢复、点击穿透和角色配置修复。安装时显式使用 `@alpha` 或完整版本号。
+更新于 2026-10-15。[0.1.0-alpha.2 已公开发行](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.2)，五个 npm 包的 `alpha` 标签均指向本版。包含可选 Blink、加载恢复、点击穿透和角色配置修复。安装时显式使用 `@alpha` 或完整版本号；`latest` 保留在 `0.1.0-alpha.1`，不表示稳定版。
 
 [0.1.0-alpha.1 的历史发行](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)及当时五个 npm 包使用源码 `a103ca9`、运行时基线 `986443cc`。后续版本不移动该 tag 或替换原产物。
 
@@ -31,6 +31,12 @@
 2026-10-14 的运行时基线 `986443cc` 已完成完整 `npm run validate`：Rust 26 项、JavaScript 与 demo 296 项通过，7 项依赖外部真实模型的测试跳过；浏览器 11 项通过、2 项外部模型测试跳过。两种后端构建、lint、typecheck、许可、预算与五包内容检查均通过。共享运行时代码变化后，DSH 必须更新固定 revision 并重建；文档更新不改变运行时基线。自动回归不代替目标设备的视觉与性能验收。
 
 ## 公开发行与安装验收
+
+`0.1.0-alpha.2` 于 2026-10-15 08:19:02 UTC 公开为 prerelease。公开 tag、`SOURCE_REVISION` 与发行源码均为 `903fe2cab9e0f37ad36cd904e301fa482af2508e`。[托管 CI](https://github.com/StarCried/starlite/actions/runs/38700801035)及[Linux／Windows 原生与五包构建](https://github.com/StarCried/starlite/actions/runs/38701298960)均通过；正式 CLI 包使用该 CI 的 Windows MSVC／Linux 产物，而非本地 GNU 候选。
+
+已匿名下载全部五个 npm tarball，长度、SHA-256、SHA-512 SRI 与精确 CI 产物一致；五个 `alpha` 均为 `0.1.0-alpha.2`。GitHub 七项公开资产也已实际匿名下载，逐一匹配摘要，公开校验清单使用平铺文件名。逐包哈希见 [validation](validation.md)，完整证据位于 `target/release-output/0.1.0-alpha.2/registry-z2hZbT/publication-proof.json`。这些结果记录发行物交付，真实博客的安装、生成及部署验收另行记录。
+
+### 0.1.0-alpha.1 历史安装验收
 
 发行提交 `a103ca9` 的[托管 CI](https://github.com/StarCried/starlite/actions/runs/38588191042)和[原生产物／五包构建](https://github.com/StarCried/starlite/actions/runs/38588219594)均通过。随后在隔离目录从公共 registry 执行 `npm install hexo@7 hexo-starlite@alpha` 与 `npx --no-install hexo generate`，Hexo 7.3.0 和四个 StarLite 依赖安装正常，均无工作区替代；四包 registry／lock 完整性与该 CI 的 tarball SHA-512 一致。
 
