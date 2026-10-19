@@ -462,3 +462,40 @@ it('rejects a remote null profile instead of silently ignoring it',async()=>{
  const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',profile:'profile.json',mobile:{show:true}});resources.push(c);
  expect(c.status).toBe('fallback');expect(error).toHaveBeenCalledOnce();expect((error.mock.calls[0]![0] as CustomEvent).detail).toBe('invalid character profile');
 });
+
+it('changes display size and frame cap without reloading or interrupting a gesture',async()=>{
+ const c=await mount('vrm'),host=document.body.lastElementChild as HTMLElement;
+ vi.spyOn(host,'getBoundingClientRect').mockImplementation(()=>new DOMRect(0,0,Number.parseFloat(host.style.width),Number.parseFloat(host.style.height)));
+ const canvas=host.querySelector('canvas'),fetchCalls=vi.spyOn(globalThis,'fetch');
+ const playing=c.playAnimation('Action');advance(200);
+ c.setDisplaySize!(240,360);c.setFrameRate!(60);advance(200);
+ expect(host.style.width).toBe('240px');expect(host.style.height).toBe('360px');expect(host.querySelector('canvas')).toBe(canvas);
+ expect(fetchCalls).not.toHaveBeenCalled();expect((c as any).diagnostics().activeAnimation).toBe('Action');
+ c.pause();c.setDisplaySize!(260,390);expect(c.status).toBe('paused');expect(frames.size).toBe(0);
+ expect((c as any).diagnostics().framing.viewport.baseWidth).toBe(260);
+ c.resume();advance(1000);await expect(playing).resolves.toBe('completed');
+ expect(()=>c.setFrameRate!(15)).toThrow('frame rate');expect(()=>c.setDisplaySize!(NaN,100)).toThrow('display size');
+});
+
+it('keeps click and scheduled animations when dialogue visibility is off',async()=>{
+ const c=await mount('vrm',undefined,{click:{animation:'Action',lines:['Hidden click'],durationMs:100},idle:{animation:'Other',lines:['Hidden idle'],durationMs:100,intervalMinMs:500,intervalMaxMs:500}});
+ const canvas=document.querySelector('canvas')!,bubble=document.querySelector<HTMLElement>('.model-widget__bubble')!;
+ c.setBubblesVisible!(false);
+ canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));
+ expect(bubble.hidden).toBe(true);expect((c as any).diagnostics().activeAnimation).toBe('Action');
+ advance(1300);expect((c as any).diagnostics().activeAnimation).toBe('Other');expect(bubble.hidden).toBe(true);
+ c.stopAnimation();c.setBubblesVisible!(true);
+ canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:2}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:2}));
+ expect(bubble.hidden).toBe(false);expect(bubble.textContent).toBe('Hidden click');
+});
+
+it('eases head tracking back to neutral when the pointer toggle is disabled',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true}});resources.push(c);
+ vi.spyOn(host,'getBoundingClientRect').mockReturnValue(new DOMRect(100,100,320,480));
+ c.setPointerPosition(10000,-10000);advance(1000);const before=c.diagnostics().gaze!.headYawDegrees;
+ expect(Math.abs(before)).toBeGreaterThan(10);c.setPointerEnabled!(false);advance(34);
+ const after=c.diagnostics().gaze!.headYawDegrees;expect(Math.abs(after)).toBeLessThan(Math.abs(before));expect(Math.abs(after)).toBeGreaterThan(0);
+ c.setPointerPosition(-10000,10000);advance(1000);expect(c.diagnostics().gaze!.headYawDegrees).toBeCloseTo(0,2);
+ c.setPointerEnabled!(true);c.setPointerPosition(10000,-10000);advance(1000);expect(Math.abs(c.diagnostics().gaze!.headYawDegrees)).toBeGreaterThan(10);
+});

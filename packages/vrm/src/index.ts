@@ -16,6 +16,7 @@ import { prepareEmbeddedAnimations } from "./embedded.js";
 import { defaultIdleBytes } from "./default-idle.js";
 import type { CharacterProfile, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
+export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem } from "@starcried/starlite-core";
 export { validateVrmWidgetConfig } from "./config.js";
 
 export async function mountModelWidget(host: HTMLElement, config: VrmWidgetConfig, options: MountOptions = {}): Promise<VrmController> {
@@ -70,6 +71,9 @@ class Controller implements VrmController {
   #lastFrameTime: number | undefined;
   #playStartedAt: number | undefined;
   #paused = false;
+  #frameRate: number | "display";
+  #pointerEnabled: boolean;
+  #bubblesVisible = true;
   #elapsed = 0;
   #ambientSuppressed = false;
   #baseAnimation: string | undefined;
@@ -77,6 +81,7 @@ class Controller implements VrmController {
 
   constructor(host: HTMLElement, config: VrmWidgetConfig) {
     this.#host = host; this.#config = config; this.#gaze = new PointerGaze(config.gaze);
+    this.#frameRate = config.render?.fps ?? 30; this.#pointerEnabled = config.interactions?.pointer ?? true;
     this.#viewport = new ExpandedViewport(config.render?.viewportPadding);
     this.#bubble = new DialogueBubble(host);
     const d = config.dialogue;
@@ -238,7 +243,7 @@ class Controller implements VrmController {
     }
   }
   setPointerPosition(clientX: number, clientY: number): void {
-    if (!(this.#config.interactions?.pointer ?? true) || this.#status !== "running") return;
+    if (!this.#pointerEnabled || this.#status !== "running") return;
     this.#gaze.move(clientX, clientY, this.#host.getBoundingClientRect(), { width: innerWidth, height: innerHeight });
   }
   setHostPosition(x: number, y: number): void {
@@ -250,6 +255,31 @@ class Controller implements VrmController {
     if (!visible) { this.#performance?.destroy(); this.#performance = undefined; return; }
     this.#performance ??= new PerformanceOverlay(this.#host);
     this.#performance.setStatus(this.#status);
+  }
+  setDisplaySize(width: number, height: number): void {
+    if (![width, height].every(value => Number.isFinite(value) && value >= 1 && value <= 4096)) throw new Error("invalid display size");
+    const padding = this.#config.render?.viewportPadding;
+    if (width + (padding?.left ?? 0) + (padding?.right ?? 0) > 4096 || height + (padding?.top ?? 0) + (padding?.bottom ?? 0) > 4096) throw new Error("invalid padded display size");
+    if (this.#status === "destroyed" || this.#status === "disabled") return;
+    this.#host.style.width = `${width}px`; this.#host.style.height = `${height}px`;
+    this.resetCamera();
+  }
+  setFrameRate(fps: number | "display"): void {
+    if (fps !== 30 && fps !== 60 && fps !== "display") throw new Error("frame rate must be 30, 60 or display");
+    if (this.#status === "destroyed" || this.#status === "disabled" || fps === this.#frameRate) return;
+    this.#frameRate = fps; this.#lastTime = undefined; this.#frameIntervals.reset();
+  }
+  setPointerEnabled(enabled: boolean): void {
+    if (typeof enabled !== "boolean") throw new Error("pointer tracking must be boolean");
+    if (this.#status === "destroyed" || this.#status === "disabled") return;
+    this.#pointerEnabled = enabled;
+    if (!enabled) this.#gaze.reset();
+  }
+  setBubblesVisible(visible: boolean): void {
+    if (typeof visible !== "boolean") throw new Error("bubble visibility must be boolean");
+    if (this.#status === "destroyed" || this.#status === "disabled") return;
+    this.#bubblesVisible = visible;
+    if (!visible) this.#bubble.hide();
   }
   captureFrame(): string {
     if (!this.#renderer || !this.#vrm) throw new Error("model is not ready");
@@ -323,7 +353,7 @@ class Controller implements VrmController {
     if (this.#frame !== undefined || this.#status !== "running") return;
     this.#frame = requestAnimationFrame((timestamp) => {
       this.#frame = undefined;
-      const fps = this.#config.render?.fps ?? 30;
+      const fps = this.#frameRate;
       const interval = fps === "display" ? 0 : 1000 / fps;
       const elapsed = this.#lastTime === undefined ? interval : timestamp - this.#lastTime;
       if (fps === "display" || elapsed >= interval - .1) {
@@ -352,7 +382,7 @@ class Controller implements VrmController {
     this.#bubble.update(this.#elapsed * 1000);
     // Only the base Idle pose follows the pointer. Foreground gestures retain
     // their authored head/eye direction, including constant look-at tracks.
-    const authoredGaze = this.#config.interactions?.pointer === false || this.#foregroundActive();
+    const authoredGaze = this.#foregroundActive();
     this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#baseCamera, delta, authoredGaze);
     vrm.humanoid.update();
     if (vrm.lookAt && !this.#embeddedEyeClips.has(this.#player?.activeName ?? "")) {
@@ -405,7 +435,7 @@ class Controller implements VrmController {
     on(document, "visibilitychange", () => this.#sync()); on(this.#reduced, "change", () => { this.#sync(); if (this.#reduced.matches) this.#tick(0); });
     on(this.#canvas, "webglcontextlost", (event) => { event.preventDefault(); if (this.#status === "destroyed" || this.#status === "fallback") return; this.#setStatus("fallback"); this.#dispose(); this.#canvas.hidden = true; this.#fallback.hidden = false; this.#setStatus("fallback"); });
     on(window, "pointermove", (event) => {
-      if (!(this.#config.interactions?.pointer ?? true) || this.#status !== "running") return;
+      if (!this.#pointerEnabled || this.#status !== "running") return;
       const pointer = event as PointerEvent;
       if (pointer.pointerType !== "touch") this.setPointerPosition(pointer.clientX, pointer.clientY);
     }, true);
@@ -446,7 +476,7 @@ class Controller implements VrmController {
     }
   }
   #showDialogue(action: DialogueAction): void {
-    this.#bubble.show(action, this.#elapsed * 1000, this.#reduced.matches);
+    if (this.#bubblesVisible) this.#bubble.show(action, this.#elapsed * 1000, this.#reduced.matches);
     if (action.animation) void this.playAnimation(action.animation, { mode: "once", restart: true });
   }
   #setStatus(status: WidgetStatus): void { this.#status = status; this.#host.dataset.modelStatus = status; this.#performance?.setStatus(status); }

@@ -18,6 +18,10 @@ npm install @starcried/starlite-core@alpha
 
 `DialogueScheduler` 管理首次入场、偶发小动作和点击回应；`DialogueBubble` 管理纯文本、ARIA 状态提示、边缘位置、过期和清理。两个后端共用该组件与样式。气泡可由宿主独立调用，无需模型或动作；VRM 的声明式场景也可省略 `animation`，仅配置 `lines` 显示句子，不打断待机。
 
+支持热更新的后端还可提供 `setDisplaySize(width, height)`、`setFrameRate(30 | 60 | "display")`、`setPointerEnabled(boolean)`、`setBubblesVisible(boolean)` 与 `setPerformanceVisible(boolean)`。这些操作不替换模型或重播动作；隐藏气泡只影响文字显示。
+
+`QuickSettingsMenu` 是宿主共用的轻量 DOM 设置卡片。宿主提供标签页、开关、范围、选项与动作回调，并负责实际模型命中检测和偏好持久化；`open(x, y)` 使用视口坐标，`update(options)` 保留当前标签页与控件，`close()` / `destroy()` 清理可见和交互状态。通过 `element` 与 `starlite-menu-change` 事件可同步原生窗口交互区域。
+
 ## 语句与动作绑定
 
 ```ts

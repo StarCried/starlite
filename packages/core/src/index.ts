@@ -19,6 +19,14 @@ export interface ModelController {
   setHostPosition?(x: number, y: number): void;
   /** Toggle local model metrics without remounting; disabled by default. */
   setPerformanceVisible?(visible: boolean): void;
+  /** Resize the logical portrait in CSS pixels without resetting playback. */
+  setDisplaySize?(width: number, height: number): void;
+  /** Change the rendering cap without remounting or advancing hidden time. */
+  setFrameRate?(fps: number | "display"): void;
+  /** Toggle pointer tracking; disabling eases the gaze back to neutral. */
+  setPointerEnabled?(enabled: boolean): void;
+  /** Hide dialogue text independently of its scheduled animations. */
+  setBubblesVisible?(visible: boolean): void;
   destroy(): void;
 }
 export interface MountOptions { signal?: AbortSignal }
@@ -105,3 +113,5 @@ export { DialogueScheduler, resolveDialogueSentences, type DialogueAction, type 
 export { DialogueBubble } from "./bubble.js";
 export { observePassThroughClicks } from "./pass-through.js";
 export { PerformanceOverlay, FrameSamples, validatePerformanceConfig, type PerformanceConfig, type PerformanceFrameDetails } from "./performance.js";
+
+export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem, type QuickSettingCallback } from "./quick-settings.js";

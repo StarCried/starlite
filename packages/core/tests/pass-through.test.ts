@@ -57,3 +57,13 @@ it("cancels on scrolling or blur and unbinds idempotently on destroy", () => {
   f.pointer("pointerdown"); f.pointer("pointerup"); const click = f.click();
   expect(f.react).not.toHaveBeenCalled(); expect(click.defaultPrevented).toBe(false);
 });
+it("ignores companion settings and restore controls placed over the model", () => {
+  const f = fixture();
+  for (const marker of ["data-starlite-quick-settings", "data-starlite-widget-restore"]) {
+    const control = document.createElement("section"); control.setAttribute(marker, ""); document.body.append(control); control.append(f.link);
+    f.pointer("pointerdown"); f.pointer("pointerup"); const click = f.click();
+    expect(click.defaultPrevented).toBe(false); expect(f.react).not.toHaveBeenCalled();
+    document.body.append(f.link); control.remove();
+  }
+  f.pointer("pointerdown"); f.pointer("pointerup"); f.click(); expect(f.react).toHaveBeenCalledOnce();
+});

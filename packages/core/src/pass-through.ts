@@ -5,6 +5,8 @@ export function observePassThroughClicks(surface: HTMLElement, onClick: () => vo
   let down: Gesture | undefined;
   let ready: Gesture | undefined;
   const inside = (event: MouseEvent): boolean => {
+    // Local companion controls are not clicks on the model beneath them.
+    if (event.composedPath().some(target => target instanceof Element && target.matches("[data-starlite-quick-settings],[data-starlite-widget-restore]"))) return false;
     const rect = surface.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0
       && event.clientX >= rect.left && event.clientX < rect.right
