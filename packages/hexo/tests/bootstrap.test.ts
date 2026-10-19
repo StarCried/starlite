@@ -51,6 +51,18 @@ it("reattaches a ready instance synchronously rather than waiting for idle after
  expect(host.isConnected).toBe(true);expect(h.idle).toHaveLength(0);expect(h.mount).toHaveBeenCalledOnce();
  await h.win.happyDOM.close();
 });
+
+it("reattaches the same quick settings after PJAX and removes them before the mobile guard",async()=>{
+ const h=harness();await h.run();
+ const state=(h.win as any).__hexoStarLiteWidgetState;
+ const quickSettings={reattach:vi.fn(),destroy:vi.fn()};state.quickSettings=quickSettings;
+ h.win.document.dispatchEvent(new h.win.Event("pjax:complete"));
+ expect(quickSettings.reattach).toHaveBeenCalledOnce();expect(h.mount).toHaveBeenCalledOnce();
+ h.media.matches=true;h.media.addEventListener.mock.calls[0]![1]();await h.run();
+ expect(quickSettings.destroy).toHaveBeenCalledOnce();expect(state.quickSettings).toBeUndefined();
+ expect(h.load).toHaveBeenCalledOnce();expect(h.win.document.querySelectorAll("[data-starlite-widget-host]")).toHaveLength(0);
+ await h.win.happyDOM.close();
+});
 it("hides import failures without intercepting page clicks and restores a successful retry",async()=>{
  const h=harness(false,"complete",false,true);h.load.mockRejectedValueOnce(new Error("offline"));await h.run();
  const failed=h.win.document.querySelector("[data-starlite-widget-host]") as HTMLElement;

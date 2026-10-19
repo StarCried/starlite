@@ -133,6 +133,7 @@ export function registerHexoWidget(instance: HexoLike): void {
       config: currentConfig.widget,
       breakpoint: currentConfig.breakpoint,
       showOnMobile: currentConfig.showOnMobile,
+      position: currentConfig.position,
     });
 
     return [

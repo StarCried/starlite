@@ -24,6 +24,8 @@ starlite:
   enable: false
 ```
 
+右键角色可调整大小、帧率、跟随、气泡和暂停，或恢复默认位置。设置仅保存在当前访客的浏览器，不改博客配置；关闭气泡仍会触发动作。临时隐藏后可点右下角「显示角色」恢复，按住 Shift 右键可使用浏览器菜单。
+
 ## 让 Agent 帮你
 
 在博客目录打开能操作本机的 Agent，复制下文，让它按[安装指南](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md)完成安装和预览：

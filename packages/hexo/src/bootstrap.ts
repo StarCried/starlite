@@ -1,10 +1,12 @@
 import type { BrowserWidgetConfig } from "./types";
+import { installVisitorMenu } from "./visitor-menu";
 
 interface BootstrapOptions {
   entryUrl: string;
   config: BrowserWidgetConfig;
   breakpoint: number;
   showOnMobile: boolean;
+  position?: { right: number; bottom: number; zIndex: number };
 }
 
 /** Build a self-contained browser module with a mobile guard before import(). */
@@ -12,6 +14,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   const serialized = safeJson(options);
   return `
 (async (options) => {
+  const installQuickSettings = ${installVisitorMenu.toString()};
   const mobileQuery = \`(max-width: \${Math.max(0, options.breakpoint - 1)}px)\`;
   const stateKey = "__hexoStarLiteWidgetState";
   const state = (globalThis[stateKey] ??= {});
@@ -68,6 +71,8 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       state.observer = undefined;
       state.abort?.abort();
       state.controller?.destroy();
+      state.quickSettings?.destroy();
+      state.quickSettings = undefined;
       state.controller = undefined;
       state.host = undefined;
       state.mountHost = undefined;
@@ -88,7 +93,10 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       if (duplicate !== host) duplicate.remove();
     }
 
-    if (state.controller && state.host === host && host.isConnected) return;
+    if (state.controller && state.host === host && host.isConnected) {
+      state.quickSettings?.reattach();
+      return;
+    }
     if (state.mounting && state.mountHost === host) return state.mounting;
     state.host = host;
     unavailable(host);
@@ -101,6 +109,8 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     const abort = new AbortController();
     state.abort = abort;
     state.controller?.destroy();
+    state.quickSettings?.destroy();
+    state.quickSettings = undefined;
     state.controller = undefined;
     state.host = host;
     state.mountHost = host;
@@ -112,6 +122,8 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       unavailable(host);
       abort.abort();
       state.controller?.destroy();
+      state.quickSettings?.destroy();
+      state.quickSettings = undefined;
       state.controller = undefined;
       state.mounting = undefined;
       state.mountHost = undefined;
@@ -157,6 +169,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
           host.style.removeProperty("visibility");
           host.style.removeProperty("pointer-events");
           if (options.config.interactions?.passThrough) host.style.pointerEvents = "none";
+          installQuickSettings(runtime, state, options);
           rememberEntry();
         }
       })
