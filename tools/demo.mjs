@@ -101,7 +101,7 @@ async function generateSite(site, assets, prepared) {
     ]);
     await hexo.call('generate');
     const index = join(hexo.public_dir, 'index.html'); const html = await readFile(index, 'utf8');
-    if (!html.includes('<div data-starlite-widget-host')) await writeFile(index, hexo.extend.injector.exec(html));
+    if (!html.includes('<div data-starlite-widget-host')) await writeFile(index, await hexo.execFilter('_after_html_render', html, {context: hexo, args: [{}]}));
     return hexo.public_dir;
   } finally { delete process.env.STARLITE_LOCAL_PREVIEW_TOKEN; await hexo.exit(); }
 }
