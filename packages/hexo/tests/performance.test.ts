@@ -10,5 +10,9 @@ for (const backend of ["inochi2d", "vrm"] as const) {
     expect(readEnabledConfig(hexo)?.widget.performance).toEqual({show:true});
     hexo.config.starlite!.performance = {show:false};
     expect(readEnabledConfig(hexo)?.widget.performance).toEqual({show:false});
+    for (const invalid of [null, false, 0]) {
+      hexo.config.starlite!.performance = invalid as never;
+      expect(() => readEnabledConfig(hexo)).toThrow("performance must be an object");
+    }
   });
 }

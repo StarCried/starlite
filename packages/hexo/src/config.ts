@@ -61,7 +61,7 @@ export function readEnabledConfig(
       ...(input.display ? {display:input.display} : {}), ...(input.mobile ? {mobile:input.mobile} : {}),
       ...(input.gaze ? {gaze:input.gaze} : {}),
       ...(input.camera ? {camera:input.camera} : {}),
-      ...(input.performance ? {performance:input.performance} : {}),
+      ...(input.performance !== undefined ? {performance:input.performance} : {}),
       render:{fps:30,maxDevicePixelRatio:1.5,autoFit:true,...input.render},
       ...(input.network ? {network:input.network} : {}),
       ...(input.ambient ? {ambient:input.ambient} : {}), ...(input.dialogue ? {dialogue:input.dialogue} : {}),
@@ -168,7 +168,7 @@ function toWidgetConfig(
     ...artifactUrls,
     ...(input.network ? { network: input.network } : {}),
     ...(input.display ? { display: input.display } : {}),
-    ...(input.performance ? { performance: input.performance } : {}),
+    ...(input.performance !== undefined ? { performance: input.performance } : {}),
     ...(render ? { render } : {}),
     ...(input.mobile ? { mobile: input.mobile } : {}),
     ...(bundleAnimations || input.animations
