@@ -25,11 +25,14 @@
     "pack:release-check": "npm run check:licenses && INOCHI2D_RELEASE_PACK=1 node tools/verify-package-contents.mjs",
     "stage:native": "node tools/stage-native-pipeline.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present && npm run test:demo",
+    "test": "npm run test --workspaces --if-present && npm run test:demo && npm run test:budgets && npm run test:dependency-audit",
+    "test:budgets": "node --test tools/verify-runtime-budget.test.mjs tools/verify-performance-report.test.mjs",
     "test:browser": "npm run test:browser --workspace @starcried/starlite-vanilla-example",
     "validate": "npm run check:rust && npm run build && npm run lint && npm run typecheck && npm run check:runtime-budget && npm run check:licenses && npm run test && npm run pack:check",
     "demo": "node tools/demo.mjs",
-    "test:demo": "node --test tools/demo.test.mjs"
+    "test:demo": "node --test tools/demo.test.mjs",
+    "check:dependencies": "node tools/check-dependency-audit.mjs",
+    "test:dependency-audit": "node --test tools/check-dependency-audit.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",

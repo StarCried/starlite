@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "packageManager": "npm",
+  "cargoLockfile": "Cargo.lock",
+  "cargoManifest": "Cargo.toml",
+  "javascript": {
+    "affectedPackages": {
+      "braces": {
+        "version": "3.0.3",
+        "severity": "high",
+        "nodes": [
+          "node_modules/braces"
+        ],
+        "advisories": [
+          "GHSA-vfj7-8cjw-p6xm"
+        ]
+      },
+      "chokidar": {
+        "version": "3.6.0",
+        "severity": "high",
+        "nodes": [
+          "node_modules/chokidar"
+        ],
+        "advisories": [
+          "GHSA-vfj7-8cjw-p6xm"
+        ]
+      },
+      "hexo": {
+        "version": "7.3.0",
+        "severity": "high",
+        "nodes": [
+          "node_modules/hexo"
+        ],
+        "advisories": [
+          "GHSA-hp3w-g68c-fv3c",
+          "GHSA-vfj7-8cjw-p6xm"
+        ]
+      },
+      "hexo-cli": {
+        "version": "4.3.2",
+        "severity": "high",
+        "nodes": [
+          "node_modules/hexo-cli"
+        ],
+        "advisories": [
+          "GHSA-vfj7-8cjw-p6xm"
+        ]
+      },
+      "hexo-fs": {
+        "version": "4.1.3",
+        "severity": "high",
+        "nodes": [
+          "node_modules/hexo-fs"
+        ],
+        "advisories": [
+          "GHSA-vfj7-8cjw-p6xm"
+        ]
+      },
+      "hexo-i18n": {
+        "version": "2.0.0",
+        "severity": "moderate",
+        "nodes": [
+          "node_modules/hexo-i18n"
+        ],
+        "advisories": [
+          "GHSA-hp3w-g68c-fv3c"
+        ]
+      },
+      "micromatch": {
+        "version": "4.0.8",
+        "severity": "high",
+        "nodes": [
+          "node_modules/micromatch"
+        ],
+        "advisories": [
+          "GHSA-vfj7-8cjw-p6xm"
+        ]
+      },
+      "nunjucks": {
+        "version": "3.2.4",
+        "severity": "high",
+        "nodes": [
+          "node_modules/nunjucks"
+        ],
+        "advisories": [
+          "GHSA-vfj7-8cjw-p6xm"
+        ]
+      },
+      "sprintf-js": {
+        "version": "1.1.3",
+        "severity": "moderate",
+        "nodes": [
+          "node_modules/sprintf-js"
+        ],
+        "advisories": [
+          "GHSA-hp3w-g68c-fv3c"
+        ]
+      }
+    },
+    "advisories": {
+      "GHSA-vfj7-8cjw-p6xm": {
+        "range": "<=3.0.3",
+        "severity": "high",
+        "package": "braces",
+        "reason": "Unpatched upstream stack exhaustion in trusted local Hexo 7.3.0 pattern processing; no StarLite browser runtime dependency. Only the exact reviewed Hexo dependency versions and paths below are allowed.",
+        "reviewBy": "2026-11-18"
+      },
+      "GHSA-hp3w-g68c-fv3c": {
+        "range": "<=1.1.3",
+        "severity": "moderate",
+        "package": "sprintf-js",
+        "reason": "Unpatched upstream formatting denial of service via hexo-i18n in trusted local Hexo builds; no StarLite browser runtime dependency. User-authored themes and translations remain trusted input.",
+        "reviewBy": "2026-11-18"
+      }
+    }
+  },
+  "rust": {
+    "warnings": []
+  }
+}
