@@ -42,6 +42,9 @@ function longSample() {
   return { performance, cycles: Array.from({ length: 20 }, (_, i) => ({ cycle: i + 1,
     postGcHeap: 5000000, after: { live: 0, domCanvases: 0, lost: i + 1, contexts: i + 1 } })),
   finalWebgl: { live: 0, domCanvases: 0, lost: 21, contexts: 21 },
+  emptyProcess: { processes: 8, privateBytes: 270 * 1024 ** 2, gpuDedicatedBytes: 35 * 1024 ** 2, gpuSharedBytes: 3 * 1024 ** 2, cpuMs: 100 },
+  afterDestroyedProcess: { processes: 8, privateBytes: 660 * 1024 ** 2, gpuDedicatedBytes: 170 * 1024 ** 2, gpuSharedBytes: 32 * 1024 ** 2, cpuMs: 200 },
+  finalProcess: { processes: 8, privateBytes: 650 * 1024 ** 2, gpuDedicatedBytes: 150 * 1024 ** 2, gpuSharedBytes: 5 * 1024 ** 2, cpuMs: 10000 },
   samples: Array.from({ length: 30 }, (_, i) => ({ elapsedMs: (i + 1) * 30000,
     process: { processes: 8, privateBytes: 650 * 1024 ** 2, gpuDedicatedBytes: 150 * 1024 ** 2, gpuSharedBytes: 5 * 1024 ** 2, cpuMs: (i + 1) * 300 } })),
   loadProcessSamples: Array.from({ length: 40 }, () => ({ privateBytes: 700 * 1024 ** 2 })) };
@@ -50,12 +53,24 @@ test("whole-process long-run gate requires actual CPU/RAM/GPU counters and enfor
   assert.equal(verifyLongRun(longSample(), budget).passed, true);
   const absent = longSample(); delete absent.samples[10].process.gpuDedicatedBytes;
   assert.throws(() => verifyLongRun(absent, budget), /Missing measured/);
+  const absentPhase = longSample(); delete absentPhase.afterDestroyedProcess;
+  assert.throws(() => verifyLongRun(absentPhase, budget), /Missing measured/);
   const leakedContext = longSample(); leakedContext.cycles[19].after.live = 1;
   assert.throws(() => verifyLongRun(leakedContext, budget), /20 measured/);
+  const missingCycleCount = longSample(); delete missingCycleCount.cycles[19].after.lost;
+  assert.throws(() => verifyLongRun(missingCycleCount, budget), /20 measured/);
+  const invalidCycleCount = longSample(); invalidCycleCount.cycles[19].after.contexts = Number.NaN;
+  assert.throws(() => verifyLongRun(invalidCycleCount, budget), /20 measured/);
+  const invalidCycleOrder = longSample(); invalidCycleOrder.cycles[19].cycle = 0;
+  assert.throws(() => verifyLongRun(invalidCycleOrder, budget), /20 measured/);
+  const invalidFinalCount = longSample(); invalidFinalCount.finalWebgl.lost = Number.NaN;
+  assert.throws(() => verifyLongRun(invalidFinalCount, budget), /20 measured/);
   const growth = longSample(); growth.samples.at(-1).process.privateBytes += 65 * 1024 ** 2;
   assert.throws(() => verifyLongRun(growth, budget), /growth/);
   const peak = longSample(); peak.loadProcessSamples[0].privateBytes = 2 * 1024 ** 3;
   assert.throws(() => verifyLongRun(peak, budget), /ceiling/);
+  const gpuCyclePeak = longSample(); gpuCyclePeak.afterDestroyedProcess.gpuDedicatedBytes = 300 * 1024 ** 2;
+  assert.throws(() => verifyLongRun(gpuCyclePeak, budget), /ceiling/);
   const cpu = longSample(); cpu.samples.at(-1).process.cpuMs += 300000;
   assert.throws(() => verifyLongRun(cpu, budget), /CPU budget/);
 });

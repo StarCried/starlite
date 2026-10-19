@@ -60,11 +60,15 @@ export function verifyLongRun(report, budget) {
     || !performance.context.browser.startsWith(p.browserPrefix)) throw new Error("Long-run budget requires its qualified model/browser/GPU profile");
   if (!(performance.durationMs >= p.minimumDurationMs) || !Array.isArray(report.samples) || report.samples.length < p.minimumSamples) throw new Error("Long-run process measurement is incomplete");
   if (!Array.isArray(report.cycles) || report.cycles.length < 20 || !performance.resourceCycles
-    || report.cycles.some(cycle => !cycle.after || cycle.after.live !== 0 || cycle.after.domCanvases !== 0
+    || report.cycles.some((cycle, index) => !Number.isSafeInteger(cycle.cycle) || cycle.cycle !== index + 1
+      || !cycle.after || cycle.after.live !== 0 || cycle.after.domCanvases !== 0
+      || !Number.isSafeInteger(cycle.after.lost) || !Number.isSafeInteger(cycle.after.contexts)
       || cycle.after.lost !== cycle.after.contexts || cycle.after.lost < cycle.cycle
       || !Number.isFinite(cycle.postGcHeap) || cycle.postGcHeap <= 0)
     || report.finalWebgl?.live !== 0 || report.finalWebgl?.domCanvases !== 0
-    || report.finalWebgl?.lost !== report.finalWebgl?.contexts) throw new Error("Long-run requires 20 measured mount/destroy cycles and released final WebGL context");
+    || !Number.isSafeInteger(report.finalWebgl?.lost) || !Number.isSafeInteger(report.finalWebgl?.contexts)
+    || report.finalWebgl.lost <= report.cycles.length
+    || report.finalWebgl.lost !== report.finalWebgl.contexts) throw new Error("Long-run requires 20 measured mount/destroy cycles and released final WebGL context");
   if (report.cycles.at(-1).postGcHeap - report.cycles[0].postGcHeap > p.postGcHeapGrowthBytesMax) throw new Error("Post-destroy heap growth exceeded budget across model cycles");
   const samples = report.samples;
   if (!(samples[0].elapsedMs >= 30000) || samples[0].elapsedMs > p.maximumSampleGapMs
@@ -74,7 +78,8 @@ export function verifyLongRun(report, budget) {
       || samples[i].elapsedMs - samples[i - 1].elapsedMs > p.maximumSampleGapMs))) throw new Error("Invalid or sparse long-run sample timeline");
   }
   const processes = samples.map(sample => sample.process);
-  for (const process of processes) {
+  const absoluteProcesses = [...processes, report.emptyProcess, report.afterDestroyedProcess, report.finalProcess];
+  for (const process of absoluteProcesses) {
     if (!process || process.error || !Number.isSafeInteger(process.processes) || process.processes < 1
       || !Number.isFinite(process.privateBytes) || process.privateBytes <= 0
       || !Number.isFinite(process.gpuDedicatedBytes) || process.gpuDedicatedBytes <= 0
@@ -83,9 +88,9 @@ export function verifyLongRun(report, budget) {
   }
   if (!Array.isArray(report.loadProcessSamples) || report.loadProcessSamples.length < 20
     || report.loadProcessSamples.some(sample => !Number.isFinite(sample.privateBytes) || sample.privateBytes <= 0)) throw new Error("Missing sampled process memory during model load/cycles");
-  const sampledPrivatePeak = Math.max(...processes.map(sample => sample.privateBytes), ...report.loadProcessSamples.map(sample => sample.privateBytes));
-  const dedicatedPeak = Math.max(...processes.map(sample => sample.gpuDedicatedBytes));
-  const sharedPeak = Math.max(...processes.map(sample => sample.gpuSharedBytes));
+  const sampledPrivatePeak = Math.max(...absoluteProcesses.map(sample => sample.privateBytes), ...report.loadProcessSamples.map(sample => sample.privateBytes));
+  const dedicatedPeak = Math.max(...absoluteProcesses.map(sample => sample.gpuDedicatedBytes));
+  const sharedPeak = Math.max(...absoluteProcesses.map(sample => sample.gpuSharedBytes));
   if (sampledPrivatePeak > p.privateBytesMax || dedicatedPeak > p.gpuDedicatedBytesMax || sharedPeak > p.gpuSharedBytesMax) throw new Error("Measured owned-browser memory ceiling exceeded");
   const first = processes[0], last = processes.at(-1);
   const privateGrowth = Math.max(...processes.map(sample => sample.privateBytes)) - first.privateBytes;

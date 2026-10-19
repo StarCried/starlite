@@ -174,9 +174,41 @@ The same Weiguang scene at a 60 FPS cap was measured separately: **60.04 FPS**,
 `physical60`. It renders approximately twice as many frames; these numbers do
 not establish equal idle GPU power at 30 and 60 FPS.
 
+The 30 FPS scene then completed **923.9 seconds / 27,717 rendered frames** after
+20 mount/destroy cycles: 30.00 FPS, 35.1 ms frame p95 and 0.5 ms update/submission
+p95. Each old context was actually lost and its canvas removed; after final
+destroy all 21 contexts were lost and no canvas remained. Renderer counts stayed
+at 6 geometries / 8 textures while loaded. The `ownedBrowserWeiguang` gate passed.
+
+| Measured cost in that isolated browser | Result |
+| --- | ---: |
+| Empty browser process-tree private memory | 264.8 MiB |
+| Sampled private-memory peak during load/cycles/idle | 800.2 MiB |
+| Private memory at first 30-second idle sample → final idle sample | 656.2 → 642.2 MiB |
+| Largest sampled dedicated / shared GPU allocation, including post-cycle phase | 162.3 / 32.3 MiB |
+| Idle post-GC JS heap, start → end | 7.41 → 8.02 MiB |
+| Average owned-process CPU time over idle | 2.37% of one logical CPU core |
+
+Private memory fell rather than showing ongoing growth after the first idle
+sample; post-GC idle heap grew by 0.61 MiB. The 20-cycle post-destroy heap grew
+from 4.57 to 5.79 MiB. This bounded run found no continuing context/canvas/resource
+accumulation; it does not prove zero memory overhead or zero possible leaks.
+The browser still retained approximately 620 MiB of private committed memory
+after the last model was destroyed. GPU/driver and browser caches do not
+immediately return to the empty-browser baseline. GPU counters were sampled,
+so no continuous peak-power or GPU-utilization claim is made.
+
+An existing original-resolution Weiguang desktop derivative (three 2048²
+textures instead of 1024², 10,907,568 B) also passed the 30 FPS fixed-scene gate:
+29.97 FPS, 35.0 ms frame p95 and 0.6 ms update/submission p95. It contains 14
+desktop actions rather than the blog model's 13, so these are two qualified
+author derivatives, **not a controlled texture-only A/B**. No source model or
+texture was modified for this check.
+
 Ignored raw evidence is in `target/maturity-validation/`: the per-model
-`*-physical-candidate.json` files, `performance-gate-results.json`, runtime-size
-report and screenshots. The observer-instrumented feature tests are separate
+`*-physical-candidate.json` files, `performance-gate-results.json`,
+`long-run-complete.json`, `long-run-gate-results.json`, runtime-size report and
+screenshots. The observer-instrumented feature tests are separate
 from these performance runs, which load the real production bundle.
 
 ## Practical tuning
