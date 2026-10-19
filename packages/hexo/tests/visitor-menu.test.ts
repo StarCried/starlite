@@ -8,6 +8,7 @@ function harness(config: any = {}, storage?: string) {
   const host = win.document.createElement("div"); win.document.body.append(host);
   let maskListener: ((value: any) => void) | undefined;
   const controller = {
+    status: "running",
     setDisplaySize: vi.fn(), setFrameRate: vi.fn(), setPointerEnabled: vi.fn(),
     setBubblesVisible: vi.fn(), setPerformanceVisible: vi.fn(), pause: vi.fn(), resume: vi.fn(),
     refreshInteractionMask: vi.fn(),
@@ -85,4 +86,12 @@ it("reattaches one menu after PJAX and cleans up on controller replacement", asy
   h.state.quickSettings.destroy(); expect(h.menu.destroy).toHaveBeenCalledOnce(); expect(h.controller.observeInteractionMask).toHaveBeenLastCalledWith();
   expect(h.menu.element.isConnected).toBe(false); expect(h.state.quickSettings.recovery.isConnected).toBe(false);
   await h.win.happyDOM.close();
+});
+
+it("refreshes the paused opaque target when the viewport moves a fixed host", async () => {
+  const h = harness(); h.controller.status = "paused";
+  h.win.dispatchEvent(new h.win.Event("resize")); expect(h.controller.refreshInteractionMask).toHaveBeenCalledOnce();
+  h.state.quickSettings.reattach(); expect(h.controller.refreshInteractionMask).toHaveBeenCalledTimes(2);
+  h.state.quickSettings.destroy(); h.win.dispatchEvent(new h.win.Event("resize"));
+  expect(h.controller.refreshInteractionMask).toHaveBeenCalledTimes(2); await h.win.happyDOM.close();
 });

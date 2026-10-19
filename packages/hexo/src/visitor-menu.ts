@@ -93,6 +93,7 @@ export function installVisitorMenu(runtime: any, state: any, options: {
       host.style.removeProperty("pointer-events");
       if (config.interactions?.passThrough) host.style.pointerEvents = "none";
       if (!paused) controller.resume();
+      else controller.refreshInteractionMask?.();
     }
   };
   recovery.addEventListener("click", () => setHidden(false));
@@ -139,12 +140,16 @@ export function installVisitorMenu(runtime: any, state: any, options: {
     if (event.shiftKey || menu.element.contains(event.target as Node) || !hit(event)) return;
     event.preventDefault(); event.stopPropagation(); menu.open(event.clientX, event.clientY);
   };
+  const refreshPausedMask = () => {
+    if (!hidden && controller.status === "paused") controller.refreshInteractionMask?.();
+  };
   document.addEventListener("contextmenu", contextmenu, true);
+  globalThis.addEventListener("resize", refreshPausedMask);
   controller.observeInteractionMask?.((value: any) => { mask = value; });
   apply();
   state.quickSettings = {
     menu, recovery,
-    reattach() { if (!menu.element.isConnected) document.body.append(menu.element); if (!recovery.isConnected) document.body.append(recovery); },
-    destroy() { document.removeEventListener("contextmenu", contextmenu, true); controller.observeInteractionMask?.(); menu.destroy(); recovery.remove(); mask = undefined; },
+    reattach() { if (!menu.element.isConnected) document.body.append(menu.element); if (!recovery.isConnected) document.body.append(recovery); refreshPausedMask(); },
+    destroy() { document.removeEventListener("contextmenu", contextmenu, true); globalThis.removeEventListener("resize", refreshPausedMask); controller.observeInteractionMask?.(); menu.destroy(); recovery.remove(); mask = undefined; },
   };
 }
