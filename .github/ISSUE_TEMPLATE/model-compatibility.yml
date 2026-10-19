@@ -1,0 +1,25 @@
+name: 模型兼容性
+description: VRM 骨骼、眨眼、视线、物理或动作问题
+title: "[Model]: "
+body:
+  - type: markdown
+    attributes:
+      value: 无需提交模型。请勿上传私有或无再分发许可的模型、贴图、动作及 Blender 工程。
+  - type: input
+    id: version
+    attributes:
+      label: StarLite、浏览器、VRM 格式与导出器版本
+      description: 不知道导出器时写未知，不推测。
+    validations:
+      required: true
+  - type: textarea
+    id: symptoms
+    attributes:
+      label: 具体提示、复现和原软件表现
+      description: 说明是否配置标准 Blink / lookAt、是否有内嵌动作；去除错误里的本机路径和私人信息。
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: 可公开的合成示例或模型链接及许可（可选）

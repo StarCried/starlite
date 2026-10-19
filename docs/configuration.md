@@ -71,6 +71,7 @@ starlite:
 | `display.width / height` | CSS 画布尺寸；VRM 默认 320 × 480。 |
 | `render.fps` | 默认 30，可选 60；`display` 跟随刷新率，GPU 成本可能增加。 |
 | `render.maxDevicePixelRatio` | 默认 1.5，范围 1–1.5；博客可先用 1，保持抗锯齿。 |
+| `performance.show` | 默认 false；true 时在角色左下角显示实际 FPS、帧间隔 p95 与 CPU 侧帧耗时 p95，点击仍穿透。CPU 耗时包含模型更新和 WebGL 提交，不是 GPU 时间或 CPU 占用率。 |
 | `camera` | `yawDegrees`、`pitchDegrees`、`fovDegrees`、`targetHeight`。 |
 | `gaze` | 默认最大水平 25°、垂直 15°，平滑 100 ms；动作接管视线时暂停光标覆盖。 |
 | `mobile` | 默认 `show: false`、`breakpoint: 768`，在运行时导入前判断。 |

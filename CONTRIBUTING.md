@@ -27,7 +27,9 @@ git diff --check
 
 When a redistributable local puppet is available, also set
 `INOCHI2D_TEST_MODEL_PATH` and run the browser tests. Windows Chrome and Edge on
-the real Hexo worktree remain a release gate.
+an isolated Hexo site remain a release gate. Do not overwrite a user's real
+blog or private model. See [model compatibility](docs/model-compatibility.md),
+[performance budgets](docs/performance.md) and [dependency auditing](docs/dependency-audit.md).
 
 ## Upstream work
 

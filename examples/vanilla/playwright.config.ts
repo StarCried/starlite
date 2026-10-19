@@ -5,6 +5,7 @@ export default defineConfig({
   timeout: 30_000,
   use: {
     browserName: "chromium",
+    channel: process.env.STARLITE_BROWSER_CHANNEL as "chrome" | "msedge" | undefined,
     trace: "retain-on-failure",
   },
   webServer: [

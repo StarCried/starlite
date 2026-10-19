@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 安装与配置
+    url: https://github.com/StarCried/starlite/blob/main/packages/hexo/README.md
+    about: 默认微光、自定义模型和气泡配置

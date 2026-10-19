@@ -535,3 +535,13 @@ visual review because identical semantic parameter names do not guarantee
 identical deformation strength. The acceptance preview was then stopped; its
 one-run directory was removed and the pre-existing test-blog `public` output
 remained byte-identical.
+## 2026-10-19 VRM qualification
+
+The current VRM0/VRM1 matrix uses three-vrm-girl (© pixiv Inc.), Seed-san
+(© VirtualCast, Inc.) and Constraint Twist (© 2022 pixiv Inc.) as ignored local
+test inputs, plus separately licensed Weiguang (© StarCried). Exact model
+SHA-256 values, primary license sources and required attribution are recorded in
+[model compatibility](model-compatibility.md). No third-party avatar is tracked,
+included in npm packages or uploaded by these checks. The new fixed-scene
+hardware measurements and their limits are in [performance](performance.md).
+

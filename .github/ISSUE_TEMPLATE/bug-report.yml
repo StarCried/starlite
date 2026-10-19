@@ -1,0 +1,28 @@
+name: 使用问题
+description: 安装、气泡、交互或性能问题
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: 请勿上传 API Key、完整博客配置、凭据、私有模型或原始日志。安全问题先按 SECURITY.md 请求私密联系方式。
+  - type: input
+    id: version
+    attributes:
+      label: StarLite / Hexo / Node.js 实际版本
+      description: 说明 npm 公开版或本地候选，不要只写 latest。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 设备和浏览器
+      description: 系统、Chrome/Edge 版本；性能问题另写显卡、画布尺寸、DPR、目标 FPS 和浮层数据，说明是否硬件加速。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤、预期与实际效果
+      description: 使用最小配置片段；截图或短视频去除私人信息。注明持续还是偶发，以及默认微光还是自己的模型。
+    validations:
+      required: true

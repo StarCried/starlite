@@ -39,6 +39,13 @@ const controller = await mountModelWidget(host, {
 
 ## 进阶
 
+本地候选增加 `performance: {show: true}`（默认关闭），也可用
+`controller.setPerformanceVisible?.(true)` 即时切换。含义和测量边界见
+[性能预算](https://github.com/StarCried/starlite/blob/main/docs/performance.md)。
+Node 侧 `@starcried/starlite-vrm/inspect` 返回 `capabilities` 与逻辑 `metrics`；
+`VrmInspectionError.code/details` 提供受控原因及缺失骨骼名，不回显模型路径或外部 URI。
+见[兼容说明](https://github.com/StarCried/starlite/blob/main/docs/model-compatibility.md)。
+
 [动作、句库、相机与性能配置](https://github.com/StarCried/starlite/blob/main/docs/configuration.md) · [构建博客资源](https://github.com/StarCried/starlite/blob/main/docs/examples/prepare-vrm.cjs) · [Hexo 插件](https://github.com/StarCried/starlite/blob/main/packages/hexo/README.md) · [开发与验证](https://github.com/StarCried/starlite/blob/main/docs/development.md)
 
 配置 CSP 的网站须为模型内嵌贴图允许适用的 `img-src blob:` 和 `connect-src blob:`。独立网页若要在手机上避免加载运行时，须在检查屏宽后动态导入；上例的静态导入会下载 JS。

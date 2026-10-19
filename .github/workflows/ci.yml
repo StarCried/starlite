@@ -60,3 +60,44 @@ jobs:
       - run: npm run validate
       - run: npm run test:browser
       - run: git diff --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-runtimes
+          path: |
+            packages/core/dist
+            packages/inochi2d/dist
+            packages/vrm/dist
+            packages/hexo/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  windows-browser:
+    needs: validate
+    runs-on: windows-2025
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [chrome, msedge]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: browser-runtimes
+          path: packages
+      - run: npm run test:browser
+        env:
+          STARLITE_BROWSER_CHANNEL: ${{ matrix.channel }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: windows-${{ matrix.channel }}-traces
+          path: examples/vanilla/test-results
+          retention-days: 7

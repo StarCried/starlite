@@ -4,6 +4,9 @@
 starlite:
   render:
     fps: 30
+  # 临时检查实际 FPS 与帧耗时；正常阅读建议关闭，默认 false。
+  performance:
+    show: false
   position:
     right: 48
     bottom: 32
