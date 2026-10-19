@@ -35,11 +35,16 @@ fatal and no later Hexo generation or deploy command runs.
 
 ## Model files
 
-VRM, VRMA and Creator exports are untrusted input. Inspectors bound file size,
-texture count and dimensions, node depth and count, parameter count, and decode
-allocations. Keep the pipeline and browser runtime updated together; bypassing
-inspection or publishing a model directly removes those guarantees. VRM files
-must contain their buffers and textures; external references are rejected.
+VRM, VRMA and Creator exports are untrusted input. The native Inochi2D pipeline
+bounds file size, texture count/dimensions, node depth/count, parameter count and
+decode allocations. VRM/VRMA inspection separately bounds GLB file size (64/16 MiB),
+JSON/node nesting, node/accessor counts and logical accessor geometry (256 MiB),
+and validates referenced structures. These are not limits on total browser or
+GPU memory. Embedded compressed images are decoded by the browser; the VRM
+inspector does not currently enforce decoded image dimensions or a pixel budget.
+Keep the pipeline and browser runtime updated together; bypassing inspection or
+publishing a model directly removes those guarantees. VRM files must contain
+their buffers and textures; external references are rejected.
 Optional blink/lookAt capability reports describe usable bindings, not an
 artistic or licensing review. Model and animation licenses remain separate
 from the BSD program license.

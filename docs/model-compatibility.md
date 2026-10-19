@@ -15,6 +15,12 @@ merely registering an empty expression name. FBX, plain GLB, Unity controllers a
 Warudo C# behavior are not VRM input. A role-specific data profile is optional;
 Weiguang behavior is not applied to arbitrary imported characters.
 
+The VRM inspector bounds file size, nesting, node/accessor counts and logical
+geometry accessor data; it does not enforce decoded PNG/JPEG dimensions or a
+pixel-memory budget. Compressed textures are decoded by the browser. Structural
+acceptance and file size therefore do not certify total GPU/RAM cost; inspect
+the actual model and use the measured performance panel and budgets below.
+
 ## Actual-avatar qualification, 2026-10-19
 
 These are three real third-party avatars, not variants of the synthetic test

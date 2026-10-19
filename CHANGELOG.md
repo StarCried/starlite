@@ -15,6 +15,17 @@ versioning; prereleases use the explicit npm `alpha` channel.
 - Add Hexo host positioning through `position.right`, `bottom` and `zIndex`.
   The default preset retains the demonstration blog's actions, sentences and
   presentation; generic custom-model defaults remain unchanged.
+- Add an optional corner performance panel to both renderers, forwarded by Hexo
+  through `performance.show`. It defaults off, does not intercept pointer input,
+  and distinguishes rendered FPS, frame intervals and CPU-side submission cost.
+- Report usable humanoid, blink and eye-tracking capabilities plus structural
+  model metrics; give controlled, actionable errors for malformed mappings and
+  resources without echoing private resource URLs.
+- Keep Inochi2D's directly served browser module imports resolvable, and check
+  the actual distributed module graph rather than relying on a bundler.
+- Use bounded VRM diagnostic ring buffers and compute diagnostic framing only
+  when requested. Add runtime-size and measured-performance budgets, real-avatar
+  compatibility evidence, Chrome/Edge CI coverage and reviewed dependency gates.
 
 These changes are a local candidate, not part of the published
 `0.1.0-alpha.2` packages. No new npm or GitHub release has been published.
