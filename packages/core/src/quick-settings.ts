@@ -200,11 +200,17 @@ export class QuickSettingsMenu {
       const result = callback();
       if (result && typeof result.then === "function") {
         // Do not reset a just-edited input before the host returns its new state.
-        result.catch(() => this.#reportError()).finally(() => { if (this.#pending.get(id) === token) { this.#pending.delete(id); this.#sync(); } });
-      } else this.#pending.delete(id);
+        result.catch(() => { this.#reportError(); this.#sync(); }).finally(() => this.#finish(id, token));
+      } else this.#finish(id, token);
     } catch {
       this.#pending.delete(id); this.#reportError(); this.#sync();
     }
+  }
+  #finish(id: string, token: number): void {
+    if (this.#pending.get(id) !== token) return;
+    this.#pending.delete(id);
+    const control = this.#controls.get(id);
+    if (control) control.disabled = this.#item(id)?.disabled === true;
   }
   #reportError(): void {
     if (this.#destroyed) return;

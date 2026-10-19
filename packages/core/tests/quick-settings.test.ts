@@ -79,3 +79,15 @@ it("rejects ambiguous item identities and invalid slider bounds", () => {
   ] }] })).toThrow("unique");
   expect(() => new QuickSettingsMenu({ tabs: [{ id: "a", label: "", items: [{ kind: "range", id: "x", label: "", value: 1, min: 0, max: Infinity, onChange() {} }] }] })).toThrow("range");
 });
+
+it("keeps a synchronous setting enabled after its callback updates the menu", () => {
+  let value = true;
+  let menu: QuickSettingsMenu;
+  const options = (): QuickSettingsOptions => ({ tabs: [{ id: "display", label: "显示", items: [
+    { kind: "toggle", id: "bubble", label: "气泡", value, onChange: next => { value = next; menu.update(options()); } },
+  ] }] });
+  menu = make(options());
+  const input = menu.element.querySelector<HTMLInputElement>("input")!;
+  input.click(); expect(value).toBe(false); expect(input.disabled).toBe(false);
+  input.click(); expect(value).toBe(true); expect(input.disabled).toBe(false);
+});
