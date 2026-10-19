@@ -78,6 +78,7 @@ export function installVisitorMenu(runtime: any, state: any, options: {
     } else {
       host.style.removeProperty("right"); host.style.removeProperty("bottom");
     }
+    controller.refreshInteractionMask?.();
   };
   const setHidden = (value: boolean) => {
     hidden = value;

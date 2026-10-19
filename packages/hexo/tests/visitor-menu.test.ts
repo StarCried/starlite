@@ -10,6 +10,7 @@ function harness(config: any = {}, storage?: string) {
   const controller = {
     setDisplaySize: vi.fn(), setFrameRate: vi.fn(), setPointerEnabled: vi.fn(),
     setBubblesVisible: vi.fn(), setPerformanceVisible: vi.fn(), pause: vi.fn(), resume: vi.fn(),
+    refreshInteractionMask: vi.fn(),
     observeInteractionMask: vi.fn((listener?: (value: any) => void) => { maskListener = listener; }),
   };
   class Menu {
@@ -68,6 +69,7 @@ it("restores authored placement and offers an explicit recovery after hiding", a
   Object.assign(h.host.style, { left: "50px", top: "60px", right: "auto", bottom: "auto" });
   h.item("reset-position").onAction();
   expect(h.host.style.left).toBe(""); expect(h.host.style.top).toBe(""); expect(h.host.style.right).toBe("112px"); expect(h.host.style.bottom).toBe("160px");
+  expect(h.controller.refreshInteractionMask).toHaveBeenCalledOnce();
   h.item("hide").onAction(); expect(h.host.style.visibility).toBe("hidden"); expect(h.controller.pause).toHaveBeenCalledOnce();
   expect(h.state.quickSettings.recovery.hidden).toBe(false);
   h.state.quickSettings.recovery.click(); expect(h.host.style.visibility).toBe(""); expect(h.host.style.pointerEvents).toBe("none"); expect(h.controller.resume).toHaveBeenCalledOnce();
