@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "scope": "Browser runtime bytes only. Models, textures, user animations, Node preparation tools, sourcemaps and declarations are separate.",
+  "baseline": {
+    "date": "2026-10-19",
+    "note": "Pre-maturity Windows Node 24 build; zlib output may vary slightly with the supported Node version. VRM bundle includes Three.js, three-vrm, core and the author-owned fallback Idle. Limits allow roughly 10% raw/encoded VRM growth; changing them requires a measured reason. Inochi2D retains its existing 1.5 MiB raw limit; new encoded limits allow roughly 12% growth.",
+    "vrm": { "raw": 1166631, "gzip": 288309, "brotli": 229226 },
+    "inochi2d": { "raw": 589016, "gzip": 200668, "brotli": 166244 }
+  },
+  "runtime": {
+    "vrm": {
+      "directory": "packages/vrm/dist",
+      "files": ["index.js", "widget.css"],
+      "maxBytes": { "raw": 1280000, "gzip": 320000, "brotli": 255000 }
+    },
+    "inochi2d": {
+      "directory": "packages/inochi2d/dist",
+      "maxBytes": { "raw": 1572864, "gzip": 225000, "brotli": 185000 }
+    }
+  },
+  "measurement": {
+    "note": "A fixed-scene physical-GPU target and same-machine relative software regression gate; neither is a promise for arbitrary avatars/devices. No GPU-memory estimate is inferred from JS heap.",
+    "minimumSampleMs": 10000,
+    "minimumFrames": 200,
+    "physical30": { "scene": { "width": 320, "height": 480, "dpr": 1 }, "fpsMin": 27, "frameP95MsMax": 50, "renderP95MsMax": 16.7, "localLoadMsMax": 10000 },
+    "physical60": { "scene": { "width": 320, "height": 480, "dpr": 1 }, "fpsMin": 54, "frameP95MsMax": 25, "renderP95MsMax": 8.3, "localLoadMsMax": 10000 },
+    "relative": { "fpsRatioMin": 0.85, "frameP95RatioMax": 1.2, "renderP95RatioMax": 1.2, "renderNoiseMs": 1, "loadRatioMax": 1.25, "loadNoiseMs": 150, "heapGrowthBytesMax": 8388608, "geometryGrowthMax": 0, "textureGrowthMax": 0 },
+    "ownedBrowserWeiguang": {
+      "scope": "Isolated Windows Chrome 155 process tree, RTX 5080, fixed Weiguang blog model at 320x480 DPR1 30FPS; sampled WDDM GPU counters are separate from RAM. Not a universal avatar/device promise.",
+      "modelSha256": "d98a431d84c015787a3239eaf709a7b3b075b4353c10ac59a3023f5ca4c05b8b",
+      "rendererIncludes": "NVIDIA GeForce RTX 5080",
+      "browserPrefix": "155.",
+      "minimumDurationMs": 900000,
+      "minimumSamples": 16,
+      "maximumSampleGapMs": 60000,
+      "privateBytesMax": 1073741824,
+      "gpuDedicatedBytesMax": 268435456,
+      "gpuSharedBytesMax": 67108864,
+      "idlePrivateGrowthBytesMax": 67108864,
+      "idleGpuGrowthBytesMax": 33554432,
+      "postGcHeapGrowthBytesMax": 8388608,
+      "averageCpuCorePercentMax": 20
+    }
+  }
+}
