@@ -499,3 +499,23 @@ it('eases head tracking back to neutral when the pointer toggle is disabled',asy
  c.setPointerPosition(-10000,10000);advance(1000);expect(c.diagnostics().gaze!.headYawDegrees).toBeCloseTo(0,2);
  c.setPointerEnabled!(true);c.setPointerPosition(10000,-10000);advance(1000);expect(Math.abs(c.diagnostics().gaze!.headYawDegrees)).toBeGreaterThan(10);
 });
+
+it('refreshes a paused silhouette after native resize acknowledgement without sampling animation again',async()=>{
+ const c=await mount('vrm'),host=document.body.lastElementChild as HTMLElement;
+ vi.spyOn(host,'getBoundingClientRect').mockImplementation(()=>new DOMRect(0,0,Number.parseFloat(host.style.width),Number.parseFloat(host.style.height)));
+ const canvas=host.querySelector('canvas')!;
+ vi.spyOn(canvas,'getBoundingClientRect').mockImplementation(()=>new DOMRect(0,0,Number.parseFloat(host.style.width),Number.parseFloat(host.style.height)));
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue({clearRect(){},drawImage(){},getImageData(_x:number,_y:number,width:number,height:number){return {data:new Uint8ClampedArray(width*height*4).fill(255)}}} as unknown as CanvasRenderingContext2D);
+ let pending=false;const accepted:any[]=[];
+ c.observeInteractionMask(mask=>{if(mask&&!pending)accepted.push(mask)});
+ const playing=c.playAnimation('Action');advance(200);c.pause();
+ pending=true;c.setDisplaySize!(400,600);c.refreshInteractionMask!();const count=accepted.length;
+ pending=false;c.setDisplaySize!(400,600);expect(accepted).toHaveLength(count);
+ const pose=scene.getObjectByName('body')!.position.toArray(),samples=materialDeltas.length;
+ c.refreshInteractionMask!();c.refreshInteractionMask!();
+ expect(accepted).toHaveLength(count+2);expect(accepted.at(-1)).toMatchObject({displayWidth:400,displayHeight:600});
+ expect(c.status).toBe('paused');expect(frames.size).toBe(0);expect(materialDeltas).toHaveLength(samples);
+ expect(scene.getObjectByName('body')!.position.toArray()).toEqual(pose);
+ c.resume();advance(1000);await expect(playing).resolves.toBe('completed');
+ c.destroy();const finalCount=accepted.length;c.refreshInteractionMask!();expect(accepted).toHaveLength(finalCount);
+});

@@ -242,6 +242,13 @@ class Controller implements VrmController {
       this.#hitMask.capture(this.#canvas, performance.now());
     }
   }
+  refreshInteractionMask(): void {
+    if (!this.#renderer || !this.#vrm || (this.#status !== "running" && this.#status !== "paused")) return;
+    // Native resize acknowledgement can arrive after a paused ResizeObserver
+    // render was rejected. Re-sample without advancing the suspended pose.
+    this.#renderer.render(this.#scene, this.#camera);
+    this.#hitMask.capture(this.#canvas, performance.now(), true);
+  }
   setPointerPosition(clientX: number, clientY: number): void {
     if (!this.#pointerEnabled || this.#status !== "running") return;
     this.#gaze.move(clientX, clientY, this.#host.getBoundingClientRect(), { width: innerWidth, height: innerHeight });

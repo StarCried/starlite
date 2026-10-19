@@ -14,6 +14,8 @@ export interface ModelController {
   stopAnimation(): void;
   resetCamera(): void;
   observeInteractionMask(listener?: ModelHitMaskListener): void;
+  /** Refresh current alpha coverage after a host resize, including while paused. */
+  refreshInteractionMask?(): void;
   setPointerPosition(clientX: number, clientY: number): void;
   /** Optional host-movement capability. Coordinates are CSS pixels, local only. */
   setHostPosition?(x: number, y: number): void;

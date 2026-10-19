@@ -32,8 +32,8 @@ export class RenderedHitMask {
     this.#lastTime = -Infinity;
     if (!listener) this.#surface = undefined;
   }
-  capture(canvas: HTMLCanvasElement, timestamp: number): void {
-    if (!this.#listener || timestamp - this.#lastTime < 50) return;
+  capture(canvas: HTMLCanvasElement, timestamp: number, force = false): void {
+    if (!this.#listener || (!force && timestamp - this.#lastTime < 50)) return;
     this.#lastTime = timestamp;
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0 || !canvas.width || !canvas.height) return;
