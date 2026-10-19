@@ -81,6 +81,18 @@ beforeEach(() => {
 });
 
 describe("mountWithDependencies", () => {
+  it("supports an opt-in performance panel from configuration", async () => {
+    const element = document.createElement("div"); document.body.append(element);
+    const controller = await mountWithDependencies(element, {
+      model: "/model.inp", fallback: "/fallback.png", performance: { show: true },
+    }, dependencies());
+    expect(element.querySelector("[data-model-performance]")?.textContent).toContain("running");
+    controller.pause(); expect(element.querySelector("[data-model-performance]")?.textContent).toContain("paused");
+    controller.destroy(); expect(element.childElementCount).toBe(0);
+    await expect(mountWithDependencies(element, {
+      model: "/model.inp", fallback: "/fallback.png", performance: { show: "true" as unknown as boolean },
+    }, dependencies())).rejects.toThrow("performance");
+  });
   it("observes page clicks in pass-through mode and removes the observer on destroy", async () => {
     const element = document.createElement("div"), link = document.createElement("a"), clicked = vi.fn();
     document.body.append(link, element); link.addEventListener("click", clicked);

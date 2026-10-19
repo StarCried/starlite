@@ -2,6 +2,15 @@ import { expect, it } from "vitest";
 import { validateVrmWidgetConfig } from "../src/config.js";
 import type { VrmWidgetConfig } from "../src/types.js";
 
+it("accepts an opt-in performance overlay and rejects malformed options", () => {
+  for (const performance of [undefined, {}, { show: false }, { show: true }]) {
+    expect(() => validateVrmWidgetConfig({ model: "/model.vrm", fallback: "/fallback.png", performance })).not.toThrow();
+  }
+  for (const performance of [true, null, { show: "true" }]) {
+    expect(() => validateVrmWidgetConfig({ model: "/model.vrm", fallback: "/fallback.png", performance } as unknown as VrmWidgetConfig)).toThrow("performance");
+  }
+});
+
 it("accepts built-in Idle and text-only dialogue without declaring animation assets", () => {
   expect(() => validateVrmWidgetConfig({model:"/model.vrm",fallback:"/fallback.png",ambient:{animations:["StarLiteIdle"]},neutralAnimation:"StarLiteIdle",dialogue:{click:{lines:["Hello"]}}})).not.toThrow();
   expect(() => validateVrmWidgetConfig({model:"/model.vrm",fallback:"/fallback.png",dialogue:{click:{linesByAnimation:{}}}})).toThrow("needs an animation");

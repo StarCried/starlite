@@ -72,6 +72,30 @@ async function mount(backend:string,signal?:AbortSignal,dialogue?:any){
  }
  resources.push(c);return c;
 }
+describe.each(["vrm", "inochi2d"])("%s performance panel", backend => {
+ it("is absent by default and can be toggled without remounting or changing playback", async () => {
+  const c = await mount(backend), host = document.body.lastElementChild as HTMLElement;
+  const canvas = host.querySelector("canvas");
+  expect(host.querySelector("[data-model-performance]")).toBeNull();
+  c.setPerformanceVisible!(true); advance(1100);
+  const panel = host.querySelector<HTMLElement>("[data-model-performance]")!;
+  expect(panel.textContent).toContain("FPS"); expect(panel.textContent).toContain("CPU p95");
+  expect(panel.style.pointerEvents).toBe("none"); expect(host.querySelector("canvas")).toBe(canvas);
+  c.pause(); expect(panel.textContent).toContain("paused");
+  advance(20000); c.resume(); advance(20); expect(panel.textContent).not.toContain("0.0 FPS");
+  c.setPerformanceVisible!(false); expect(host.querySelector("[data-model-performance]")).toBeNull();
+  expect(c.status).toBe("running"); c.setPerformanceVisible!(true);
+  expect(host.querySelectorAll("[data-model-performance]")).toHaveLength(1);
+  c.destroy(); c.destroy(); expect(host.childElementCount).toBe(0);
+ });
+});
+it("shows loading metrics only when requested before the first VRM render", async () => {
+ const host = document.createElement("div"); document.body.append(host);
+ const pending = mountModelWidget(host, {model:"test.vrm",fallback:"fallback.png",mobile:{show:true},performance:{show:true}});
+ expect(host.querySelector("[data-model-performance]")?.textContent).toContain("loading");
+ const c = await pending; resources.push(c); advance(1100);
+ expect(host.querySelector("[data-model-performance]")?.textContent).toContain("1 calls · 12 tris");
+});
 it('gives a model without motions a bundled Idle and allows text-only click bubbles',async()=>{
  relaxedIdle=true;const host=document.createElement('div');document.body.append(host);
  const fetched=vi.spyOn(globalThis,'fetch');

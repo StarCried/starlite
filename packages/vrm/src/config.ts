@@ -1,4 +1,4 @@
-import { resolveDialogueSentences } from "@starcried/starlite-core";
+import { resolveDialogueSentences, validatePerformanceConfig } from "@starcried/starlite-core";
 import type { CharacterProfile, VrmWidgetConfig } from "./types.js";
 
 function finite(value: unknown, min: number, max: number): value is number {
@@ -6,6 +6,7 @@ function finite(value: unknown, min: number, max: number): value is number {
 }
 export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   if (!config || (config.backend !== undefined && config.backend !== "vrm")) throw new Error("invalid VRM backend");
+  validatePerformanceConfig(config.performance);
   if (config.interactions?.passThrough !== undefined && typeof config.interactions.passThrough !== "boolean") throw new Error("interactions.passThrough must be boolean");
   if (config.interactions?.passThrough && config.interactions.drag) throw new Error("passThrough and drag cannot both be enabled");
   for (const key of ["model", "fallback"] as const) if (typeof config[key] !== "string" || !config[key].trim()) throw new Error(`${key} is required`);

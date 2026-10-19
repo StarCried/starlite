@@ -1,4 +1,5 @@
 import { resolveDialogueSentences } from "./dialogue.js";
+import { validatePerformanceConfig } from "@starcried/starlite-core";
 import type {
   AmbientParameterOscillatorConfig,
   AnimationClip,
@@ -33,6 +34,7 @@ const DEFAULTS: Omit<
   ResolvedWidgetConfig,
   "model" | "fallback" | "parameters" | "animations"
 > = {
+  performance: { show: false },
   network: {
     requestTimeoutMs: 30_000,
     modelMaxBytes: 16 * 1024 * 1024,
@@ -74,6 +76,7 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
     throw new Error("widget config must be an object");
   }
+  validatePerformanceConfig(config.performance);
   for (const field of [
     "network",
     "display",
@@ -113,6 +116,7 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
   return {
     model: config.model,
     fallback: config.fallback,
+    performance: { show: config.performance?.show ?? false },
     network: {
       requestTimeoutMs: bounded(
         config.network?.requestTimeoutMs,

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { PerformanceOverlay, FrameSamples } from "@starcried/starlite-core";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMPose } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip, type VRMAnimation } from "@pixiv/three-vrm-animation";
@@ -44,6 +45,9 @@ class Controller implements VrmController {
   readonly #bubble: DialogueBubble;
   readonly #dialogue: DialogueScheduler;
   readonly #stats: VrmDiagnostics = { renderedFrames: 0, frameTimesMs: [], renderCostsMs: [], calls: 0, triangles: 0, geometries: 0, textures: 0, renderer: "", loadMs: 0 };
+  readonly #frameIntervals = new FrameSamples(1800);
+  readonly #renderCosts = new FrameSamples(1800);
+  #performance: PerformanceOverlay | undefined;
   #status: WidgetStatus = "loading";
   #renderer: THREE.WebGLRenderer | undefined;
   #vrm: VRM | undefined;
@@ -97,6 +101,7 @@ class Controller implements VrmController {
     this.#host.style.height = `${this.#config.display?.height ?? 480}px`;
     this.#fallback.src = this.#config.fallback; this.#fallback.alt = ""; this.#fallback.hidden = true; this.#bubble.hide();
     this.#host.replaceChildren(this.#canvas, this.#fallback, this.#bubble.element);
+    this.setPerformanceVisible(this.#config.performance?.show === true);
     this.#setStatus("loading");
     try {
       const [bytes, profile, animationBuffers] = await Promise.all([
@@ -239,12 +244,28 @@ class Controller implements VrmController {
   setHostPosition(x: number, y: number): void {
     if (this.#status === "running") this.#hostMotion?.setPosition(x, y);
   }
+  setPerformanceVisible(visible: boolean): void {
+    if (typeof visible !== "boolean") throw new Error("performance visibility must be boolean");
+    if (this.#status === "destroyed" || this.#status === "disabled") return;
+    if (!visible) { this.#performance?.destroy(); this.#performance = undefined; return; }
+    this.#performance ??= new PerformanceOverlay(this.#host);
+    this.#performance.setStatus(this.#status);
+  }
   captureFrame(): string {
     if (!this.#renderer || !this.#vrm) throw new Error("model is not ready");
     this.#renderer.render(this.#scene, this.#camera);
     return this.#canvas.toDataURL("image/png");
   }
-  diagnostics(): VrmDiagnostics { return { ...this.#stats, springPose: [...(this.#vrm?.springBoneManager?.joints ?? [])].map(joint => ({ name: joint.bone.name, rotation: joint.bone.quaternion.toArray() })), activeAnimation: this.#player?.activeName ?? null, gaze: { headYawDegrees: this.#gaze.headAngles.yawDegrees, headPitchDegrees: this.#gaze.headAngles.pitchDegrees, yawDegrees: this.#vrm?.lookAt?.yaw ?? 0, pitchDegrees: this.#vrm?.lookAt?.pitch ?? 0 }, frameTimesMs: [...this.#stats.frameTimesMs], renderCostsMs: [...this.#stats.renderCostsMs] }; }
+  diagnostics(): VrmDiagnostics {
+    // Project bounds only when a caller requests diagnostics, not every frame.
+    const bounds = this.#poseBounds ? this.#motionBounds : this.#portraitBounds;
+    let maxAbsX = 0, maxAbsY = 0;
+    if (bounds && !bounds.isEmpty()) for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+      const p = this.#projected.set(x, y, z).project(this.#camera);
+      maxAbsX = Math.max(maxAbsX, Math.abs(p.x)); maxAbsY = Math.max(maxAbsY, Math.abs(p.y));
+    }
+    return { ...this.#stats, framing: { distance: this.#camera.position.length(), maxAbsX, maxAbsY, viewport: this.#viewport.rect }, springPose: [...(this.#vrm?.springBoneManager?.joints ?? [])].map(joint => ({ name: joint.bone.name, rotation: joint.bone.quaternion.toArray() })), activeAnimation: this.#player?.activeName ?? null, gaze: { headYawDegrees: this.#gaze.headAngles.yawDegrees, headPitchDegrees: this.#gaze.headAngles.pitchDegrees, yawDegrees: this.#vrm?.lookAt?.yaw ?? 0, pitchDegrees: this.#vrm?.lookAt?.pitch ?? 0 }, frameTimesMs: this.#frameIntervals.values(), renderCostsMs: this.#renderCosts.values() };
+  }
   destroy(): void {
     if (this.#status === "destroyed") return;
     this.#abort.abort(); this.#dispose(); this.#hitMask.destroy();
@@ -254,6 +275,7 @@ class Controller implements VrmController {
     if (baseWidth && baseHeight) this.#host.dispatchEvent(new CustomEvent("model-viewport-change", { bubbles: true,
       detail: { left: 0, top: 0, width: baseWidth, height: baseHeight, baseWidth, baseHeight } }));
     this.#canvas.remove(); this.#fallback.remove(); this.#bubble.destroy(); this.#host.classList.remove("model-vrm-widget");
+    this.#performance?.destroy(); this.#performance = undefined;
     this.#setStatus("destroyed");
   }
   async #fetchAnimations(): Promise<(ArrayBuffer | undefined)[]> {
@@ -307,7 +329,7 @@ class Controller implements VrmController {
       if (fps === "display" || elapsed >= interval - .1) {
         const delta = this.#lastFrameTime === undefined ? 0 : Math.min(.1, (timestamp - this.#lastFrameTime) / 1000);
         this.#lastTime = fps === "display" ? timestamp : (this.#lastTime ?? timestamp - interval) + Math.max(1, Math.floor((elapsed + .1) / interval)) * interval;
-        if (this.#lastFrameTime !== undefined) this.#record(this.#stats.frameTimesMs, timestamp - this.#lastFrameTime);
+        if (this.#lastFrameTime !== undefined) this.#frameIntervals.add(timestamp - this.#lastFrameTime);
         this.#lastFrameTime = timestamp;
         try { this.#tick(delta); }
         catch (error) { this.#fail(error); }
@@ -348,20 +370,15 @@ class Controller implements VrmController {
     for (const material of vrm.materials ?? []) (material as THREE.Material & { update?: (delta: number) => void }).update?.(delta);
     const bounds = this.#poseBounds?.measure(vrm.scene, this.#motionBounds) ?? this.#portraitBounds;
     if (bounds && this.#config.render?.autoFit !== false && this.#viewport.expand(this.#baseCamera, bounds)) this.#applyViewport();
-    let maxAbsX = 0, maxAbsY = 0;
-    if (bounds) for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
-      const p = this.#projected.set(x, y, z).project(this.#camera);
-      maxAbsX = Math.max(maxAbsX, Math.abs(p.x)); maxAbsY = Math.max(maxAbsY, Math.abs(p.y));
-    }
-    this.#stats.framing = { distance: this.#camera.position.length(), maxAbsX, maxAbsY, viewport: this.#viewport.rect };
     renderer.render(this.#scene, this.#camera);
     this.#hitMask.capture(this.#canvas, performance.now());
     this.#stats.renderedFrames++;
     this.#stats.calls = renderer.info.render.calls; this.#stats.triangles = renderer.info.render.triangles;
     this.#stats.geometries = renderer.info.memory.geometries; this.#stats.textures = renderer.info.memory.textures;
-    this.#record(this.#stats.renderCostsMs, performance.now() - started);
+    const cost = performance.now() - started;
+    this.#renderCosts.add(cost);
+    this.#performance?.recordFrame(performance.now(), cost, renderer.info.render);
   }
-  #record(values: number[], value: number): void { if (values.length === 1800) values.shift(); values.push(value); }
   #stopFrame(): void { if (this.#frame !== undefined) cancelAnimationFrame(this.#frame); this.#frame = undefined; this.#lastTime = undefined; this.#lastFrameTime = undefined; }
   #resize(): void {
     this.#bubble.position();
@@ -432,7 +449,7 @@ class Controller implements VrmController {
     this.#bubble.show(action, this.#elapsed * 1000, this.#reduced.matches);
     if (action.animation) void this.playAnimation(action.animation, { mode: "once", restart: true });
   }
-  #setStatus(status: WidgetStatus): void { this.#status = status; this.#host.dataset.modelStatus = status; }
+  #setStatus(status: WidgetStatus): void { this.#status = status; this.#host.dataset.modelStatus = status; this.#performance?.setStatus(status); }
   #dispose(): void {
     this.#hitMask.clear();
     this.#bubble.hide(); this.#stopFrame(); this.#player?.destroy(); this.#player = undefined; this.#hostMotion?.destroy(); this.#hostMotion = undefined;

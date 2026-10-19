@@ -17,6 +17,8 @@ export interface ModelController {
   setPointerPosition(clientX: number, clientY: number): void;
   /** Optional host-movement capability. Coordinates are CSS pixels, local only. */
   setHostPosition?(x: number, y: number): void;
+  /** Toggle local model metrics without remounting; disabled by default. */
+  setPerformanceVisible?(visible: boolean): void;
   destroy(): void;
 }
 export interface MountOptions { signal?: AbortSignal }
@@ -102,3 +104,4 @@ export { DialogueScheduler, resolveDialogueSentences, type DialogueAction, type 
 
 export { DialogueBubble } from "./bubble.js";
 export { observePassThroughClicks } from "./pass-through.js";
+export { PerformanceOverlay, FrameSamples, validatePerformanceConfig, type PerformanceConfig, type PerformanceFrameDetails } from "./performance.js";

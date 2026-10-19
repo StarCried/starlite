@@ -1,4 +1,5 @@
 import { animationDurationMs, AnimationPlayer } from "./animation.js";
+import { PerformanceOverlay } from "@starcried/starlite-core";
 import { applyAmbientParameterOscillators } from "./ambient.js";
 import { resolveConfig } from "./config.js";
 import { RenderedHitMask, type ModelHitMaskListener } from "./hit-mask.js";
@@ -95,6 +96,7 @@ class DisabledController implements WidgetController {
   resetCamera(): void {}
   observeInteractionMask(listener?: ModelHitMaskListener): void { listener?.(undefined); }
   setPointerPosition(_clientX: number, _clientY: number): void {}
+  setPerformanceVisible(_visible: boolean): void {}
 
   destroy(): void {
     this.#status = "destroyed";
@@ -117,6 +119,7 @@ class ActiveController implements WidgetController {
   readonly #unsupportedParameters = new Set<string>();
   readonly #removeListeners: Array<() => void> = [];
   #runtime: Inochi2dWasmRuntime | undefined;
+  #performance: PerformanceOverlay | undefined;
   #mountAbortController: AbortController | undefined;
   #mountTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
   #resizeObserver: ResizeObserver | undefined;
@@ -340,6 +343,14 @@ class ActiveController implements WidgetController {
     );
   }
 
+  setPerformanceVisible(visible: boolean): void {
+    if (typeof visible !== "boolean") throw new Error("performance visibility must be boolean");
+    if (this.#status === "destroyed") return;
+    if (!visible) { this.#performance?.destroy(); this.#performance = undefined; return; }
+    this.#performance ??= new PerformanceOverlay(this.#element);
+    this.#performance.setStatus(this.#status);
+  }
+
   destroy(): void {
     if (this.#status === "destroyed") {
       return;
@@ -353,6 +364,7 @@ class ActiveController implements WidgetController {
       remove();
     }
     this.#releaseRuntime();
+    this.#performance?.destroy(); this.#performance = undefined;
     this.#element.replaceChildren();
     this.#element.removeAttribute("data-model-pass-through");
     this.#setStatus("destroyed");
@@ -380,6 +392,7 @@ class ActiveController implements WidgetController {
       this.#fallback,
       this.#bubble.element,
     );
+    this.setPerformanceVisible(this.#config.performance.show);
     this.#setStatus("loading");
   }
 
@@ -688,6 +701,7 @@ class ActiveController implements WidgetController {
     if (!this.#runtime) {
       return;
     }
+    const started = this.#performance ? performance.now() : 0;
     try {
       this.#updateBubble(timestamp);
       if (this.#modelRendered && !reducedMotion) {
@@ -722,6 +736,7 @@ class ActiveController implements WidgetController {
       }
       this.#runtime.renderFrame(timestamp);
       this.#hitMask.capture(this.#canvas, performance.now());
+      this.#performance?.recordFrame(timestamp, performance.now() - started);
       if (!this.#modelRendered) {
         this.#modelRendered = true;
         // Reduced-motion mode renders only one neutral frame. Show the enter
@@ -810,6 +825,7 @@ class ActiveController implements WidgetController {
   #setStatus(status: WidgetStatus): void {
     this.#status = status;
     this.#element.dataset.inochi2dStatus = status;
+    this.#performance?.setStatus(status);
   }
 
   #releaseRuntime(): void {
