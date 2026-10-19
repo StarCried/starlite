@@ -261,6 +261,7 @@ class Controller implements VrmController {
     const padding = this.#config.render?.viewportPadding;
     if (width + (padding?.left ?? 0) + (padding?.right ?? 0) > 4096 || height + (padding?.top ?? 0) + (padding?.bottom ?? 0) > 4096) throw new Error("invalid padded display size");
     if (this.#status === "destroyed" || this.#status === "disabled") return;
+    if (this.#host.style.width === `${width}px` && this.#host.style.height === `${height}px`) return;
     this.#host.style.width = `${width}px`; this.#host.style.height = `${height}px`;
     this.resetCamera();
   }
