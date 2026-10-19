@@ -4,6 +4,8 @@
 
 **[直接打开在线演示](https://starcried.github.io/)**：无需安装，用桌面浏览器体验微光的动作、气泡和视线跟随。手机默认隐藏角色。
 
+**快速开始**：[自己安装](#hexo安装即体验) · [让 Agent 安装](#让-agent-帮你) · [DSH 桌宠](https://github.com/StarCried/starlite-dsh)
+
 ## Hexo：安装即体验
 
 从 `0.1.0-alpha.3` 起，在已有的 Hexo 7 博客目录运行（Node.js 22.12+）：
@@ -31,6 +33,27 @@ starlite:
 ```
 
 无动作模型也有默认站姿、轻呼吸和限角头部跟随；有相应表达／lookAt 配置时自动眨眼及眼球跟随。模型不随程序包分发。
+
+## 让 Agent 帮你
+
+在博客目录打开能操作本机的 Agent，复制下文，让它按[安装指南](docs/release-guide.md)完成安装和预览：
+
+```text
+请阅读 https://github.com/StarCried/starlite/blob/main/docs/release-guide.md
+在我的 Hexo 博客中安装 hexo-starlite@alpha，先核对已发布版本和环境，保留现有配置。
+没有自定义配置时使用默认微光；完成生成和本地预览，告诉我预览地址及配置位置，不要部署博客。
+```
+
+<details>
+<summary>只想先了解用法？复制这个提示词</summary>
+
+```text
+请阅读 https://github.com/StarCried/starlite/blob/main/docs/release-guide.md
+以及 https://github.com/StarCried/starlite/blob/main/docs/configuration.md
+简要说明如何启动、换模型和自定义气泡；这次只解释，不安装、修改文件或部署。
+```
+
+</details>
 
 ## 其他入口
 

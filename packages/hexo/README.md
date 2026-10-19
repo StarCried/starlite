@@ -4,6 +4,8 @@
 
 [直接打开在线演示](https://starcried.github.io/)（桌面浏览器，无需安装）。
 
+**快速开始**：[自己安装](#启动) · [让 Agent 安装](#让-agent-帮你)
+
 ## 启动
 
 需要 Node.js 22.12+ 和 Hexo 7。
@@ -21,6 +23,27 @@ npx hexo server
 starlite:
   enable: false
 ```
+
+## 让 Agent 帮你
+
+在博客目录打开能操作本机的 Agent，复制下文，让它按[安装指南](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md)完成安装和预览：
+
+```text
+请阅读 https://github.com/StarCried/starlite/blob/main/docs/release-guide.md
+在我的 Hexo 博客中安装 hexo-starlite@alpha，先核对已发布版本和环境，保留现有配置。
+没有自定义配置时使用默认微光；完成生成和本地预览，告诉我预览地址及配置位置，不要部署博客。
+```
+
+<details>
+<summary>只想先了解用法？复制这个提示词</summary>
+
+```text
+请阅读 https://github.com/StarCried/starlite/blob/main/docs/release-guide.md
+以及 https://github.com/StarCried/starlite/blob/main/docs/configuration.md
+简要说明如何启动、换模型和自定义气泡；这次只解释，不安装、修改文件或部署。
+```
+
+</details>
 
 ## 使用自己的模型
 
