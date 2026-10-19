@@ -38,7 +38,8 @@ jobs:
         shell: bash
         run: |
           if [[ ! -x "$RUNNER_TEMP/cargo-audit/bin/cargo-audit" ]]; then
-            cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/cargo-audit"
+            # Only the scanner uses newer Rust; repository builds stay on 1.85.
+            cargo +stable install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/cargo-audit"
           fi
           "$RUNNER_TEMP/cargo-audit/bin/cargo-audit" --version
       - name: Scan the complete JavaScript and Rust lockfiles

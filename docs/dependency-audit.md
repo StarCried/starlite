@@ -4,9 +4,13 @@ Run the online dependency gate before a release:
 
 ```sh
 npm ci
-cargo install cargo-audit --version 0.22.2 --locked
+rustup toolchain install stable --profile minimal
+cargo +stable install cargo-audit --version 0.22.2 --locked
 npm run check:dependencies
 ```
+
+Only the scanner is built with the newer stable toolchain; the native pipeline
+remains pinned to Rust 1.85 by `rust-toolchain.toml`.
 
 `npm run test:dependency-audit` tests the gate without network requests and is
 included in `npm test`. The separate `Dependency audit` workflow runs on every
