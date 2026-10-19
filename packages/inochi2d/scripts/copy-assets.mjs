@@ -18,3 +18,16 @@ for (const filename of ["inochi2d.wasm"]) {
 // Keep the shared scheduler inside the browser distribution: no bare npm imports.
 await build({ entryPoints: [resolve(packageRoot,"src/dialogue.ts")], outfile: resolve(packageRoot,"dist/dialogue.js"), bundle: true, format: "esm", platform: "browser", target: "es2022" });
 await build({ entryPoints: [resolve(packageRoot,"src/hit-mask.ts")], outfile: resolve(packageRoot,"dist/hit-mask.js"), bundle: true, format: "esm", platform: "browser", target: "es2022" });
+await build({ entryPoints: [resolve(packageRoot,"src/performance.ts")], outfile: resolve(packageRoot,"dist/performance.js"), bundle: true, format: "esm", platform: "browser", target: "es2022" });
+
+// The generated files are served directly by Hexo without a package resolver.
+// Analyze the actual distribution graph, without changing its module layout,
+// and reject a future bare import even if a bundler-based example would work.
+await build({ entryPoints: [resolve(packageRoot, "dist/index.js")], bundle: true, write: false, format: "esm", platform: "browser", target: "es2022", plugins: [{
+  name: "raw-browser-imports",
+  setup(builder) {
+    builder.onResolve({ filter: /^[^./]/ }, args => {
+      if (args.kind !== "entry-point") throw new Error(`Inochi2D browser distribution contains an unresolved package import: ${args.path}`);
+    });
+  },
+}] });

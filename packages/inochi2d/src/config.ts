@@ -1,5 +1,5 @@
 import { resolveDialogueSentences } from "./dialogue.js";
-import { validatePerformanceConfig } from "@starcried/starlite-core";
+import { validatePerformanceConfig } from "./performance.js";
 import type {
   AmbientParameterOscillatorConfig,
   AnimationClip,

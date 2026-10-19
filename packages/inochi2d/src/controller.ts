@@ -1,5 +1,5 @@
 import { animationDurationMs, AnimationPlayer } from "./animation.js";
-import { PerformanceOverlay } from "@starcried/starlite-core";
+import { PerformanceOverlay } from "./performance.js";
 import { applyAmbientParameterOscillators } from "./ambient.js";
 import { resolveConfig } from "./config.js";
 import { RenderedHitMask, type ModelHitMaskListener } from "./hit-mask.js";

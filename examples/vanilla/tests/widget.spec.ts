@@ -675,3 +675,34 @@ test("twenty PJAX completions keep one Hexo canvas and one asset load", async ({
   ).toHaveLength(1);
   expect(requests.filter((url) => url.endsWith("puppet.inp"))).toHaveLength(1);
 });
+
+test("raw Hexo Inochi2D distribution toggles performance metrics without reloading its canvas", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("http://127.0.0.1:4174/");
+  const host = page.locator(".inochi2d-widget");
+  await expect(host).toHaveAttribute("data-inochi2d-status", "running");
+  const panel = host.locator("[data-model-performance]");
+  await expect(panel).toHaveCount(0);
+  await page.evaluate(() => {
+    const state = (globalThis as unknown as {__hexoStarLiteWidgetState: {controller: {setPerformanceVisible(value: boolean): void}}}).__hexoStarLiteWidgetState;
+    state.controller.setPerformanceVisible(true);
+  });
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("CPU p95");
+  await expect(panel).toContainText(/\d+\.\d FPS/);
+  expect(await panel.evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none");
+  await page.evaluate(() => {
+    const state = (globalThis as unknown as {__hexoStarLiteWidgetState: {controller: {pause(): void}}}).__hexoStarLiteWidgetState;
+    state.controller.pause();
+  });
+  await expect(panel).toHaveText("StarLite · paused");
+  await page.evaluate(() => {
+    const state = (globalThis as unknown as {__hexoStarLiteWidgetState: {controller: {resume(): void; setPerformanceVisible(value: boolean): void}}}).__hexoStarLiteWidgetState;
+    state.controller.resume(); state.controller.setPerformanceVisible(false);
+  });
+  await expect(panel).toHaveCount(0);
+  await expect(host).toHaveAttribute("data-inochi2d-status", "running");
+  await expect(host.locator("canvas")).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
