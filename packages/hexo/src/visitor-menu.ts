@@ -129,10 +129,14 @@ export function installVisitorMenu(runtime: any, state: any, options: {
   const menu = new runtime.QuickSettingsMenu(menuOptions());
   const hit = (event: MouseEvent): boolean => {
     if (!mask || hidden || !host.isConnected || host.style.visibility === "hidden") return false;
-    const x = event.clientX - mask.left, y = event.clientY - mask.top;
-    if (x < 0 || y < 0 || x >= mask.displayWidth || y >= mask.displayHeight) return false;
-    const column = Math.floor(x / mask.displayWidth * mask.width);
-    const row = Math.floor(y / mask.displayHeight * mask.height);
+    // A fixed host can move before its resize event or paused redraw arrives.
+    // Map the last rendered pixels to the canvas's current displayed rectangle.
+    const rect = host.querySelector("canvas")?.getBoundingClientRect();
+    const width = rect?.width ?? mask.displayWidth, height = rect?.height ?? mask.displayHeight;
+    const x = event.clientX - (rect?.left ?? mask.left), y = event.clientY - (rect?.top ?? mask.top);
+    if (width <= 0 || height <= 0 || x < 0 || y < 0 || x >= width || y >= height) return false;
+    const column = Math.floor(x / width * mask.width);
+    const row = Math.floor(y / height * mask.height);
     const pixel = row * mask.width + column;
     return Boolean(mask.bits[pixel >> 3] & (1 << (pixel & 7)));
   };

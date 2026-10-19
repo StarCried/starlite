@@ -42,6 +42,14 @@ it("opens only over alpha-covered model pixels, preserving transparent and Shift
   expect(h.menu.open).toHaveBeenCalledOnce(); await h.win.happyDOM.close();
 });
 
+it("maps paused pixels to the current canvas position before a resize event arrives", async () => {
+  const h = harness(); const canvas = h.win.document.createElement("canvas"); h.host.append(canvas);
+  canvas.getBoundingClientRect = () => ({ left: 300, top: 200, width: 200, height: 200 }) as any;
+  h.emitMask({ left: 100, top: 100, displayWidth: 100, displayHeight: 100, width: 2, height: 2, bits: new Uint8Array([1]) });
+  expect(h.context(310, 210).defaultPrevented).toBe(true);
+  expect(h.context(110, 110).defaultPrevented).toBe(false); await h.win.happyDOM.close();
+});
+
 it("applies visitor controls in place and hides bubbles independently of animation scheduling", async () => {
   const h = harness();
   h.controller.setDisplaySize.mockClear(); h.controller.setFrameRate.mockClear();
