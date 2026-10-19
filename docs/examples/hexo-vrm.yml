@@ -1,45 +1,48 @@
-# 合并到博客 _config.yml；模型放在 source/ 之外。
-# publication 确认涵盖模型、贴图和内嵌动作的博客托管许可。
+# 本地候选，尚未发布；公开 0.1.0-alpha.2 仍需自行配置模型。
+# 候选无需任何 starlite 配置即可显示微光。以下仅演示按需覆盖。
+# 将一个 starlite 段合并到博客 _config.yml，不要重复添加同名段。
 starlite:
-  enable: true
-  backend: vrm
-  model: ./models/avatar.vrm
-  publication:
-    confirm: true
-    allowRedistribution: true
   render:
     fps: 30
-    maxDevicePixelRatio: 1
-  mobile:
-    show: false
-    breakpoint: 768
-  interactions:
-    pointer: true
-    passThrough: true
-    drag: false
-  # 不需要动作也能显示气泡；按需删改。
+  position:
+    right: 48
+    bottom: 32
+    zIndex: 20
   dialogue:
     click:
+      # 共用句库替换默认逐动作句子，保留默认点击动作池。
       lines: ["你好，欢迎来坐坐。", "慢慢看，我在这里。"]
-      durationMs: 7200
 
-# 进阶：模型确有 Wave/Nod/Stretch 内嵌动作时，可用以下配置替换 dialogue。
+# 只改一个动作的句子：用下列 dialogue 替换上面的 dialogue；其他句子保留。
 # dialogue:
-#   enter:
-#     animation: Wave
-#     lines: ["欢迎。"]
-#     delayMs: 1000
-#     durationMs: 7200
-#   idle:
-#     animation: Stretch
-#     lines: ["休息一下也很好。"]
-#     intervalMinMs: 60000
-#     intervalMaxMs: 120000
-#     durationMs: 7200
 #   click:
-#     animation: Wave
-#     animations: [Wave, Nod]
 #     linesByAnimation:
-#       Wave: ["你好呀。", "看到你了！"]
-#       Nod: ["我在听。", "嗯，慢慢来。"]
-#     durationMs: 7200
+#       HighFive: ["击掌！", "做得好。"]
+#   enter: false  # 关闭首次入场及其气泡
+#   idle: false   # 关闭偶发动作及其气泡，基础 Idle 继续
+
+# 关闭默认点击动作和气泡：在 starlite 下添加 interactions: {click: false}。
+# 若已显式配置 dialogue.click，也将其设为 false。
+# 停用所有看板娘功能：只保留 starlite: {enable: false}。
+
+# 替换自己的模型时，用以下配置替换整个 starlite 段。
+# 模型放在博客根目录 models/ 下，source/ 之外；自动选择 VRM 后端。
+# 不继承微光专属动作、句库、镜头和显示参数。
+# publication 确认涵盖模型、贴图和内嵌动作的博客托管许可。
+# starlite:
+#   model: ./models/avatar.vrm
+#   publication:
+#     confirm: true
+#     allowRedistribution: true
+#   dialogue:
+#     click:
+#       lines: ["你好。"]
+#       durationMs: 7200
+
+# 自定义模型确有 Wave/Nod 动作时，可将 click 替换为：
+# click:
+#   animations: [Wave, Nod]
+#   linesByAnimation:
+#     Wave: ["你好呀。", "看到你了！"]
+#     Nod: ["我在听。", "嗯，慢慢来。"]
+#   durationMs: 7200

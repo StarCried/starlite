@@ -11,6 +11,11 @@ import {registerHexoWidget} from "../src/index";
 import {model,motion,glb} from "../../../tests/fixtures/vrm.mjs";
 const {prepareModel}=createRequire(import.meta.url)("@starcried/starlite-vrm/prepare");
 const roots:string[]=[];
+function htmlFilter(register: (render: () => string) => void) {
+ return {register:(name:string, callback:any)=>{
+  if(name==="after_render:html")register(()=>callback("<!doctype html><html><body></body></html>"));
+ }};
+}
 afterEach(()=>{for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true})});
 async function bundle(allowRedistribution=true){
  const root=mkdtempSync(join(tmpdir(),"hexo-vrm-test-"));roots.push(root);
@@ -49,7 +54,7 @@ function animatedModel() {
 it("direct local VRM needs no manifest and forwards embedded Idle as neutral pose",()=>{
  const root=mkdtempSync(join(tmpdir(),"hexo-direct-vrm-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),animatedModel());
  let generator:any, injector:any;
- const hexo:any={base_dir:root,config:{root:"/blog/",starlite:{enable:true,backend:"vrm",model:"./avatar.vrm",fallback:"avatar.png",publication:{confirm:true,allowRedistribution:true},ambient:{animations:["Idle"]}}},extend:{generator:{register:(_n:any,f:any)=>generator=f},injector:{register:(_n:any,f:any)=>injector=f}},log:{warn:vi.fn()}};
+ const hexo:any={base_dir:root,config:{root:"/blog/",starlite:{enable:true,backend:"vrm",model:"./avatar.vrm",fallback:"avatar.png",publication:{confirm:true,allowRedistribution:true},ambient:{animations:["Idle"]}}},extend:{filter:htmlFilter(f=>injector=f),generator:{register:(_n:any,f:any)=>generator=f},injector:{register:vi.fn()}},log:{warn:vi.fn()}};
  registerHexoWidget(hexo);const routes=generator(), html=injector();
  expect(routes.filter((r:any)=>r.path.endsWith(".vrm"))).toHaveLength(1);
  expect(routes.some((r:any)=>r.path.endsWith(".vrma"))).toBe(false);
@@ -106,7 +111,7 @@ function profileModel(neutralAnimation: string, embedded = false, alternative?: 
 }
 function simpleHexo(root: string, options: Record<string, unknown> = {}) {
  let generator:any,injector:any;
- const hexo:any={base_dir:root,config:{starlite:{enable:true,backend:"vrm",model:"./avatar.vrm",publication:{confirm:true,allowRedistribution:true},...options}},extend:{generator:{register:(_n:any,f:any)=>generator=f},injector:{register:(_n:any,f:any)=>injector=f}},log:{warn:vi.fn()}};
+ const hexo:any={base_dir:root,config:{starlite:{enable:true,backend:"vrm",model:"./avatar.vrm",publication:{confirm:true,allowRedistribution:true},...options}},extend:{filter:htmlFilter(f=>injector=f),generator:{register:(_n:any,f:any)=>generator=f},injector:{register:vi.fn()}},log:{warn:vi.fn()}};
  registerHexoWidget(hexo);
  return {hexo,generate:()=>generator(),inject:()=>injector() as string};
 }

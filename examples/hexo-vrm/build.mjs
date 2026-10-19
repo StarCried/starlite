@@ -22,7 +22,7 @@ try {
  await hexo.call("generate");
  const path=resolve(root,"public/index.html");let html=await readFile(path,"utf8");
  if(!html.includes("__hexoStarLiteWidgetState")) {
-   html=hexo.extend.injector.exec(html);await writeFile(path,html);
+   html=await hexo.execFilter("_after_html_render",html,{context:hexo,args:[{}]});await writeFile(path,html);
  }
  if(!html.includes("vrm-widget/")||html.includes("inochi2d.wasm"))throw new Error("wrong backend output");
  console.log("Isolated VRM Hexo output:",resolve(root,"public"));

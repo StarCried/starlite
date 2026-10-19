@@ -23,7 +23,8 @@
   },
   "dependencies": {
     "@starcried/starlite-inochi2d": "0.1.0-alpha.2",
-    "@starcried/starlite-vrm": "0.1.0-alpha.2"
+    "@starcried/starlite-vrm": "0.1.0-alpha.2",
+    "undici": "7.30.1"
   },
   "peerDependencies": {
     "hexo": ">=7 <8"

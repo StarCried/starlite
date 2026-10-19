@@ -10,6 +10,7 @@ export interface EnabledConfig {
   widget: BrowserWidgetConfig;
   breakpoint: number;
   showOnMobile: boolean;
+  position: { right: number; bottom: number; zIndex: number };
 }
 
 export function readEnabledConfig(
@@ -22,6 +23,15 @@ export function readEnabledConfig(
   }
 
   if (input.backend !== undefined && input.backend !== "inochi2d" && input.backend !== "vrm") throw new Error("unknown model backend");
+  const position = {
+    right: input.position?.right ?? 16,
+    bottom: input.position?.bottom ?? 0,
+    zIndex: input.position?.zIndex ?? 20,
+  };
+  if ([position.right, position.bottom].some(value => !Number.isFinite(value) || value < 0 || value > 10000)
+      || !Number.isInteger(position.zIndex) || position.zIndex < 0 || position.zIndex > 2147483647) {
+    throw new Error("starlite.position requires finite right/bottom offsets from 0 to 10000 and a non-negative integer zIndex");
+  }
   const root = normalizeRoot(hexo.config.root);
   const artifactUrls = resolveArtifactUrls(input, root, modelBundle);
   const breakpoint = input.mobile?.breakpoint ?? 768;
@@ -57,10 +67,10 @@ export function readEnabledConfig(
       interactions:{...input.interactions,passThrough:input.interactions?.passThrough ?? !input.interactions?.drag,click:input.interactions?.click ?? false},
     };
     (require("@starcried/starlite-vrm/config") as typeof import("@starcried/starlite-vrm/config", {with:{"resolution-mode":"import"}})).validateVrmWidgetConfig(widget);
-    return {widget,breakpoint,showOnMobile};
+    return {widget,breakpoint,showOnMobile,position};
   }
   const widget = toWidgetConfig(
-    input,
+    input as Extract<HexoWidgetConfig, {backend?: "inochi2d"}>,
     artifactUrls,
     modelBundle?.suggestedParameters,
     modelBundle?.suggestedAmbient,
@@ -72,6 +82,7 @@ export function readEnabledConfig(
     widget,
     breakpoint,
     showOnMobile,
+    position,
   };
 }
 

@@ -2,6 +2,52 @@
 
 普通启动见 [Hexo README](../packages/hexo/README.md)，可直接复制[完整 YAML 示例](examples/hexo-vrm.yml)。
 
+## 默认微光与自定义
+
+**本节默认体验为本地候选，尚未发布；当前公开 `0.1.0-alpha.2` 仍需[配置模型](release-guide.md#当前公开版-010-alpha2)。**
+
+候选中不写 `starlite` 即默认启用微光；只填写局部配置也保留默认预设。不需要下载模型或生成看板娘资源时，设置 `starlite.enable: false`。提供 `model` 或 `bundle` 则使用自己的模型，不获取微光，也不继承微光专属的动作、句库、镜头和显示预设。以 `.vrm` 结尾的模型路径可省略 `backend: vrm`；自定义本地资源仍需 `publication.confirm: true` 与 `publication.allowRedistribution: true`。
+
+默认预设与当前演示博客一致：13 个动作，点击池 8 个、偶发池 7 个，首次入场一次；基础 Idle 不触发句子。画布 260 × 390、60 FPS、DPR 1，光标跟随限角，点击穿透；屏宽小于 900 px 时隐藏，位置为右侧 112 px、底部 160 px。句库原样保留作者博客的个人叙述与页面引用，接入其他博客时可按需替换。
+
+例如只改性能、位置和点击句子，其他预设保持不变：
+
+```yaml
+starlite:
+  render:
+    fps: 30
+  position:
+    right: 48
+    bottom: 32
+  dialogue:
+    click:
+      lines: ["你好，欢迎来坐坐。", "慢慢看，我在这里。"]
+```
+
+`lines` 替换该场景的逐动作句库，仍从原动作池随机选动作；`linesByAnimation` 可只覆盖要修改的默认动作，例如 `HighFive: ["击掌！"]`，其余默认动作的句子保留。显式更换 `animation` 或 `animations` 时，以新动作选择为准；更换为预设外动作时也需提供相应句子。数组整体替换，不按索引合并。
+
+```yaml
+starlite:
+  dialogue:
+    click:
+      linesByAnimation:
+        HighFive: ["击掌！", "做得好。"]
+    enter: false  # 关闭首次入场气泡及其动作
+    idle: false   # 关闭偶发气泡及其动作，基础 Idle 不受影响
+```
+
+`dialogue.click: false` 只关闭点击气泡，预设的 `interactions.click` 仍可播放动画；设置 `interactions.click: false` 可同时关闭默认点击动作和气泡。若已经显式配置 `dialogue.click`，也将其设为 `false`。光标跟随和页面点击穿透不受影响。
+
+### 默认资源获取、缓存与许可
+
+资源在首次 `hexo generate` 或 `hexo server` 的生成阶段获取；npm 安装时不下载模型，博客访客也不会直接向 GitHub 取模型。固定版本为 `weiguang-v3.0.0-starlite.1`，缓存位于博客根目录的 `node_modules/.cache/hexo-starlite/weiguang-v3.0.0-starlite.1/`。模型为 9,116,328 字节，SHA-256 为 `d98a431d84c015787a3239eaf709a7b3b075b4353c10ac59a3023f5ca4c05b8b`；模型、许可和来源文件均按固定长度与 SHA-256 校验，拒绝不安全缓存路径，不使用不匹配文件。
+
+下载遵循生成进程的标准 `HTTP_PROXY`、`HTTPS_PROXY`、`NO_PROXY` 环境变量，无需在 `_config.yml` 填写代理或凭据。请勿将凭据写入博客配置、提交记录或反馈日志。
+
+有效缓存可离线使用。缺少资源、下载超时或校验失败时，生成日志警告，本次不注入看板娘，正文继续生成；修复网络后再次生成会重试。不会把未知或损坏内容当成模型继续加载。自定义配置错误仍报错，不能用下载失败的跳过机制掩盖。浏览器开始加载后发生的失败另按下方有限重试规则处理。
+
+微光不进入程序包，使用即同意[专属模型许可](weiguang-license.md)，不接受请停用。生成站点的模型资源目录附带 `LICENSE-Weiguang.md`、`ASSET-SOURCES.md`；请按许可在关于页等可见位置署名「微光角色及模型 © StarCried，依专属使用许可使用」。必要博客托管不等于允许模型提取再利用或再分发。
+
 ## VRM 模型约定
 
 输入为自包含的 VRM 0／1：贴图和 buffer 必须在文件内，不接受 FBX、普通 GLB 或 Unity `.anim`。人形骨骼按 VRM Humanoid 映射识别，Blender 对象名称无需按英文重命名。必需映射为 `hips / spine / head` 及两侧 `UpperArm / LowerArm / Hand / UpperLeg / LowerLeg / Foot`；手指、肩、颈、胸、脚趾和眼骨可选。
@@ -12,7 +58,7 @@
 
 ## Hexo：直接放入 VRM
 
-`backend: vrm`、`model: ./models/avatar.vrm` 指向博客根目录内的普通文件，插件检查后生成哈希资源；无需自定义 ZIP 或 manifest。模型应放在 `source/` 外。
+`model: ./models/avatar.vrm` 指向博客根目录内的普通文件，插件自动选择 VRM 后端，检查后生成哈希资源；无需自定义 ZIP 或 manifest。模型应放在 `source/` 外。此模式使用下表通用默认值，不继承默认微光预设。
 
 博客在加载期间及失败时隐藏角色，不展示静态替代图片，也不拦截下层页面点击。加载、运行时渲染或 WebGL 上下文失败后，分别等待 2、5、15 秒，最多后台重试三次；成功后自动恢复。重试沿用页面空闲调度，离线或页面隐藏时暂停，恢复联网／显示后继续；手机默认不重试。次数在当前文档中共用，不因 PJAX、切换可见性或恢复联网而重置，耗尽后保持隐藏，刷新页面可重新尝试。同一标签页已完成首次入场时，重试不会再次入场。
 
@@ -34,8 +80,9 @@
 | `ambient.animations` | 最多一个基础循环；省略时使用模型 Idle 或程序默认 Idle，显式空数组停用循环。 |
 | `neutralAnimation` | 停止动作后采用该动作首帧的基础站姿；显式配置优先于角色 profile，随后才自动选择 Idle。 |
 | `profile` | 可选数据型微光适配；标准 VRM 无需配置。也可嵌入 `extras.starlite.profile`；其中的 `neutralAnimation` 必须存在于模型或已配置 VRMA 中，也可用内置 `StarLiteIdle`。 |
+| `position` | 仅 Hexo 定位：`right / bottom` 为 0–10000 的 CSS px，通用默认 16／0；`zIndex` 为非负整数，默认 20。默认微光改用 112／160。 |
 
-大幅动作可用 `render.viewportPadding: {left, top, right, bottom}`（CSS px）保留固定余量，四项均须填写；不随动作动态改变画布大小。位置可放入站点原有 CSS：
+大幅动作可用 `render.viewportPadding: {left, top, right, bottom}`（CSS px）保留固定余量，四项均须填写；不随动作动态改变画布大小。优先使用 `starlite.position` 调整位置，也可放入站点原有 CSS：
 
 ```css
 [data-starlite-widget-host],
@@ -47,7 +94,7 @@
 
 ## 动作和气泡
 
-基础 `Idle` 循环不触发句子。`dialogue.enter` 为首次入场，`dialogue.idle` 为偶发互动，`dialogue.click` 为点击回应。只要文字、不播放动作时：
+普通用户在 `_config.yml` 的 `starlite.dialogue` 下修改句子，不需要单独的 `dialogue.json`。基础 `Idle` 循环不触发句子。`dialogue.enter` 为首次入场，`dialogue.idle` 为偶发互动，`dialogue.click` 为点击回应。自定义模型只要文字、不播放动作时：
 
 ```yaml
 dialogue:

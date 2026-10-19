@@ -77,6 +77,15 @@ function fakeHexo(
       base_dir: baseDirectory,
       config,
       extend: {
+        filter: {
+          register: vi.fn((name: string, callback: any) => {
+            if (name === "after_render:html") registrations.injector = () => {
+              const source = "<!doctype html><html><body></body></html>";
+              const result = callback(source);
+              return result === source ? undefined : result;
+            };
+          }),
+        },
         generator: {
           register: vi.fn((_name, generator) => {
             registrations.generator = generator;
@@ -146,7 +155,7 @@ describe("Hexo adapter", () => {
   });
 
   it("generates no routes or markup when disabled", () => {
-    const { hexo, registrations } = fakeHexo({ root: "/blog/" });
+    const { hexo, registrations } = fakeHexo({ root: "/blog/", starlite: { enable: false } });
     registerHexoWidget(hexo);
 
     expect(registrations.generator?.()).toBeUndefined();

@@ -4,24 +4,39 @@
 
 **[直接打开在线演示](https://starcried.github.io/)**：无需安装，用桌面浏览器体验微光的动作、气泡和视线跟随。手机默认隐藏角色。
 
-## 先体验
+## Hexo：安装即体验
 
-准备 **Node.js 22.12+**、本项目源码和一个标准人形 **`.vrm`** 文件，在项目目录运行：
+**以下为下一版体验：本地候选，尚未发布。当前公开 `0.1.0-alpha.2` 仍需[手动配置模型](docs/release-guide.md#当前公开版-010-alpha2)。** 候选发布后，在已有的 Hexo 7 博客目录运行（Node.js 22.12+）：
 
 ```sh
-npm run demo -- --model "/path/to/avatar.vrm"
+npm install hexo-starlite@alpha
+npx hexo server
 ```
 
-首次自动安装依赖，并打开本机 Hexo 示例。模型没有动作也有默认站姿、轻呼吸和限角头部跟随；有 Blink 表达时自动眨眼，有 lookAt 配置时眼球跟随。缺少这些可选配置仍可使用。按 **Ctrl+C** 关闭。
+无需配置，首次生成自动获取微光，使用演示博客的动作、句库和显示预设。微光[独立授权](docs/weiguang-license.md)，使用即同意；不接受或暂时不需要时，在 `_config.yml` 中设置：
 
-想使用微光？从[独立授权模型发行](https://github.com/StarCried/starlite/releases/tag/weiguang-v3.0.0-starlite.1)下载 `Weiguang-StarLite-Blog.vrm`，把命令中的路径换成它即可。模型不随程序包分发。
+```yaml
+starlite:
+  enable: false
+```
 
-当前版本 **[0.1.0-alpha.2](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.2)**。接入已有 Hexo 博客只需 `npm install hexo-starlite@alpha`，再按[安装说明](packages/hexo/README.md)添加模型。[本机体验说明](docs/quick-start.md)
+使用自己的模型时，将有权托管的 VRM 放在博客根目录 `models/avatar.vrm`，配置：
 
-## 用到自己的应用里
+```yaml
+starlite:
+  model: ./models/avatar.vrm
+  publication:
+    confirm: true
+    allowRedistribution: true
+```
+
+无动作模型也有默认站姿、轻呼吸和限角头部跟随；有相应表达／lookAt 配置时自动眨眼及眼球跟随。模型不随程序包分发。
+
+## 其他入口
 
 - **Hexo 博客**：[安装与启动](packages/hexo/README.md)。
 - **DSH 桌宠**：[StarLite for DSH](https://github.com/StarCried/starlite-dsh)。安装 `dsh-starlite@alpha` 后随 DSH 启动，在设置中直接添加 VRM。
+- **独立本机体验**：[源码示例](docs/quick-start.md)。
 
 ## 进阶
 

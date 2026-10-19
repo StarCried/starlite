@@ -6,37 +6,35 @@
 
 ## 启动
 
-需要 Node.js 22.12+、Hexo 7 和一个标准人形 VRM。Blink 表达为可选能力，缺少时仍可使用。在博客目录安装 alpha 版本：
+需要 Node.js 22.12+ 和 Hexo 7。
+
+**以下为下一版体验：本地候选，尚未发布。当前公开 `0.1.0-alpha.2` 仍需[手动配置模型](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md#当前公开版-010-alpha2)。** 候选发布后，在博客目录运行：
 
 ```sh
 npm install hexo-starlite@alpha
+npx hexo server
 ```
 
-将有权托管的模型放到博客根目录的 `models/avatar.vrm`（不放进 `source/`），把下面内容加入 `_config.yml`：
+无需添加配置，首次生成自动获取微光，带有演示博客的动作、气泡、视线跟随和显示预设。打开终端中的网址即可，日常沿用原 Hexo 命令。微光采用[独立模型许可](https://github.com/StarCried/starlite/blob/main/docs/weiguang-license.md)，使用即同意；不接受请在 `_config.yml` 中停用：
 
 ```yaml
 starlite:
-  enable: true
-  backend: vrm
+  enable: false
+```
+
+## 使用自己的模型
+
+将有权托管的 VRM 放到博客根目录的 `models/avatar.vrm`（不放进 `source/`），配置：
+
+```yaml
+starlite:
   model: ./models/avatar.vrm
   publication:
     confirm: true
     allowRedistribution: true
 ```
 
-`publication` 两项表示你已确认模型、贴图及内嵌动作允许在博客中托管。公开生成的 VRM 上限为 **10 MiB**。
-
-然后运行：
-
-```sh
-npx hexo server
-```
-
-打开终端中的网址即可。无动作模型使用内置默认 Idle；内嵌动作自动识别。手机默认不下载模型，日常使用沿用原 Hexo 命令。
-
-`0.1.0-alpha.2` 在加载失败时隐藏角色、后台有限重试，成功后自动恢复；下层页面仍可正常点击。
-
-没有博客？在 StarLite 源码目录运行 `npm run demo -- --model "/path/to/avatar.vrm"`，即可打开隔离的本机示例。
+`publication` 表示已确认模型、贴图及内嵌动作的博客托管权。无动作模型使用内置默认 Idle，其他动作自动识别后按需映射；替换模型不会继承微光的专属动作和句库。手机默认不下载模型。
 
 ## 进阶
 

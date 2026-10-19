@@ -3,6 +3,22 @@
 All notable changes will be recorded here. The project follows semantic
 versioning; prereleases use the explicit npm `alpha` channel.
 
+## Unreleased
+
+- Add the default Weiguang Hexo preset: no configuration is needed, while
+  `_config.yml` can disable it, override its dialogue/display settings or select
+  a custom VRM without inheriting character-specific behavior.
+- Acquire the separately licensed, pinned model and notices during generation,
+  validate cached bytes and SHA-256, and reuse valid assets offline. Acquisition
+  failures warn and omit the widget for that generation; a later generation
+  retries without blocking the blog's normal output.
+- Add Hexo host positioning through `position.right`, `bottom` and `zIndex`.
+  The default preset retains the demonstration blog's actions, sentences and
+  presentation; generic custom-model defaults remain unchanged.
+
+These changes are a local candidate, not part of the published
+`0.1.0-alpha.2` packages. No new npm or GitHub release has been published.
+
 ## 0.1.0-alpha.2 - 2026-10-15
 
 - Allow standard humanoid VRM 0/1 models without Blink expressions. Missing,

@@ -7,10 +7,12 @@ import type { VrmWidgetConfig, VrmAnimationSource } from "@starcried/starlite-vr
 export type BrowserWidgetConfig = WidgetConfig | VrmWidgetConfig;
 export type HexoWidgetConfig = HexoWidgetOptions & (
   Omit<WidgetConfig, "fallback" | "model"> |
-  (Omit<VrmWidgetConfig, "fallback" | "model" | "backend"> & {backend:"vrm"})
+  (Omit<VrmWidgetConfig, "fallback" | "model" | "backend"> & {backend?:"vrm"})
 );
 export interface HexoWidgetOptions {
   enable?: boolean;
+  /** Fixed placement in CSS pixels; applies only to the Hexo host. */
+  position?: { right?: number; bottom?: number; zIndex?: number };
   model?: string;
   fallback?: string;
   network?: {
@@ -46,6 +48,10 @@ export interface HexoLike {
     starlite?: HexoWidgetConfig;
   };
   extend: {
+    filter?: {
+      register(name: "before_generate", filter: () => Promise<void>): void;
+      register(name: "after_render:html", filter: (html: string) => string): void;
+    };
     generator: {
       register(
         name: string,
@@ -58,6 +64,7 @@ export interface HexoLike {
   };
   log: {
     warn(message: string): void;
+    info?(message: string): void;
   };
 }
 
