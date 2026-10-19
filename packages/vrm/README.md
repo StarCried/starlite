@@ -39,7 +39,7 @@ const controller = await mountModelWidget(host, {
 
 ## 进阶
 
-本地候选增加 `performance: {show: true}`（默认关闭），也可用
+`0.1.0-alpha.3` 提供 `performance: {show: true}`（默认关闭），也可用
 `controller.setPerformanceVisible?.(true)` 即时切换。含义和测量边界见
 [性能预算](https://github.com/StarCried/starlite/blob/main/docs/performance.md)。
 Node 侧 `@starcried/starlite-vrm/inspect` 返回 `capabilities` 与逻辑 `metrics`；

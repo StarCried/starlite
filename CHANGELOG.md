@@ -3,7 +3,7 @@
 All notable changes will be recorded here. The project follows semantic
 versioning; prereleases use the explicit npm `alpha` channel.
 
-## Unreleased
+## 0.1.0-alpha.3 - 2026-10-19
 
 - Add the default Weiguang Hexo preset: no configuration is needed, while
   `_config.yml` can disable it, override its dialogue/display settings or select
@@ -27,8 +27,13 @@ versioning; prereleases use the explicit npm `alpha` channel.
   when requested. Add runtime-size and measured-performance budgets, real-avatar
   compatibility evidence, Chrome/Edge CI coverage and reviewed dependency gates.
 
-These changes are a local candidate, not part of the published
-`0.1.0-alpha.2` packages. No new npm or GitHub release has been published.
+This version also unifies embedded glTF and external VRMA bone bindings,
+preventing delayed body motion and pose jumps during transitions. The 400 ms
+pose blend and source animation samples remain unchanged.
+
+Models and animation libraries remain separately licensed and are not included
+in the npm packages. Tagged-source CI, registry and public artifact verification
+are recorded separately after publication; earlier alpha.2 proof is unchanged.
 
 ## 0.1.0-alpha.2 - 2026-10-15
 

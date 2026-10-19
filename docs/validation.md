@@ -5,6 +5,43 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-10-19 alpha.3 version preparation
+
+All workspace versions and internal dependency references, npm lock metadata,
+Cargo workspace metadata and the local pipeline lock entry use
+`0.1.0-alpha.3`. Third-party dependency versions are unchanged. The release-facing
+instructions now describe no-configuration Hexo startup and the default separately
+licensed Weiguang preset; alpha.2 publication evidence below retains its original
+identity.
+
+Before the metadata update, implementation source `37a9c5b` passed:
+
+- `npm run validate`: 26 Rust and 506 JavaScript/tool tests passed; 7 optional
+  external-model unit tests skipped. Build, lint, typecheck, runtime-size,
+  license and five-package content gates passed.
+- `npm run test:browser`: 16 Chromium tests passed and 2 external-model tests
+  skipped. Supplying the existing CC BY Aka fixture then passed 17 tests;
+  only the private Mannequin test remained skipped.
+- `npm run pack:release-check` and `git diff --check` passed.
+
+After the metadata update, `npm run build`, `cargo test --workspace` (26 passed),
+`npm run pack:release-check` and `git diff --check` passed again. The complete
+online dependency gate used pinned cargo-audit 0.22.2 and passed: the existing
+2 reviewed npm advisories affect 9 entries, and RustSec reports 57 dependencies,
+zero vulnerabilities and zero informational warnings. The raw finding scope and
+review deadline remain visible in [dependency maintenance](dependency-audit.md).
+
+The rebuilt VRM runtime SHA-256 remains
+`d0b467dcf3c945bec73b30aa091d4fcb3ceef418761ea794a7237158232c4385`,
+identical to the existing 923.9-second physical-GPU run and 20 mount/destroy
+cycles. That exact-runtime evidence is reused without claiming another long run;
+its device, memory and measurement limits remain in [performance](performance.md).
+
+These are local source/version checks, not hosted CI, registry publication or
+public-installation proof. Release CI must build and stage the exact tagged
+Linux and Windows MSVC native artifacts before the reviewed tarballs are
+published. No older native file or tarball is relabelled as a new build.
+
 ## 2026-10-15 public alpha.2 verification
 
 [StarLite 0.1.0-alpha.2](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.2)
@@ -204,11 +241,11 @@ and hosted release-dry-run succeed. Publish the exact reviewed tarballs in
 dependency order, using the non-default `alpha` dist-tag:
 
 ```sh
-npm publish starcried-starlite-core-0.1.0-alpha.2.tgz --tag alpha --access public
-npm publish starcried-starlite-inochi2d-0.1.0-alpha.2.tgz --tag alpha --access public
-npm publish starcried-starlite-vrm-0.1.0-alpha.2.tgz --tag alpha --access public
-npm publish hexo-starlite-0.1.0-alpha.2.tgz --tag alpha
-npm publish inochi2d-blog-0.1.0-alpha.2.tgz --tag alpha
+npm publish starcried-starlite-core-0.1.0-alpha.3.tgz --tag alpha --access public
+npm publish starcried-starlite-inochi2d-0.1.0-alpha.3.tgz --tag alpha --access public
+npm publish starcried-starlite-vrm-0.1.0-alpha.3.tgz --tag alpha --access public
+npm publish hexo-starlite-0.1.0-alpha.3.tgz --tag alpha
+npm publish inochi2d-blog-0.1.0-alpha.3.tgz --tag alpha
 ```
 
 Before the first command, verify npm authentication/MFA, package-name

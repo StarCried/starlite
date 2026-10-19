@@ -25,7 +25,7 @@ git diff --check
 
 ## 维护入口
 
-[推送前验收](stabilization.md) · [性能预算](performance.md) · [模型兼容](model-compatibility.md) · [依赖维护](dependency-audit.md)
+[稳定化验收](stabilization.md) · [性能预算](performance.md) · [模型兼容](model-compatibility.md) · [依赖维护](dependency-audit.md)
 
 [配置](configuration.md) · [历史验证与发布门](validation.md) · [CI](ci.md) · [模型和动作政策](model-policy.md) · [第三方声明](../THIRD_PARTY_NOTICES.md) · [安全政策](../SECURITY.md)
 

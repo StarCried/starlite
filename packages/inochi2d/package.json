@@ -1,6 +1,6 @@
 {
   "name": "@starcried/starlite-inochi2d",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "Framework-free Inochi2D WebGL2 widget runtime",
   "type": "module",
   "license": "BSD-2-Clause",
@@ -43,7 +43,7 @@
     "node": ">=22.12"
   },
   "dependencies": {
-    "@starcried/starlite-core": "0.1.0-alpha.2"
+    "@starcried/starlite-core": "0.1.0-alpha.3"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

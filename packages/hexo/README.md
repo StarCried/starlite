@@ -8,7 +8,7 @@
 
 需要 Node.js 22.12+ 和 Hexo 7。
 
-**以下为下一版体验：本地候选，尚未发布。当前公开 `0.1.0-alpha.2` 仍需[手动配置模型](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md#当前公开版-010-alpha2)。** 候选发布后，在博客目录运行：
+从 `0.1.0-alpha.3` 起，在博客目录运行：
 
 ```sh
 npm install hexo-starlite@alpha

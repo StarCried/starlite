@@ -4,9 +4,7 @@
 
 ## 默认微光与自定义
 
-**本节默认体验为本地候选，尚未发布；当前公开 `0.1.0-alpha.2` 仍需[配置模型](release-guide.md#当前公开版-010-alpha2)。**
-
-候选中不写 `starlite` 即默认启用微光；只填写局部配置也保留默认预设。不需要下载模型或生成看板娘资源时，设置 `starlite.enable: false`。提供 `model` 或 `bundle` 则使用自己的模型，不获取微光，也不继承微光专属的动作、句库、镜头和显示预设。以 `.vrm` 结尾的模型路径可省略 `backend: vrm`；自定义本地资源仍需 `publication.confirm: true` 与 `publication.allowRedistribution: true`。
+`0.1.0-alpha.3` 起，不写 `starlite` 即默认启用微光；只填写局部配置也保留默认预设。不需要下载模型或生成看板娘资源时，设置 `starlite.enable: false`。提供 `model` 或 `bundle` 则使用自己的模型，不获取微光，也不继承微光专属的动作、句库、镜头和显示预设。以 `.vrm` 结尾的模型路径可省略 `backend: vrm`；自定义本地资源仍需 `publication.confirm: true` 与 `publication.allowRedistribution: true`。
 
 默认预设与当前演示博客一致：13 个动作，点击池 8 个、偶发池 7 个，首次入场一次；基础 Idle 不触发句子。画布 260 × 390、60 FPS、DPR 1，光标跟随限角，点击穿透；屏宽小于 900 px 时隐藏，位置为右侧 112 px、底部 160 px。句库原样保留作者博客的个人叙述与页面引用，接入其他博客时可按需替换。
 

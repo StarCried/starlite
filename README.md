@@ -6,7 +6,7 @@
 
 ## Hexo：安装即体验
 
-**以下为下一版体验：本地候选，尚未发布。当前公开 `0.1.0-alpha.2` 仍需[手动配置模型](docs/release-guide.md#当前公开版-010-alpha2)。** 候选发布后，在已有的 Hexo 7 博客目录运行（Node.js 22.12+）：
+从 `0.1.0-alpha.3` 起，在已有的 Hexo 7 博客目录运行（Node.js 22.12+）：
 
 ```sh
 npm install hexo-starlite@alpha

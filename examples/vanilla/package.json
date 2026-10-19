@@ -1,6 +1,6 @@
 {
   "name": "@starcried/starlite-vanilla-example",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,6 +11,6 @@
     "test:browser": "node ../../tools/generate-synthetic-fixtures.mjs && npm run build --workspace @starcried/starlite-hexo-example && npm run build --workspace @starcried/starlite-hexo-vrm-example && playwright test"
   },
   "dependencies": {
-    "@starcried/starlite-inochi2d": "0.1.0-alpha.2"
+    "@starcried/starlite-inochi2d": "0.1.0-alpha.3"
   }
 }

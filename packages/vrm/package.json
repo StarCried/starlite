@@ -1,6 +1,6 @@
 {
   "name": "@starcried/starlite-vrm",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "type": "module",
   "license": "BSD-2-Clause",
   "files": [
@@ -40,7 +40,7 @@
   "dependencies": {
     "@pixiv/three-vrm": "3.5.5",
     "@pixiv/three-vrm-animation": "3.5.5",
-    "@starcried/starlite-core": "0.1.0-alpha.2",
+    "@starcried/starlite-core": "0.1.0-alpha.3",
     "three": "0.186.0"
   },
   "devDependencies": {
