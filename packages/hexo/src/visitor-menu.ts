@@ -62,12 +62,12 @@ export function installVisitorMenu(runtime: any, state: any, options: {
     controller.setBubblesVisible?.(preferences.bubbles);
   };
   const set = (key: keyof typeof preferences, value: any) => {
+    if (key === "scale") controller.setDisplaySize?.(baseWidth * value, baseHeight * value);
+    else if (key === "fps") controller.setFrameRate?.(value);
+    else if (key === "performance") controller.setPerformanceVisible?.(value);
+    else if (key === "pointer") controller.setPointerEnabled?.(value);
+    else if (key === "bubbles") controller.setBubblesVisible?.(value);
     (preferences as any)[key] = value;
-    if (key === "scale") controller.setDisplaySize?.(baseWidth * preferences.scale, baseHeight * preferences.scale);
-    else if (key === "fps") controller.setFrameRate?.(preferences.fps);
-    else if (key === "performance") controller.setPerformanceVisible?.(preferences.performance);
-    else if (key === "pointer") controller.setPointerEnabled?.(preferences.pointer);
-    else if (key === "bubbles") controller.setBubblesVisible?.(preferences.bubbles);
     save(); menu.update(menuOptions());
   };
   const restorePosition = () => {

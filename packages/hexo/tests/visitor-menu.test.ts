@@ -65,6 +65,15 @@ it("validates stored preferences and respects author-disabled capabilities", asy
   expect(h.item("performance").value).toBe(true); await h.win.happyDOM.close();
 });
 
+it("does not persist a preference rejected by the renderer", async () => {
+  const h = harness();
+  h.controller.setDisplaySize.mockImplementationOnce(() => { throw new Error("display too large"); });
+  expect(() => h.item("size").onChange(150)).toThrow("display too large");
+  h.item("bubbles").onChange(false);
+  expect(JSON.parse(h.win.localStorage.getItem("starlite:visitor-settings:v1")!).scale).toBe(1);
+  expect(h.item("size").value).toBe(100); await h.win.happyDOM.close();
+});
+
 it("restores authored placement and offers an explicit recovery after hiding", async () => {
   const h = harness({ interactions: { passThrough: true } });
   Object.assign(h.host.style, { left: "50px", top: "60px", right: "auto", bottom: "auto" });
