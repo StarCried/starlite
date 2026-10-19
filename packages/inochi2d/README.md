@@ -33,6 +33,8 @@ const controller = await mountInochi2DWidget(host, {
 
 动作使用模型中精确且区分大小写的名称；不会为未知模型生成点击动作。公共播放和生命周期接口与 VRM 相同，`setParameter()` 仍为 Inochi2D 专用能力。页面组件卸载时调用 `controller.destroy()` 释放资源。
 
+宿主可通过 `QuickSettingsMenu` 复用公共快捷菜单。`setDisplaySize`、`setFrameRate`、`setPointerEnabled` 和 `setBubblesVisible` 可即时调整显示；隐藏气泡不会关闭绑定动作。
+
 ## 进阶
 
 [参数、动作与句库配置](https://github.com/StarCried/starlite/blob/main/docs/configuration.md) · [Hexo 插件](https://github.com/StarCried/starlite/blob/main/packages/hexo/README.md) · [模型许可](https://github.com/StarCried/starlite/blob/main/docs/model-policy.md) · [安全说明](https://github.com/StarCried/starlite/blob/main/SECURITY.md)

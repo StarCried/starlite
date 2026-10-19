@@ -125,6 +125,9 @@ class ActiveController implements WidgetController {
   #resizeObserver: ResizeObserver | undefined;
   #frameHandle: number | undefined;
   #nextRenderAt: number | undefined;
+  #lastRenderedAt: number | undefined;
+  #frameRate: number | "display";
+  #bubblesVisible = true;
   #status: WidgetStatus = "loading";
   #pausedByUser = false;
   #pausedByVisibility = false;
@@ -151,6 +154,7 @@ class ActiveController implements WidgetController {
     this.#element = element;
     this.#config = config;
     this.#dependencies = dependencies;
+    this.#frameRate = config.render.fps;
     this.#canvas = document.createElement("canvas");
     this.#fallback = document.createElement("img");
     this.#bubble = new DialogueBubble(element);
@@ -343,6 +347,49 @@ class ActiveController implements WidgetController {
     );
   }
 
+  setDisplaySize(width: number, height: number): void {
+    if (![width, height].every(value => Number.isFinite(value) && value >= 1 && value <= 4096)) throw new Error("invalid display size");
+    if (this.#status === "destroyed" || this.#status === "fallback") return;
+    const display = this.#config.display;
+    if (width === display.width && height === display.height) return;
+    if (!this.#config.render.autoFit) {
+      this.#cameraTransform.scale *= Math.min(width / display.width, height / display.height);
+      this.#applyCameraTransform();
+    }
+    display.width = width; display.height = height;
+    this.#element.style.setProperty("--inochi2d-width", `${width}px`);
+    this.#element.style.setProperty("--inochi2d-height", `${height}px`);
+    this.#resize();
+    if (this.#status === "paused") this.refreshInteractionMask();
+  }
+
+  setFrameRate(fps: number | "display"): void {
+    if (fps !== "display" && (!Number.isFinite(fps) || fps < 1 || fps > 60)) throw new Error("frame rate must be 1..60 or display");
+    if (this.#status === "destroyed" || this.#status === "fallback" || fps === this.#frameRate) return;
+    this.#frameRate = fps; this.#nextRenderAt = undefined;
+  }
+
+  setPointerEnabled(enabled: boolean): void {
+    if (typeof enabled !== "boolean") throw new Error("pointer tracking must be boolean");
+    if (this.#status === "destroyed" || this.#status === "fallback") return;
+    this.#config.interactions.pointer = enabled;
+    if (!enabled) this.#motion.setPointer(0, 0);
+  }
+
+  setBubblesVisible(visible: boolean): void {
+    if (typeof visible !== "boolean") throw new Error("bubble visibility must be boolean");
+    if (this.#status === "destroyed" || this.#status === "fallback") return;
+    this.#bubblesVisible = visible;
+    if (!visible) this.#hideBubble();
+  }
+
+  refreshInteractionMask(): void {
+    if (!this.#runtime || (this.#status !== "running" && this.#status !== "paused")) return;
+    // Repaint the same SDK time, without sampling dialogue or parameter motions.
+    this.#runtime.renderFrame(this.#lastRenderedAt ?? performance.now());
+    this.#hitMask.capture(this.#canvas, performance.now(), true);
+  }
+
   setPerformanceVisible(visible: boolean): void {
     if (typeof visible !== "boolean") throw new Error("performance visibility must be boolean");
     if (this.#status === "destroyed") return;
@@ -416,14 +463,10 @@ class ActiveController implements WidgetController {
       this.#showFallback("WebGL context was lost");
     });
 
-    if (this.#config.interactions.pointer || this.#config.interactions.drag) {
-      this.#listen(window, "pointermove", (event) =>
-        this.#handlePointerMove(event as PointerEvent),
-      );
-    }
-    if (this.#config.interactions.pointer) {
-      this.#listen(window, "blur", () => this.#motion.setPointer(0, 0));
-    }
+    this.#listen(window, "pointermove", (event) =>
+      this.#handlePointerMove(event as PointerEvent),
+    );
+    this.#listen(window, "blur", () => this.#motion.setPointer(0, 0));
     if (this.#hasClickAction() && !this.#config.interactions.drag) {
       if (this.#config.interactions.passThrough) {
         this.#removeListeners.push(observePassThroughClicks(this.#canvas, () => {
@@ -468,6 +511,7 @@ class ActiveController implements WidgetController {
   }
 
   #handlePointerMove(event: PointerEvent): void {
+    if (!this.#config.interactions.pointer && !this.#dragOrigin) return;
     const bounds = this.#canvas.getBoundingClientRect();
     this.setPointerPosition(event.clientX, event.clientY);
     if (this.#dragOrigin && event.pointerId === this.#dragOrigin.pointerId) {
@@ -669,7 +713,10 @@ class ActiveController implements WidgetController {
     }
     this.#frameHandle = this.#dependencies.requestFrame((timestamp) => {
       this.#frameHandle = undefined;
-      const interval = 1000 / this.#config.render.fps;
+      if (this.#frameRate === "display") {
+        this.#render(timestamp, false); this.#scheduleFrame(); return;
+      }
+      const interval = 1000 / this.#frameRate;
       // Choose the refresh nearest to the theoretical deadline. Staying just
       // below half a frame prevents an exact tie from rendering too early.
       const tolerance = Math.max(
@@ -734,7 +781,7 @@ class ActiveController implements WidgetController {
       for (const [id, value] of this.#manualParameters) {
         this.#setRuntimeParameter(id, value);
       }
-      this.#runtime.renderFrame(timestamp);
+      this.#runtime.renderFrame(timestamp); this.#lastRenderedAt = timestamp;
       this.#hitMask.capture(this.#canvas, performance.now());
       this.#performance?.recordFrame(timestamp, performance.now() - started);
       if (!this.#modelRendered) {
@@ -757,7 +804,7 @@ class ActiveController implements WidgetController {
 
   #activateDialogue(action: DialogueAction, timestamp: number): void {
     if (action.animation) this.#animations.trigger(action.animation, timestamp);
-    this.#bubble.show(action, timestamp, this.#dependencies.prefersReducedMotion());
+    if (this.#bubblesVisible) this.#bubble.show(action, timestamp, this.#dependencies.prefersReducedMotion());
   }
 
   #updateBubble(timestamp: number): void { this.#bubble.update(timestamp); }

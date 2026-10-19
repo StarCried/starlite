@@ -944,3 +944,66 @@ describe("mountWithDependencies", () => {
     expect(armValues).toEqual([]);
   });
 });
+
+describe("live host controls", () => {
+  it("resizes and changes the frame cap without replacing the runtime or its active gesture", async () => {
+    const element = document.createElement("div"), runtime = fakeRuntime(), callbacks: FrameRequestCallback[] = [];
+    const deps = dependencies({ createRuntime: vi.fn(async () => runtime), requestFrame: vi.fn(callback => { callbacks.push(callback); return callbacks.length; }) });
+    vi.spyOn(performance, "now").mockReturnValue(100);
+    const controller = await mountWithDependencies(element, { model: "/model.inp", fallback: "/fallback.png", animations: [clickAnimation], interactions: { drag: false } }, deps);
+    const canvas = element.querySelector("canvas"), playing = controller.playAnimation("Click");
+    callbacks.shift()!(400);
+    controller.setDisplaySize!(520, 720); controller.setFrameRate!(60);
+    expect(element.style.getPropertyValue("--inochi2d-width")).toBe("520px");
+    expect(runtime.resize).toHaveBeenLastCalledWith(520, 720, 1.25);
+    expect(runtime.setCameraTransform).toHaveBeenLastCalledWith(0, 0, .3);
+    expect(deps.createRuntime).toHaveBeenCalledOnce(); expect(deps.fetchModel).toHaveBeenCalledOnce(); expect(element.querySelector("canvas")).toBe(canvas);
+    callbacks.shift()!(500); callbacks.shift()!(1100); await expect(playing).resolves.toBe("completed");
+    controller.pause(); const renders = vi.mocked(runtime.renderFrame).mock.calls.length;
+    controller.setDisplaySize!(390, 540); expect(controller.status).toBe("paused"); expect(runtime.renderFrame).toHaveBeenCalledTimes(renders + 1);
+    expect(runtime.renderFrame).toHaveBeenLastCalledWith(1100);
+    expect(() => controller.setDisplaySize!(NaN, 300)).toThrow("display size"); expect(() => controller.setFrameRate!(Infinity)).toThrow("frame rate");
+    controller.destroy();
+  });
+
+  it("switches between 30 FPS, 60 FPS and display sampling in the existing frame loop", async () => {
+    const element = document.createElement("div"), runtime = fakeRuntime(), callbacks: FrameRequestCallback[] = [];
+    const controller = await mountWithDependencies(element, { model: "/model.inp", fallback: "/fallback.png" }, dependencies({ createRuntime: vi.fn(async () => runtime), requestFrame: vi.fn(callback => { callbacks.push(callback); return callbacks.length; }) }));
+    for (let i = 0; i < 60; i++) callbacks.shift()!(i * 1000 / 60);
+    expect(runtime.renderFrame).toHaveBeenCalledTimes(30);
+    controller.setFrameRate!(60);
+    for (let i = 0; i < 60; i++) callbacks.shift()!(1000 + i * 1000 / 60);
+    expect(runtime.renderFrame).toHaveBeenCalledTimes(90);
+    controller.setFrameRate!("display");
+    for (let i = 0; i < 144; i++) callbacks.shift()!(2000 + i * 1000 / 144);
+    expect(runtime.renderFrame).toHaveBeenCalledTimes(234); controller.destroy();
+  });
+
+  it("keeps click and idle animations working with all dialogue hidden", async () => {
+    const element = document.createElement("div"), runtime = fakeRuntime(), callbacks: FrameRequestCallback[] = [];
+    const clock = vi.spyOn(performance, "now").mockReturnValue(100);
+    const controller = await mountWithDependencies(element, { model: "/model.inp", fallback: "/fallback.png", animations: [clickAnimation], interactions: { drag: false }, dialogue: {
+      click: { animation: "Click", lines: ["Click line"], durationMs: 500 },
+      idle: { animation: "Click", lines: ["Idle line"], durationMs: 500, intervalMinMs: 5000, intervalMaxMs: 5000 },
+    } }, dependencies({ createRuntime: vi.fn(async () => runtime), requestFrame: vi.fn(callback => { callbacks.push(callback); return callbacks.length; }) }));
+    callbacks.shift()!(0); controller.setBubblesVisible!(false);
+    const canvas = element.querySelector("canvas")!, bubble = element.querySelector<HTMLElement>(".model-widget__bubble")!;
+    canvas.dispatchEvent(new MouseEvent("click")); callbacks.shift()!(400);
+    expect(bubble.hidden).toBe(true); expect(runtime.setParameterScalar).toHaveBeenCalledWith("Arm:: Right:: Move", 1);
+    callbacks.shift()!(1200); vi.mocked(runtime.setParameterScalar).mockClear(); callbacks.shift()!(5600); callbacks.shift()!(5900);
+    expect(bubble.hidden).toBe(true); expect(runtime.setParameterScalar).toHaveBeenCalledWith("Arm:: Right:: Move", 1);
+    controller.setBubblesVisible!(true); clock.mockReturnValue(6500); canvas.dispatchEvent(new MouseEvent("click"));
+    expect(bubble.hidden).toBe(false); expect(bubble.textContent).toBe("Click line"); controller.destroy();
+  });
+
+  it("allows pointer tracking to be enabled after mount and restores neutral parameters when disabled", async () => {
+    const element = document.createElement("div"), runtime = fakeRuntime(), callbacks: FrameRequestCallback[] = [];
+    const controller = await mountWithDependencies(element, { model: "/model.inp", fallback: "/fallback.png", interactions: { pointer: false, drag: false } }, dependencies({ createRuntime: vi.fn(async () => runtime), requestFrame: vi.fn(callback => { callbacks.push(callback); return callbacks.length; }) }));
+    const canvas = element.querySelector("canvas")!; vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 260, 360));
+    controller.setPointerPosition(10000, 10000); callbacks.shift()!(0);
+    controller.setPointerEnabled!(true); window.dispatchEvent(pointerEvent("pointermove", { pointerId: 1, clientX: 10000, clientY: 10000 })); callbacks.shift()!(100);
+    controller.setPointerEnabled!(false); window.dispatchEvent(pointerEvent("pointermove", { pointerId: 1, clientX: 10000, clientY: 10000 })); callbacks.shift()!(200);
+    controller.setPointerEnabled!(true); controller.setPointerPosition(-10000, -10000); callbacks.shift()!(300);
+    expect(vi.mocked(runtime.setParameterScalar).mock.calls.filter(([id]) => id === "EyeX").map(([,value]) => value)).toEqual([0, 1, 0, -1]); controller.destroy();
+  });
+});

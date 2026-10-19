@@ -20,6 +20,8 @@ await build({ entryPoints: [resolve(packageRoot,"src/dialogue.ts")], outfile: re
 await build({ entryPoints: [resolve(packageRoot,"src/hit-mask.ts")], outfile: resolve(packageRoot,"dist/hit-mask.js"), bundle: true, format: "esm", platform: "browser", target: "es2022" });
 await build({ entryPoints: [resolve(packageRoot,"src/performance.ts")], outfile: resolve(packageRoot,"dist/performance.js"), bundle: true, format: "esm", platform: "browser", target: "es2022" });
 
+await build({ entryPoints: [resolve(packageRoot,"src/quick-settings.ts")], outfile: resolve(packageRoot,"dist/quick-settings.js"), bundle: true, format: "esm", platform: "browser", target: "es2022" });
+
 // The generated files are served directly by Hexo without a package resolver.
 // Analyze the actual distribution graph, without changing its module layout,
 // and reject a future bare import even if a bundler-based example would work.

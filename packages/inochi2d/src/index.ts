@@ -2,6 +2,7 @@ import { mountWithDependencies } from "./controller.js";
 import { createDefaultDependencies } from "./dependencies.js";
 
 export { validateInochi2DWidgetConfig } from "./config.js";
+export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem } from "./quick-settings.js";
 
 export type {
   AmbientAnimationConfig,
