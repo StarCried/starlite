@@ -2,6 +2,27 @@ import {expect,test} from "@playwright/test";
 // @ts-expect-error artwork-free JavaScript fixture
 import {model,glb} from "../../../tests/fixtures/vrm.mjs";
 
+test("VRM performance toggle preserves the model and ignores pointer events", async({page})=>{
+ await page.goto("http://127.0.0.1:4182/");
+ const host=page.locator('.model-vrm-widget');await expect(host).toHaveAttribute("data-model-status","running");
+ const panel=host.locator('[data-model-performance]');await expect(panel).toHaveCount(0);
+ await page.evaluate(()=>{
+  const state=(globalThis as any).__hexoStarLiteWidgetState;
+  (globalThis as any).__performanceCanvas=document.querySelector("canvas");
+  state.controller.setPerformanceVisible(true);
+ });
+ await expect(panel).toContainText(/\d+\.\d FPS/);await expect(panel).toContainText("CPU p95");
+ await expect(panel).toHaveCSS("pointer-events","none");
+ await page.evaluate(()=>(globalThis as any).__hexoStarLiteWidgetState.controller.pause());
+ await expect(panel).toHaveText("StarLite · paused");
+ await page.evaluate(()=>{
+  const controller=(globalThis as any).__hexoStarLiteWidgetState.controller;
+  controller.resume();controller.setPerformanceVisible(false);
+ });
+ await expect(panel).toHaveCount(0);await expect(host).toHaveCount(1);
+ expect(await page.evaluate(()=>document.querySelector("canvas")===(globalThis as any).__performanceCanvas)).toBe(true);
+});
+
 for(const version of ["0","1"])test(`VRM${version} without optional expressions still renders, idles and passes through clicks`,async({page})=>{
  const original=model(version), jsonSize=original.readUInt32LE(12), json=JSON.parse(original.subarray(20,20+jsonSize).toString());
  if(version==="0")delete json.extensions.VRM.blendShapeMaster;
