@@ -337,6 +337,7 @@ export class QuickSettingsMenu {
   #position(): void {
     // Position once per explicit open. Host/model resizes and expanded controls
     // must never move a slider out from under an active pointer.
+    this.element.style.maxWidth = "";
     this.element.style.maxHeight = "";
     const rect = this.element.getBoundingClientRect();
     const width = rect.width || Math.min(300, innerWidth - 16), height = rect.height || this.element.offsetHeight;

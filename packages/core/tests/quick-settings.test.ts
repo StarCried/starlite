@@ -114,6 +114,17 @@ it("anchors an open card through live slider updates, taller tabs, and viewport 
   expect(menu.element.style.left).toBe("24px"); expect(menu.element.style.top).toBe("32px");
 });
 
+it("discards a previous host width limit only when explicitly opening again", () => {
+  const options: QuickSettingsOptions = { tabs: [{ id: "display", label: "显示", items: [] }] };
+  const menu = make(options);
+  vi.spyOn(menu.element, "getBoundingClientRect").mockImplementation(() => new DOMRect(0, 0, Number.parseFloat(menu.element.style.maxWidth) || 300, 100));
+  menu.open(innerWidth, 40);
+  menu.element.style.maxWidth = "30px";
+  menu.update(options); expect(menu.element.style.maxWidth).toBe("30px");
+  menu.close(); menu.open(innerWidth, 40);
+  expect(menu.element.style.maxWidth).toBe(""); expect(menu.element.style.left).toBe(`${innerWidth - 308}px`);
+});
+
 it("keeps the slider thumb under an active pointer when host persistence returns an earlier value", () => {
   const options = (value: number): QuickSettingsOptions => ({ tabs: [{ id: "display", label: "显示", items: [
     { id: "size", kind: "range", label: "大小", value, min: 50, max: 150, formatValue: next => `${next}%`, onChange() {} },
