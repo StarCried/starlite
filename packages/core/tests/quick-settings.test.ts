@@ -50,7 +50,8 @@ it("uses updated callbacks and values for toggles, selects and disabled actions"
   const menu = make(options(old)); menu.update(options(next));
   const input = menu.element.querySelector<HTMLInputElement>("input")!; input.checked = false; input.dispatchEvent(new Event("change"));
   expect(old).not.toHaveBeenCalled(); expect(next).toHaveBeenCalledWith(false);
-  const select = menu.element.querySelector("select")!; select.value = "30"; select.dispatchEvent(new Event("change")); expect(next).toHaveBeenCalledWith("30");
+  menu.element.querySelector<HTMLButtonElement>('[role=combobox][data-setting-id="fps"]')!.click();
+  menu.element.querySelector<HTMLButtonElement>('[role=option][data-value="30"]')!.click(); expect(next).toHaveBeenCalledWith("30");
   menu.element.querySelector<HTMLButtonElement>('[data-setting-id="restore"]')!.click(); expect(action).not.toHaveBeenCalled();
 });
 
@@ -90,4 +91,91 @@ it("keeps a synchronous setting enabled after its callback updates the menu", ()
   const input = menu.element.querySelector<HTMLInputElement>("input")!;
   input.click(); expect(value).toBe(false); expect(input.disabled).toBe(false);
   input.click(); expect(value).toBe(true); expect(input.disabled).toBe(false);
+});
+
+it("anchors an open card through live slider updates, taller tabs, and viewport resizing", () => {
+  let height = 300;
+  let menu: QuickSettingsMenu;
+  const options = (value: number): QuickSettingsOptions => ({ tabs: [
+    { id: "display", label: "显示", items: [{ id: "size", kind: "range", label: "大小", value, min: 50, max: 150, onChange: next => { height = 550; menu.update(options(next)); } }] },
+    { id: "work", label: "工作", items: [{ id: "mode", kind: "toggle", label: "气泡", value: true, onChange() {} }] },
+  ] });
+  menu = make(options(100));
+  const rect = vi.spyOn(menu.element, "getBoundingClientRect").mockImplementation(() => new DOMRect(0, 0, 300, height));
+  menu.open(innerWidth - 20, innerHeight - 20);
+  const anchor = [menu.element.style.left, menu.element.style.top, menu.element.style.maxHeight];
+  const range = menu.element.querySelector<HTMLInputElement>("input[type=range]")!;
+  range.value = "130"; range.dispatchEvent(new Event("input"));
+  menu.element.querySelectorAll<HTMLButtonElement>("[role=tab]")[1]!.click();
+  window.dispatchEvent(new Event("resize"));
+  expect([menu.element.style.left, menu.element.style.top, menu.element.style.maxHeight]).toEqual(anchor);
+  expect(rect).toHaveBeenCalledTimes(1);
+  menu.close(); menu.open(24, 32);
+  expect(menu.element.style.left).toBe("24px"); expect(menu.element.style.top).toBe("32px");
+});
+
+it("keeps the slider thumb under an active pointer when host persistence returns an earlier value", () => {
+  const options = (value: number): QuickSettingsOptions => ({ tabs: [{ id: "display", label: "显示", items: [
+    { id: "size", kind: "range", label: "大小", value, min: 50, max: 150, formatValue: next => `${next}%`, onChange() {} },
+  ] }] });
+  const menu = make(options(100)); menu.open(10, 10);
+  const range = menu.element.querySelector<HTMLInputElement>("input")!;
+  range.dispatchEvent(new PointerEvent("pointerdown", { button: 0, pointerId: 7, bubbles: true }));
+  range.value = "135"; range.dispatchEvent(new Event("input"));
+  menu.update(options(110));
+  expect(range.value).toBe("135"); expect(menu.element.querySelector("output")?.textContent).toBe("135%");
+  document.dispatchEvent(new PointerEvent("pointerup", { pointerId: 8, bubbles: true }));
+  menu.update(options(120)); expect(range.value).toBe("135");
+  menu.update(options(135)); document.dispatchEvent(new PointerEvent("pointerup", { pointerId: 7, bubbles: true }));
+  menu.update(options(125)); expect(range.value).toBe("125");
+});
+
+it("presents readable rounded inline choices, supports pointer selection and preserves the menu anchor", () => {
+  const change = vi.fn();
+  const menu = make({ tabs: [{ id: "work", label: "工作", items: [
+    { id: "mode", kind: "select", label: "工作气泡", value: "compact", options: [{ value: "compact", label: "精简" }, { value: "detailed", label: "详细" }], onChange: change },
+  ] }] });
+  menu.open(50, 80);
+  const anchor = [menu.element.style.left, menu.element.style.top];
+  const trigger = menu.element.querySelector<HTMLButtonElement>("[role=combobox]")!;
+  const listbox = menu.element.querySelector<HTMLElement>("[role=listbox]")!;
+  expect(menu.element.querySelector("select")).toBeNull(); expect(trigger.textContent).toBe("精简"); expect(listbox.hidden).toBe(true);
+  trigger.click();
+  expect(trigger.getAttribute("aria-expanded")).toBe("true"); expect(trigger.getAttribute("aria-controls")).toBe(listbox.id); expect(listbox.hidden).toBe(false);
+  const option = listbox.querySelector<HTMLButtonElement>('[data-value="detailed"]')!;
+  expect(getComputedStyle(option).backgroundColor).toBe("#20283b"); expect(getComputedStyle(option).color).toBe("#f0f3ff"); expect(getComputedStyle(listbox).borderRadius).toBe("10px");
+  option.click(); expect(change).toHaveBeenCalledExactlyOnceWith("detailed"); expect(trigger.textContent).toBe("详细");
+  expect(option.getAttribute("aria-selected")).toBe("true"); expect(listbox.hidden).toBe(true); expect(document.activeElement).toBe(trigger);
+  expect([menu.element.style.left, menu.element.style.top]).toEqual(anchor);
+});
+
+it("supports select keyboard navigation and closes choices before closing the card", () => {
+  const change = vi.fn();
+  const menu = make({ tabs: [{ id: "a", label: "工作", items: [
+    { id: "mode", kind: "select", label: "工作气泡", value: "compact", options: [{ value: "compact", label: "精简" }, { value: "detailed", label: "详细" }], onChange: change },
+  ] }] });
+  menu.open(10, 10);
+  const trigger = menu.element.querySelector<HTMLButtonElement>("[role=combobox]")!; trigger.focus();
+  const key = (value: string) => trigger.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true }));
+  key("ArrowDown"); key("ArrowDown");
+  expect(menu.element.querySelector('[data-active=true]')?.textContent).toBe("详细");
+  key("Enter"); expect(change).toHaveBeenLastCalledWith("detailed"); expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  key("End"); key("Home"); key(" "); expect(change).toHaveBeenLastCalledWith("compact");
+  key(" "); key("Escape"); expect(trigger.getAttribute("aria-expanded")).toBe("false"); expect(menu.isOpen).toBe(true);
+  key("ArrowUp"); key("Tab"); expect(trigger.getAttribute("aria-expanded")).toBe("false"); expect(menu.isOpen).toBe(true);
+  key(" "); menu.element.querySelector('[role=tab]')!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  key("Escape"); expect(menu.isOpen).toBe(false);
+});
+
+it("uses updated select callbacks and rolls back a failed asynchronous choice", async () => {
+  const old = vi.fn();
+  const options = (onChange: (value: string) => void | Promise<void>): QuickSettingsOptions => ({ tabs: [{ id: "a", label: "工作", items: [
+    { id: "mode", kind: "select", label: "工作气泡", value: "compact", options: [{ value: "compact", label: "精简" }, { value: "detailed", label: "详细" }], onChange },
+  ] }] });
+  const menu = make(options(old)); menu.open(10, 10); const change = vi.fn(async () => { throw new Error("private"); }); menu.update(options(change));
+  const trigger = menu.element.querySelector<HTMLButtonElement>("[role=combobox]")!;
+  trigger.click(); menu.element.querySelector<HTMLButtonElement>('[role=option][data-value="detailed"]')!.click();
+  await vi.waitFor(() => expect(menu.element.querySelector<HTMLElement>("[role=status]")!.hidden).toBe(false));
+  expect(old).not.toHaveBeenCalled(); expect(change).toHaveBeenCalledWith("detailed"); expect(trigger.textContent).toBe("精简"); expect(trigger.disabled).toBe(false);
 });
