@@ -63,6 +63,16 @@ starlite:
 
 ## 进阶
 
+每篇文章也能有自己的句子，在 Markdown 开头的 front matter 中添加：
+
+```yaml
+starlite:
+  - "欢迎来到这一页。"
+  - "慢慢看，我在这里。"
+```
+
+默认点击和偶发互动共用顺序句库。此功能目前为本地候选，尚未发布到 npm；[完整说明与默认值](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#页面专属句子)。
+
 [动作、气泡与性能](https://github.com/StarCried/starlite/blob/main/docs/configuration.md) · [完整配置示例](https://github.com/StarCried/starlite/blob/main/docs/examples/hexo-vrm.yml) · [安装、更新与卸载](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md) · [VRM API](https://github.com/StarCried/starlite/blob/main/packages/vrm/README.md)
 
 BSD-2-Clause；微光模型独立授权，其他模型和动作由使用者按各自许可提供。

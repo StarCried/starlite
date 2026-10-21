@@ -106,6 +106,61 @@ dialogue:
 
 VRM 点击不会打断已有前景动作；首次入场在同一标签页仅触发一次。时间单位为毫秒，默认气泡持续 4000 ms，长文可增加 `durationMs`。文字以纯文本显示，两个后端共用 core 的气泡与调度。作者自己的 `dialogue.json`（例如 scene 列表）不是此公共配置格式，须先转换。
 
+### 页面专属句子
+
+此功能目前为本地候选，尚未发布到 npm。全站句库仍写在 `_config.yml`；某篇文章或独立页面的句子可以直接写在对应 Markdown 开头的 front matter 中：
+
+```yaml
+---
+title: 关于我
+starlite:
+  - "欢迎来到我的小窝。"
+  - "这里记录着一些日常。"
+---
+正文……
+```
+
+需要覆盖选项时，改用 `lines` 对象形式；两种写法不能同时使用。YAML 的 `-` 后必须有空格：
+
+```yaml
+starlite:
+  lines:
+    - "见到你很开心。"
+    - "要击个掌吗？"
+  animation: HighFive
+  triggers: [click, idle]
+  mode: replace
+  order: sequential
+```
+
+`animation` 必须是当前模型已有动作的完整名称，区分大小写。上例 `HighFive` 属于默认微光；使用其他模型时选择该模型自己的动作。每页的句子共用所选动作。
+
+默认选项可在博客 `_config.yml` 的 `starlite.pageDialogue` 中调整，不必逐篇填写：
+
+```yaml
+starlite:
+  pageDialogue:
+    animation: HighFive
+    triggers: [click, idle]
+    mode: replace
+    order: sequential
+```
+
+优先级为「文章选项 → 全站 `pageDialogue` → 内置默认值」。未写 `starlite` 的页面仍使用全站句库，不受 `pageDialogue` 影响。
+
+| 选项 | 内置默认值与含义 |
+| --- | --- |
+| `animation` | 沿用全站 `dialogue.enter` 的动作；若入场是动作池，使用第一项。没有入场动作则只显示文字。它只是点击／偶发时使用的动作，不会因切换页面重播入场。 |
+| `triggers` | `[click, idle]`，允许点击和偶发触发；可只写其中一种。`idle` 指偶发互动，不是基础站姿或呼吸。 |
+| `mode` | `replace`，仅覆盖所选触发方式的全站句库；`merge` 将页面句子放在前面，再加入对应全站候选，并保留全站原有的动作与句子绑定。入场和基础 Idle 不受影响。 |
+| `order` | `sequential`，每次有效触发取下一句，末句后回到第一句；点击和偶发共用进度。`random` 每次从当前触发方式的候选中随机选择。 |
+
+进入新页面时重新从第一句开始；同页句库未变时，重复的 PJAX 事件、窗口缩放、查询参数或锚点变化不重置进度。没有页面句库的页面恢复全站句库；PJAX 切换不重载模型。合并模式按当前触发方式筛选候选，顺序模式依然共用进度。
+
+偶发间隔沿用全站 `dialogue.idle` 的配置；全站未开启该场景时，页面偶发使用 30–60 秒的随机间隔。气泡持续时间沿用对应全站场景，未配置时为 4000 ms。关闭「显示气泡」仍触发动画并推进句子；暂停动画或隐藏页面时不消耗句子。页面可独立启用全站已关闭的点击／偶发场景；停用整个组件和移动端隐藏规则仍优先。
+
+`lines` 必须包含 1–128 条非空句子，每条去除两端空白后最多 1024 个 UTF-8 字节。只显示纯文本，不解析 Markdown 或 HTML。未知选项、错误类型或不存在的动作会在生成时给出带来源的错误；正文和句子仍由原来的 Markdown 文件维护，不另建 `dialogue.json`。
+
 ## 外部动作与高级资源目录
 
 外部 VRMA 可放在博客 `source/motions/`，并配置 `animations: [{name: Wave, url: motions/Wave.vrma}]`。也可使用 [prepare-vrm.cjs](examples/prepare-vrm.cjs) 将模型、外部动作和 profile 准备为有哈希清单的目录，再填写 `bundle`；这是高级构建输入，不是用户导入所需的自定义分发包。配置 bundle 后以清单中的外部动作列表为准。

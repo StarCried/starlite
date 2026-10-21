@@ -28,6 +28,28 @@ starlite:
 # 若已显式配置 dialogue.click，也将其设为 false。
 # 停用所有看板娘功能：只保留 starlite: {enable: false}。
 
+# 页面专属句子（本地候选，尚未发布到 npm）：写在文章 Markdown 的 front matter。
+# starlite:
+#   - "欢迎来到这一页。"
+#   - "慢慢看，我在这里。"
+#
+# 需要更多选项时，同一位置改用对象形式：
+# starlite:
+#   lines: ["见到你很开心。", "要击个掌吗？"]
+#   animation: HighFive  # 必须是模型已有动作
+#   triggers: [click, idle]
+#   mode: replace
+#   order: sequential
+#
+# 全站页面默认值：在博客 _config.yml 现有 starlite 段中添加 pageDialogue。
+# pageDialogue:
+#   animation: HighFive
+#   triggers: [click, idle]
+#   mode: replace
+#   order: sequential
+# 不指定 animation 时沿用入场动作；点击和偶发共用顺序，切换页面重新开始。
+# 默认覆盖对应全站句库；mode: merge 可将本页句子放在全站候选前。
+
 # 替换自己的模型时，用以下配置替换整个 starlite 段。
 # 模型放在博客根目录 models/ 下，source/ 之外；自动选择 VRM 后端。
 # 不继承微光专属动作、句库、镜头和显示参数。
