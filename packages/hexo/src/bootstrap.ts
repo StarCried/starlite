@@ -1,5 +1,6 @@
 import type { BrowserWidgetConfig } from "./types";
 import { installVisitorMenu } from "./visitor-menu";
+import { readPageDialogue } from "./page-dialogue-browser";
 
 interface BootstrapOptions {
   entryUrl: string;
@@ -7,6 +8,7 @@ interface BootstrapOptions {
   breakpoint: number;
   showOnMobile: boolean;
   position?: { right: number; bottom: number; zIndex: number };
+  pageRoot?: string;
 }
 
 /** Build a self-contained browser module with a mobile guard before import(). */
@@ -15,6 +17,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   return `
 (async (options) => {
   const installQuickSettings = ${installVisitorMenu.toString()};
+  const readPageDialogue = ${readPageDialogue.toString()};
   const mobileQuery = \`(max-width: \${Math.max(0, options.breakpoint - 1)}px)\`;
   const stateKey = "__hexoStarLiteWidgetState";
   const state = (globalThis[stateKey] ??= {});
@@ -62,6 +65,29 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       : 1;
     return state.generation;
   };
+  const syncPageDialogue = () => {
+    const context = readPageDialogue(document, globalThis.location.pathname, options.pageRoot);
+    state.dialogueContext = context;
+    const controller = state.controller;
+    if (!controller || typeof controller.setDialogueContext !== "function") {
+      state.pageDialogueAvailable = false;
+      state.quickSettings?.updateDialogueAvailability?.(false);
+      return;
+    }
+    const signature = JSON.stringify(context);
+    if (state.dialogueContextController === controller && state.dialogueContextSignature === signature) return;
+    state.dialogueContextController = controller;
+    state.dialogueContextSignature = signature;
+    try {
+      controller.setDialogueContext(context);
+      state.pageDialogueAvailable = context !== null;
+    } catch {
+      // Unknown actions or modified page data disable this overlay only.
+      try { controller.setDialogueContext(null); } catch { /* Controller may have been destroyed. */ }
+      state.pageDialogueAvailable = false;
+    }
+    state.quickSettings?.updateDialogueAvailability?.(state.pageDialogueAvailable);
+  };
   const ensureMounted = async () => {
     const hosts = Array.from(document.querySelectorAll("[data-starlite-widget-host]"));
     if (!options.showOnMobile && media.matches) {
@@ -80,6 +106,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       hosts.forEach((node) => node.remove());
       return;
     }
+    syncPageDialogue();
 
     // PJAX may replace the containing fragment. Reattach our original DOM node,
     // including its canvas, pending load, bubble and controller, before deduplicating.
@@ -169,6 +196,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
           host.style.removeProperty("visibility");
           host.style.removeProperty("pointer-events");
           if (options.config.interactions?.passThrough) host.style.pointerEvents = "none";
+          syncPageDialogue();
           installQuickSettings(runtime, state, options);
           rememberEntry();
         }
@@ -202,6 +230,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   };
   if (!state.listenerBound) {
     document.addEventListener("pjax:complete", () => state.scheduleMount());
+    globalThis.addEventListener("popstate", () => state.scheduleMount());
     media.addEventListener("change", () => state.scheduleMount());
     document.addEventListener("visibilitychange", () => state.resumeRecovery());
     globalThis.addEventListener("online", () => state.resumeRecovery());

@@ -14,7 +14,8 @@ export function installVisitorMenu(runtime: any, state: any, options: {
   const baseWidth = config.display?.width ?? 320;
   const baseHeight = config.display?.height ?? 480;
   const pointerAllowed = config.interactions?.pointer !== false;
-  const bubblesAllowed = Object.values(config.dialogue ?? {}).some(scene => scene !== false && scene !== undefined);
+  const baseBubblesAllowed = Object.values(config.dialogue ?? {}).some(scene => scene !== false && scene !== undefined);
+  let bubblesAllowed = baseBubblesAllowed || state.pageDialogueAvailable === true;
   const defaults = {
     scale: 1,
     fps: config.render?.fps ?? 30,
@@ -27,12 +28,14 @@ export function installVisitorMenu(runtime: any, state: any, options: {
     const value = JSON.parse(globalThis.localStorage.getItem(storageKey) ?? "{}");
     if (value && typeof value === "object" && !Array.isArray(value)) saved = value;
   } catch { /* Browsing remains available when storage is blocked. */ }
+  // Remember the visitor's choice independently of a page's available content.
+  let bubbleChoice = typeof saved.bubbles === "boolean" ? saved.bubbles : true;
   const preferences = {
     scale: typeof saved.scale === "number" && Number.isFinite(saved.scale) && saved.scale >= .5 && saved.scale <= 1.5 ? saved.scale : defaults.scale,
     fps: saved.fps === 30 || saved.fps === 60 ? saved.fps : defaults.fps,
     performance: typeof saved.performance === "boolean" ? saved.performance : defaults.performance,
     pointer: pointerAllowed && (typeof saved.pointer === "boolean" ? saved.pointer : defaults.pointer),
-    bubbles: bubblesAllowed && (typeof saved.bubbles === "boolean" ? saved.bubbles : defaults.bubbles),
+    bubbles: bubblesAllowed && bubbleChoice,
   };
   let paused = false;
   let hidden = false;
@@ -52,7 +55,7 @@ export function installVisitorMenu(runtime: any, state: any, options: {
   recovery.hidden = true;
   document.body.append(recovery);
   const save = () => {
-    try { globalThis.localStorage.setItem(storageKey, JSON.stringify(preferences)); } catch { /* Optional visitor preferences. */ }
+    try { globalThis.localStorage.setItem(storageKey, JSON.stringify({ ...preferences, bubbles: bubbleChoice })); } catch { /* Optional visitor preferences. */ }
   };
   const apply = () => {
     controller.setDisplaySize?.(baseWidth * preferences.scale, baseHeight * preferences.scale);
@@ -67,6 +70,7 @@ export function installVisitorMenu(runtime: any, state: any, options: {
     else if (key === "performance") controller.setPerformanceVisible?.(value);
     else if (key === "pointer") controller.setPointerEnabled?.(value);
     else if (key === "bubbles") controller.setBubblesVisible?.(value);
+    if (key === "bubbles") bubbleChoice = value;
     (preferences as any)[key] = value;
     save(); menu.update(menuOptions());
   };
@@ -153,6 +157,12 @@ export function installVisitorMenu(runtime: any, state: any, options: {
   apply();
   state.quickSettings = {
     menu, recovery,
+    updateDialogueAvailability(available: boolean) {
+      bubblesAllowed = baseBubblesAllowed || available;
+      preferences.bubbles = bubblesAllowed && bubbleChoice;
+      controller.setBubblesVisible?.(preferences.bubbles);
+      menu.update(menuOptions());
+    },
     reattach() { if (!menu.element.isConnected) document.body.append(menu.element); if (!recovery.isConnected) document.body.append(recovery); refreshPausedMask(); },
     destroy() { document.removeEventListener("contextmenu", contextmenu, true); globalThis.removeEventListener("resize", refreshPausedMask); controller.observeInteractionMask?.(); menu.destroy(); recovery.remove(); mask = undefined; },
   };

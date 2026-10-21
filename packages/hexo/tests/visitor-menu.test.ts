@@ -112,3 +112,26 @@ it("refreshes the paused opaque target when the viewport moves a fixed host", as
   h.state.quickSettings.destroy(); h.win.dispatchEvent(new h.win.Event("resize"));
   expect(h.controller.refreshInteractionMask).toHaveBeenCalledTimes(2); await h.win.happyDOM.close();
 });
+
+it("enables page-only dialogue while retaining a visitor's explicit bubble choice across pages", async () => {
+  const h=harness({dialogue:{enter:false,click:false,idle:false}});
+  expect(h.item("bubbles").disabled).toBe(true);
+  h.state.quickSettings.updateDialogueAvailability(true);
+  expect(h.item("bubbles").disabled).toBe(false);expect(h.item("bubbles").value).toBe(true);
+  expect(h.controller.setBubblesVisible).toHaveBeenLastCalledWith(true);
+  h.item("bubbles").onChange(false);
+  h.state.quickSettings.updateDialogueAvailability(false);h.state.quickSettings.updateDialogueAvailability(true);
+  expect(h.item("bubbles").value).toBe(false);expect(h.controller.setBubblesVisible).toHaveBeenLastCalledWith(false);
+  expect(JSON.parse(h.win.localStorage.getItem("starlite:visitor-settings:v1")!).bubbles).toBe(false);
+  await h.win.happyDOM.close();
+});
+it("does not turn unavailable page dialogue into a saved opt-out when changing another preference",async()=>{
+  const h=harness({dialogue:{enter:false,click:false,idle:false}});
+  h.item("fps").onChange("30");
+  expect(JSON.parse(h.win.localStorage.getItem("starlite:visitor-settings:v1")!).bubbles).toBe(true);
+  h.state.quickSettings.updateDialogueAvailability(true);expect(h.item("bubbles").value).toBe(true);
+  h.item("pause").onChange(true);h.item("hide").onAction();
+  h.state.quickSettings.updateDialogueAvailability(false);h.state.quickSettings.updateDialogueAvailability(true);
+  expect(h.item("pause").value).toBe(true);expect(h.host.style.visibility).toBe("hidden");expect(h.state.quickSettings.recovery.hidden).toBe(false);
+  await h.win.happyDOM.close();
+});
