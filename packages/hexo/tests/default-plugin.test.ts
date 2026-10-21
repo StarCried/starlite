@@ -119,8 +119,8 @@ it("a custom VRM skips the default download and all character-specific action/di
 
 it("custom models retain explicit publication checks", async () => {
   const site = blog({ starlite: { model: "./avatar.vrm" } });
-  writeFileSync(join(site.root, "avatar.vrm"), model()); await site.registrations.prepare!();
-  expect(() => site.registrations.generate!()).toThrow("publication.confirm");
+  writeFileSync(join(site.root, "avatar.vrm"), model());
+  await expect(site.registrations.prepare!()).rejects.toThrow("publication.confirm");
   expect(ensureDefaultAssets).not.toHaveBeenCalled();
 });
 

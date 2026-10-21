@@ -5,6 +5,7 @@ import { collectModelAssets, collectVrmModelAssets, collectVrmFileAssets, isLoca
 import { createBootstrapSource } from "./bootstrap";
 import { normalizeRoot, readEnabledConfig } from "./config";
 import { ensureDefaultAssets } from "./default-assets";
+import {markPageDialogue,readPageDialogueDefaults,resolvePageDialogueMarkers} from "./page-dialogue";
 import { isDefaultPreset, resolveDefaultPreset, WEIGUANG_ASSETS, WEIGUANG_CACHE_DIRECTORY } from "./default-preset";
 import type { HexoLike, HexoWidgetConfig, ModelAssetBundle, RuntimeAssetBundle } from "./types";
 
@@ -28,6 +29,7 @@ export function registerHexoWidget(instance: HexoLike): void {
     }
     if (input?.enable !== undefined && typeof input.enable !== "boolean") throw new Error("starlite.enable must be true or false");
     if (input?.enable === false) return input;
+    readPageDialogueDefaults(input?.pageDialogue);
     if (input?.backend !== undefined && input.backend !== "vrm" && input.backend !== "inochi2d") throw new Error("unknown model backend");
     for (const key of ["model", "bundle"] as const) {
       if (input?.[key] !== undefined && (typeof input[key] !== "string" || !input[key].trim())) {
@@ -36,6 +38,9 @@ export function registerHexoWidget(instance: HexoLike): void {
     }
     return input;
   };
+  // Keep page data in the article fragment rather than body_end: PJAX themes
+  // can replace the article while retaining the original widget and bootstrap.
+  instance.extend.filter?.register("after_post_render",page=>markPageDialogue(page,readInput()?.enable!==false),20);
   const effectiveInstance = (): HexoLike | undefined => {
     const input = readInput();
     if (input?.enable === false) return undefined;
@@ -79,23 +84,34 @@ export function registerHexoWidget(instance: HexoLike): void {
       cachedBundle = undefined;
       cachedModelBundle = undefined;
       defaultReady = false;
-      if (!isDefaultPreset(readInput())) return;
-      try {
-        await ensureDefaultAssets(defaultDirectory, WEIGUANG_ASSETS);
-      } catch {
-        instance.log.warn("StarLite: 无法获取或校验默认微光，本次跳过看板娘，博客继续生成。请检查网络后重新生成；已有有效缓存时无需联网。也可设置 starlite.enable: false 禁用。");
-        return;
+      const input = readInput();
+      // Hexo may retain rendered Markdown when only site configuration changes.
+      // Refresh our own marker after render_post, including disable/re-enable.
+      const pages = (["Post", "Page"] as const).flatMap(name => instance.model?.(name).toArray() ?? []);
+      for (const page of pages) markPageDialogue(page, input?.enable !== false);
+      if (isDefaultPreset(input)) {
+        try {
+          await ensureDefaultAssets(defaultDirectory, WEIGUANG_ASSETS);
+        } catch {
+          instance.log.warn("StarLite: 无法获取或校验默认微光，本次跳过看板娘，博客继续生成。请检查网络后重新生成；已有有效缓存时无需联网。也可设置 starlite.enable: false 禁用。");
+          return;
+        }
+        defaultReady = true;
+        if (!defaultNoticeLogged) {
+          instance.log.info?.("StarLite: 默认使用 StarCried 的微光模型；使用即同意独立模型许可，不接受请设置 starlite.enable: false。许可与来源说明随站点模型资源生成。");
+          defaultNoticeLogged = true;
+        }
       }
-      defaultReady = true;
-      // Validate configured overrides and action names before rendering pages.
-      enabled();
-      if (!defaultNoticeLogged) {
-        instance.log.info?.("StarLite: 默认使用 StarCried 的微光模型；使用即同意独立模型许可，不接受请设置 starlite.enable: false。许可与来源说明随站点模型资源生成。");
-        defaultNoticeLogged = true;
+      // Hexo can log and swallow late HTML rendering errors. Reject invalid
+      // action references here, before it starts generating any page routes.
+      const current = enabled();
+      if (current) {
+        const defaults = readPageDialogueDefaults(input?.pageDialogue);
+        for (const page of pages) resolvePageDialogueMarkers(page.content ?? page.more ?? "", defaults, current.widget);
       }
     })().finally(() => { preparing = undefined; });
     return preparing;
-  });
+  }, 20);
 
   instance.extend.generator.register("starlite-widget-assets", () => {
     if (!enabled()) {
@@ -134,6 +150,7 @@ export function registerHexoWidget(instance: HexoLike): void {
       breakpoint: currentConfig.breakpoint,
       showOnMobile: currentConfig.showOnMobile,
       position: currentConfig.position,
+      pageRoot: root,
     });
 
     return [
@@ -147,7 +164,9 @@ export function registerHexoWidget(instance: HexoLike): void {
   // through its public HTML filter after asynchronous generation preparation.
   instance.extend.filter?.register("after_render:html", html => {
     if (!/<html\b/iu.test(html) || !/<\/body\s*>/iu.test(html)) return html;
-    const clean = html.replace(/<!-- starlite-widget:start -->[\s\S]*?<!-- starlite-widget:end -->/gu, "");
+    const currentConfig=enabled();
+    const clean = resolvePageDialogueMarkers(html,currentConfig?readPageDialogueDefaults(instance.config.starlite?.pageDialogue):{},currentConfig?.widget)
+      .replace(/<!-- starlite-widget:start -->[\s\S]*?<!-- starlite-widget:end -->/gu, "");
     const widget = renderWidget();
     return widget ? clean.replace(/<\/body\s*>/iu, closing => `<!-- starlite-widget:start -->${widget}<!-- starlite-widget:end -->${closing}`) : clean;
   });
@@ -239,4 +258,4 @@ if (typeof hexo !== "undefined") {
   registerHexoWidget(hexo);
 }
 
-export type { HexoLike, HexoWidgetConfig } from "./types";
+export type { HexoLike, HexoWidgetConfig, PageDialogueDefaults, PageDialogueInput } from "./types";

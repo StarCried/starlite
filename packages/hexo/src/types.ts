@@ -11,6 +11,8 @@ export type HexoWidgetConfig = HexoWidgetOptions & (
 );
 export interface HexoWidgetOptions {
   enable?: boolean;
+  /** Defaults for article/page front-matter dialogue, not the global library. */
+  pageDialogue?: PageDialogueDefaults;
   /** Fixed placement in CSS pixels; applies only to the Hexo host. */
   position?: { right?: number; bottom?: number; zIndex?: number };
   model?: string;
@@ -39,9 +41,25 @@ export interface HexoWidgetOptions {
   };
 }
 
+export interface PageDialogueDefaults {
+  animation?: string;
+  triggers?: readonly ("click" | "idle")[];
+  mode?: "replace" | "merge";
+  order?: "sequential" | "random";
+}
+export type PageDialogueInput = readonly string[] | (PageDialogueDefaults & {lines: readonly string[]});
+export interface RenderedPage {
+  content?: string;
+  more?: string;
+  path?: string;
+  source?: string;
+  starlite?: unknown;
+}
+
 export interface HexoLike {
   base_dir?: string;
   public_dir?: string;
+  model?(name: "Post" | "Page"): {toArray(): RenderedPage[]};
   config: {
     root?: string;
     public_dir?: string;
@@ -49,8 +67,9 @@ export interface HexoLike {
   };
   extend: {
     filter?: {
-      register(name: "before_generate", filter: () => Promise<void>): void;
+      register(name: "before_generate", filter: () => Promise<void>, priority?: number): void;
       register(name: "after_render:html", filter: (html: string) => string): void;
+      register(name: "after_post_render", filter: (page: RenderedPage) => RenderedPage, priority?: number): void;
     };
     generator: {
       register(
