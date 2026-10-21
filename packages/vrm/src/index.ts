@@ -3,7 +3,7 @@ import { PerformanceOverlay, FrameSamples } from "@starcried/starlite-core";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMPose } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip, type VRMAnimation } from "@pixiv/three-vrm-animation";
-import { RenderedHitMask, observePassThroughClicks, type ModelHitMaskListener, DialogueBubble, DialogueScheduler, resolveDialogueSentences, fetchBounded, type DialogueAction, type MountOptions, type WidgetStatus, type AnimationPlaybackOptions, type AnimationPlaybackResult } from "@starcried/starlite-core";
+import { RenderedHitMask, observePassThroughClicks, type ModelHitMaskListener, DialogueBubble, DialogueScheduler, resolveDialogueSentences, resolveDialogueContext, fetchBounded, type DialogueContext, type DialogueAction, type MountOptions, type WidgetStatus, type AnimationPlaybackOptions, type AnimationPlaybackResult } from "@starcried/starlite-core";
 import { validateCharacterProfile, validateVrmWidgetConfig } from "./config.js";
 import { parseGlb, inspectVrma, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { VrmAnimationPlayer } from "./playback.js";
@@ -288,6 +288,12 @@ class Controller implements VrmController {
     if (this.#status === "destroyed" || this.#status === "disabled") return;
     this.#bubblesVisible = visible;
     if (!visible) this.#bubble.hide();
+  }
+  setDialogueContext(input: DialogueContext | null): void {
+    if (this.#status === "destroyed" || this.#status === "disabled" || this.#status === "fallback") return;
+    const context = input === null ? null : resolveDialogueContext(input);
+    if (context?.animation !== undefined && !this.#clips.has(context.animation)) throw new Error("dialogue context animation is missing: " + context.animation);
+    if (this.#dialogue.setContext(context, this.#elapsed * 1000)) this.#bubble.hide();
   }
   captureFrame(): string {
     if (!this.#renderer || !this.#vrm) throw new Error("model is not ready");

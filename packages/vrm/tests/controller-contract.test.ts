@@ -5,7 +5,7 @@ import { VRMLookAt, type VRMHumanoid } from "@pixiv/three-vrm";
 import { mountModelWidget } from "../src/index.js";
 import { validateVrmWidgetConfig } from "../src/config.js";
 import { mountWithDependencies } from "../../inochi2d/src/controller.js";
-import type { ModelController } from "@starcried/starlite-core";
+import type { ModelController, DialogueContext } from "@starcried/starlite-core";
 let scene: THREE.Scene;
 let rejectTexture = false;
 let materialDeltas: number[] = [];
@@ -72,6 +72,38 @@ async function mount(backend:string,signal?:AbortSignal,dialogue?:any){
  }
  resources.push(c);return c;
 }
+
+describe.each(["vrm","inochi2d"])("%s host dialogue contexts",backend=>{
+ const context=(id="a"):DialogueContext=>({id,lines:[`${id}-first`,`${id}-second`],animation:"Action",triggers:["click","idle"],mode:"replace",order:"sequential"});
+ const click=()=>{
+  const canvas=document.querySelector("canvas")!;
+  if(backend==="vrm"){canvas.dispatchEvent(new PointerEvent("pointerdown",{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent("pointerup",{pointerId:1}));}
+  else canvas.dispatchEvent(new MouseEvent("click",{bubbles:true}));
+ };
+ it("adds dialogue after an empty mount and updates it without replacing the canvas or resetting its cursor",async()=>{
+  const c=await mount(backend),host=document.body.lastElementChild as HTMLElement,canvas=host.querySelector("canvas"),bubble=host.querySelector<HTMLElement>(".model-widget__bubble")!;
+  c.setDialogueContext!(context());click();expect(bubble.textContent).toBe("a-first");
+  click();expect(bubble.textContent).toBe("a-first"); // The foreground gesture owns this interval.
+  advance(1200);c.setDialogueContext!(context());expect(bubble.hidden).toBe(false);expect(bubble.textContent).toBe("a-first");click();expect(bubble.textContent).toBe("a-second");
+  c.setDialogueContext!(context("b"));expect(bubble.hidden).toBe(true);advance(1200);click();expect(bubble.textContent).toBe("b-first");
+  expect(host.querySelector("canvas")).toBe(canvas);expect(host.querySelectorAll(".model-widget__bubble")).toHaveLength(1);
+  expect(c.status).toBe("running");
+ });
+ it("keeps active gestures and visitor bubble/paused preferences when a context changes",async()=>{
+  const c=await mount(backend),bubble=document.querySelector<HTMLElement>(".model-widget__bubble")!;
+  const gesture=c.playAnimation("Other");advance(200);c.setDialogueContext!(context());advance(1200);await expect(gesture).resolves.toBe("completed");
+  c.setBubblesVisible!(false);click();expect(bubble.hidden).toBe(true);advance(1200);
+  c.setBubblesVisible!(true);click();expect(bubble.textContent).toBe("a-second");advance(1200);
+  c.pause();c.setDialogueContext!(context("paused"));click();advance(10000);expect(bubble.hidden).toBe(true);expect(c.status).toBe("paused");
+  c.resume();click();expect(bubble.textContent).toBe("paused-first");
+ });
+ it("rejects an unavailable context animation without changing the active library and restores global dialogue on clear",async()=>{
+  const c=await mount(backend,undefined,{click:{animation:"Other",lines:["Global"],durationMs:1000}}),bubble=document.querySelector<HTMLElement>(".model-widget__bubble")!;
+  c.setDialogueContext!(context());expect(()=>c.setDialogueContext!( {...context("invalid"),animation:"Missing"})).toThrow("animation is missing");
+  click();expect(bubble.textContent).toBe("a-first");advance(1200);
+  c.setDialogueContext!(null);expect(bubble.hidden).toBe(true);click();expect(bubble.textContent).toBe("Global");
+ });
+});
 describe.each(["vrm", "inochi2d"])("%s performance panel", backend => {
  it("is absent by default and can be toggled without remounting or changing playback", async () => {
   const c = await mount(backend), host = document.body.lastElementChild as HTMLElement;

@@ -6,8 +6,10 @@ import { RenderedHitMask, type ModelHitMaskListener } from "./hit-mask.js";
 import { observePassThroughClicks } from "./dialogue.js";
 import {
   type DialogueAction,
+  type DialogueContext,
   DialogueScheduler,
   DialogueBubble,
+  resolveDialogueContext,
 } from "./dialogue.js";
 import { MissingModelParameterError } from "./errors.js";
 import { idleBreathValue, MotionMixer } from "./motion.js";
@@ -128,6 +130,7 @@ class ActiveController implements WidgetController {
   #lastRenderedAt: number | undefined;
   #frameRate: number | "display";
   #bubblesVisible = true;
+  #contextClick = false;
   #status: WidgetStatus = "loading";
   #pausedByUser = false;
   #pausedByVisibility = false;
@@ -383,6 +386,14 @@ class ActiveController implements WidgetController {
     if (!visible) this.#hideBubble();
   }
 
+  setDialogueContext(input: DialogueContext | null): void {
+    if (this.#status === "destroyed" || this.#status === "fallback") return;
+    const context = input === null ? null : resolveDialogueContext(input);
+    if (context?.animation !== undefined && !this.#config.animations.has(context.animation)) throw new Error("dialogue context animation is missing: " + context.animation);
+    if (this.#dialogue.setContext(context, performance.now())) this.#hideBubble();
+    this.#contextClick = context?.triggers.includes("click") ?? false;
+  }
+
   refreshInteractionMask(): void {
     if (!this.#runtime || (this.#status !== "running" && this.#status !== "paused")) return;
     // Repaint the same SDK time, without sampling dialogue or parameter motions.
@@ -467,7 +478,7 @@ class ActiveController implements WidgetController {
       this.#handlePointerMove(event as PointerEvent),
     );
     this.#listen(window, "blur", () => this.#motion.setPointer(0, 0));
-    if (this.#hasClickAction() && !this.#config.interactions.drag) {
+    if (!this.#config.interactions.drag) {
       if (this.#config.interactions.passThrough) {
         this.#removeListeners.push(observePassThroughClicks(this.#canvas, () => {
           if (this.#status === "running") this.#triggerClick();
@@ -595,7 +606,9 @@ class ActiveController implements WidgetController {
   }
 
   #triggerClick(): void {
+    if (this.#status !== "running") return;
     const timestamp = performance.now();
+    if (this.#contextClick && this.#animations.isActive(timestamp)) return;
     const action = this.#dialogue.triggerClick(timestamp);
     if (action) {
       this.#activateDialogue(action, timestamp);
@@ -609,7 +622,7 @@ class ActiveController implements WidgetController {
 
   #hasClickAction(): boolean {
     return Boolean(
-      this.#config.dialogue.click || this.#config.interactions.click,
+      this.#contextClick || this.#config.dialogue.click || this.#config.interactions.click,
     );
   }
 
