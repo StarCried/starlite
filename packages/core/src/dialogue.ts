@@ -10,6 +10,33 @@ export interface DialogueSceneConfig {
 }
 export interface ResolvedDialogueScene extends DialogueSceneConfig { durationMs: number }
 
+export interface DialogueContext {
+  id: string;
+  lines: readonly string[];
+  animation?: string;
+  triggers: readonly ("click" | "idle")[];
+  mode: "replace" | "merge";
+  order: "sequential" | "random";
+}
+
+/** Copy bounded data before a host replaces an active dialogue context. */
+export function resolveDialogueContext(input: unknown): DialogueContext {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("dialogue context must be an object");
+  const value = input as Record<string, unknown>;
+  if (Object.keys(value).some(key => !["id", "lines", "animation", "triggers", "mode", "order"].includes(key))) throw new Error("dialogue context has an unknown field");
+  const text = (item: unknown, maximum: number, field: string): string => {
+    if (typeof item !== "string" || !item.trim() || new TextEncoder().encode(item.trim()).byteLength > maximum) throw new Error(`dialogue context ${field} is invalid`);
+    return item.trim();
+  };
+  const id = text(value.id, 2048, "id");
+  const lines = resolveDialogueSentences({ lines: value.lines as readonly string[] }, [], "dialogue context").lines!;
+  if (!Array.isArray(value.triggers) || !value.triggers.length || value.triggers.length > 2 || new Set(value.triggers).size !== value.triggers.length || value.triggers.some(trigger => trigger !== "click" && trigger !== "idle")) throw new Error("dialogue context triggers are invalid");
+  if (value.mode !== "replace" && value.mode !== "merge") throw new Error("dialogue context mode is invalid");
+  if (value.order !== "sequential" && value.order !== "random") throw new Error("dialogue context order is invalid");
+  return { id, lines, ...(value.animation !== undefined ? { animation: text(value.animation, 1024, "animation") } : {}),
+    triggers: (["click", "idle"] as const).filter(trigger => (value.triggers as unknown[]).includes(trigger)), mode: value.mode, order: value.order };
+}
+
 /** Validate and copy plain-text libraries at the backend configuration boundary. */
 export function resolveDialogueSentences(
   input: Pick<DialogueSceneConfig, "lines" | "linesByAnimation">,
@@ -58,6 +85,13 @@ export interface DialogueAction {
   durationMs: number;
 }
 
+interface ContextEntry {
+  line: string;
+  animation?: string;
+  durationMs?: number;
+  triggers: readonly ("click" | "idle")[];
+}
+
 /**
  * Schedules model-authored foreground actions and selects plain-text sentences.
  *
@@ -71,6 +105,10 @@ export class DialogueScheduler {
   #started = false;
   #enterDueAt: number | undefined;
   #nextIdleAt: number | undefined;
+  #context: DialogueContext | null = null;
+  #contextSignature = "null";
+  #contextEntries: readonly ContextEntry[] = [];
+  #contextCursor = 0;
 
   constructor(
     config: DialogueSchedule,
@@ -92,6 +130,21 @@ export class DialogueScheduler {
     this.#scheduleIdle(timestampMs);
   }
 
+  /** Preserve the model and first entrance while replacing host-owned text. */
+  setContext(input: DialogueContext | null, timestampMs: number): boolean {
+    if (!Number.isFinite(timestampMs)) throw new Error("dialogue context timestamp is invalid");
+    const context = input === null ? null : resolveDialogueContext(input);
+    const signature = JSON.stringify(context);
+    if (signature === this.#contextSignature) return false;
+    this.#context = context; this.#contextSignature = signature; this.#contextCursor = 0;
+    this.#contextEntries = context ? [
+      ...context.lines.map(line => ({ line, ...(context.animation !== undefined ? { animation: context.animation } : {}), triggers: context.triggers })),
+      ...(context.mode === "merge" ? context.triggers.flatMap(scene => this.#entries(scene)) : []),
+    ] : [];
+    if (this.#started) this.#scheduleIdle(timestampMs);
+    return true;
+  }
+
   poll(timestampMs: number, foregroundActive: boolean): DialogueAction | undefined {
     if (!this.#started || foregroundActive) {
       return undefined;
@@ -107,11 +160,11 @@ export class DialogueScheduler {
       return action;
     }
     if (
-      this.#config.idle &&
+      (this.#config.idle || this.#context?.triggers.includes("idle")) &&
       this.#nextIdleAt !== undefined &&
       timestampMs >= this.#nextIdleAt
     ) {
-      const action = this.#action("idle", this.#config.idle);
+      const action = this.#contextAction("idle") ?? this.#action("idle", this.#config.idle as ResolvedDialogueScene);
       this.#scheduleIdle(timestampMs + action.durationMs);
       return action;
     }
@@ -120,10 +173,10 @@ export class DialogueScheduler {
 
   triggerClick(timestampMs: number): DialogueAction | undefined {
     this.deferIdle(timestampMs);
-    if (!this.#config.click) {
+    if (!this.#config.click && !this.#context?.triggers.includes("click")) {
       return undefined;
     }
-    const action = this.#action("click", this.#config.click);
+    const action = this.#contextAction("click") ?? this.#action("click", this.#config.click as ResolvedDialogueScene);
     this.#scheduleIdle(timestampMs + action.durationMs);
     return action;
   }
@@ -133,6 +186,34 @@ export class DialogueScheduler {
     if (this.#started) {
       this.#scheduleIdle(timestampMs);
     }
+  }
+
+  #entries(scene: "click" | "idle"): ContextEntry[] {
+    const config = this.#config[scene];
+    if (!config) return [];
+    const animations = config.animations?.length ? config.animations : config.animation ? [config.animation] : [];
+    if (config.linesByAnimation) return animations.flatMap(animation => (config.linesByAnimation![animation] ?? []).map(line => ({ line, animation, durationMs: config.durationMs, triggers: [scene] })));
+    return (animations.length ? animations : [undefined]).flatMap(animation => (config.lines ?? []).map(line => ({ line, ...(animation !== undefined ? { animation } : {}), durationMs: config.durationMs, triggers: [scene] })));
+  }
+
+  #contextAction(scene: "click" | "idle"): DialogueAction | undefined {
+    const context = this.#context;
+    if (!context?.triggers.includes(scene)) return undefined;
+    let entry: ContextEntry | undefined;
+    if (context.order === "random") {
+      const eligible = this.#contextEntries.filter(item => item.triggers.includes(scene));
+      entry = eligible[Math.floor(this.#unitRandom() * eligible.length)];
+    } else {
+      for (let offset = 0; offset < this.#contextEntries.length; offset++) {
+        const index = (this.#contextCursor + offset) % this.#contextEntries.length;
+        const item = this.#contextEntries[index]!;
+        if (!item.triggers.includes(scene)) continue;
+        entry = item; this.#contextCursor = (index + 1) % this.#contextEntries.length; break;
+      }
+    }
+    if (!entry) return undefined;
+    const config = this.#config[scene];
+    return { scene, line: entry.line, ...(entry.animation !== undefined ? { animation: entry.animation } : {}), durationMs: entry.durationMs ?? (config ? config.durationMs : 4000) };
   }
 
   #action(
@@ -162,13 +243,13 @@ export class DialogueScheduler {
       return;
     }
     const idle = this.#config.idle;
-    if (!idle) {
+    if (!idle && !this.#context?.triggers.includes("idle")) {
       this.#nextIdleAt = undefined;
       return;
     }
     const interval =
-      idle.intervalMinMs +
-      (idle.intervalMaxMs - idle.intervalMinMs) * this.#unitRandom();
+      (idle ? idle.intervalMinMs : 30000) +
+      ((idle ? idle.intervalMaxMs : 60000) - (idle ? idle.intervalMinMs : 30000)) * this.#unitRandom();
     this.#nextIdleAt = timestampMs + interval;
   }
 

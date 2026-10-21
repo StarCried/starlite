@@ -20,6 +20,8 @@ npm install @starcried/starlite-core@alpha
 
 支持热更新的后端还可提供 `setDisplaySize(width, height)`、`setFrameRate(30 | 60 | "display")`、`setPointerEnabled(boolean)`、`setBubblesVisible(boolean)` 与 `setPerformanceVisible(boolean)`。这些操作不替换模型或重播动作；隐藏气泡只影响文字显示。
 
+`setDialogueContext(context | null)` 可临时切换宿主句库；`null` 恢复原句库，不重载模型或重播首次入场。`DialogueContext` 包含 `id`、`lines`、可选 `animation`、`triggers: ["click", "idle"]`、`mode: "replace" | "merge"` 和 `order: "sequential" | "random"`。顺序模式下点击与偶发共用进度，每次触发下一条；相同内容与标识的刷新不重置进度。合并模式先加入上下文句子，再保留全局句子原有的动作绑定。动作名称必须已在模型中加载；省略动作可只显示文字。切换时只清理旧文字，当前动作自然结束；暂停、隐藏及访客的气泡开关保持不变。
+
 `QuickSettingsMenu` 是宿主共用的轻量 DOM 设置卡片。宿主提供标签页、开关、范围、选项与动作回调，并负责实际模型命中检测和偏好持久化；`open(x, y)` 使用视口坐标，`update(options)` 保留当前标签页与控件，`close()` / `destroy()` 清理可见和交互状态。通过 `element` 与 `starlite-menu-change` 事件可同步原生窗口交互区域。
 
 ## 语句与动作绑定

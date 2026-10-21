@@ -4,6 +4,7 @@ export type AnimationPlaybackResult = "completed" | "interrupted" | "stopped";
 export interface AnimationPlaybackOptions { mode?: "once" | "loop"; restart?: boolean }
 export interface ModelAnimationInfo { name: string; durationMs: number }
 import type { ModelHitMaskListener } from "./hit-mask.js";
+import type { DialogueContext } from "./dialogue.js";
 export { RenderedHitMask, packAlphaMask, type ModelHitMask, type ModelHitMaskListener } from "./hit-mask.js";
 export interface ModelController {
   readonly status: WidgetStatus;
@@ -29,6 +30,8 @@ export interface ModelController {
   setPointerEnabled?(enabled: boolean): void;
   /** Hide dialogue text independently of its scheduled animations. */
   setBubblesVisible?(visible: boolean): void;
+  /** Replace bounded host dialogue without remounting or replaying entrance. */
+  setDialogueContext?(context: DialogueContext | null): void;
   destroy(): void;
 }
 export interface MountOptions { signal?: AbortSignal }
@@ -110,7 +113,7 @@ export async function fetchBounded(url: string, maximumBytes: number, signal: Ab
   return bytes.buffer;
 }
 
-export { DialogueScheduler, resolveDialogueSentences, type DialogueAction, type DialogueSchedule, type DialogueSceneConfig, type ResolvedDialogueScene } from "./dialogue.js";
+export { DialogueScheduler, resolveDialogueSentences, resolveDialogueContext, type DialogueContext, type DialogueAction, type DialogueSchedule, type DialogueSceneConfig, type ResolvedDialogueScene } from "./dialogue.js";
 
 export { DialogueBubble } from "./bubble.js";
 export { observePassThroughClicks } from "./pass-through.js";
