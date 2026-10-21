@@ -53,14 +53,18 @@ function json(value:unknown):string {
 }
 function pagePath(value:unknown,source:string):string {
   const invalid = () => new Error(`${source}: starlite requires a valid relative Hexo page.path (up to 2048 decoded UTF-8 bytes)`);
-  if(typeof value!=="string"||!value||value.length>8192||/[\\:?#\u0000-\u001f]/u.test(value)||value.startsWith("/"))throw invalid();
+  if(typeof value!=="string"||!value||value.length>8192||/[\\:?#\u0000-\u001f]/u.test(value)||value.startsWith("//"))throw invalid();
+  // Hexo's explicit post permalink filter returns a leading slash, whereas
+  // generated post/page paths are relative. Both identify the same route.
+  const relative=value.startsWith("/")?value.slice(1):value;
+  if(!relative)return "index.html";
   let parts:string[];
-  try { parts=value.split("/").map(part=>decodeURIComponent(part)); } catch { throw invalid(); }
+  try { parts=relative.split("/").map(part=>decodeURIComponent(part)); } catch { throw invalid(); }
   if(parts.some((part,index)=>part===".."||part==="."||/[/\\:?#\u0000-\u001f]/u.test(part)||(!part&&index<parts.length-1)))throw invalid();
   const decoded=parts.join("/");
   const normalized=decoded.endsWith("/")?`${decoded}index.html`:!parts.at(-1)!.includes(".")?`${decoded}/index.html`:decoded;
   if(Buffer.byteLength(normalized,"utf8")>2048)throw invalid();
-  return value;
+  return relative;
 }
 
 /** Cache raw article options only. Site defaults may change without Hexo

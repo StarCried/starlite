@@ -202,6 +202,9 @@ async function pageDialogueBlog(frontMatter = 'starlite:\n  - "Article sentence"
   for (const directory of ["source/a", "source/_posts", "themes/preview/layout"]) mkdirSync(join(root, directory), { recursive: true });
   writeFileSync(join(root, "_config.yml"), "title: Page dialogue\ntheme: preview\npermalink: posts/:title/\nstarlite:\n  pageDialogue:\n    order: sequential\n  dialogue:\n    enter:\n      animation: GentleWave\n      lines: [Global entry]\n");
   for (const path of ["a/index.md", "_posts/entry.md"]) writeFileSync(join(root, "source", path), `---\ntitle: Entry\n${frontMatter}\n---\n# Cached Markdown`);
+  // Explicit permalinks make Hexo Post.path root-relative, unlike Page.path.
+  const postSource=join(root,"source/_posts/entry.md");
+  writeFileSync(postSource,readFileSync(postSource,"utf8").replace("title: Entry","title: Entry\npermalink: posts/entry/"));
   writeFileSync(join(root, "themes/preview/layout/page.njk"), '<!doctype html><html><body><article>{{ page.content | safe }}</article></body></html>');
   const hexo = new Hexo(root, { silent: true, safe: true }); hexo.env.init = true;
   await hexo.init();

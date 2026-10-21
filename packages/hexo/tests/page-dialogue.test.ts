@@ -64,8 +64,14 @@ it.each([null,"AAA",[],[123],[""],["a".repeat(1025)],new Array(129).fill("a"),{l
 it.each([null,[],{lines:["A"]},{mode:"append"},{order:"forward"},{triggers:["enter"]}])("validates only the supported site default rules: %j",input=>{
   expect(()=>readPageDialogueDefaults(input)).toThrow("starlite.pageDialogue");
 });
-it.each(["../escape/index.html","/absolute/index.html","https://example.org/a","a?b","a\\b","a/%2e%2e/b","a/%2f/b","a/%ff/b","中".repeat(683)+".html"])('rejects a malformed page identity: %s',path=>{
+it.each(["../escape/index.html","//example.org/a","https://example.org/a","a?b","a\\b","a/%2e%2e/b","a/%2f/b","a/%ff/b","中".repeat(683)+".html"])('rejects a malformed page identity: %s',path=>{
   expect(()=>markPageDialogue(post(["A"],path),true)).toThrow("page.path");
+});
+it("normalizes root-relative explicit Hexo permalinks",()=>{
+  for(const [path,expected] of [["/2026/10/21/starlite/","2026/10/21/starlite/"],["/","index.html"]]){
+    const html=markPageDialogue(post(["A"],path),true).content!;
+    expect(payload(resolvePageDialogueMarkers(html,{},widget)).path).toBe(expected);
+  }
 });
 it("accepts the largest permitted escaped text and decoded Unicode paths",()=>{
   const lines=Array.from({length:128},()=>"<".repeat(1024));
