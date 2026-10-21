@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -195,4 +195,58 @@ it("a real Hexo 7 render includes the asynchronously prepared default on its fir
     hexo.config.starlite = { enable: false };
     expect((await hexo.execFilter("_after_html_render", html, { context: hexo, args: [{}] })).includes("__hexoStarLiteWidgetState")).toBe(false);
   } finally { await hexo.exit(); }
+});
+
+async function pageDialogueBlog(frontMatter = 'starlite:\n  - "Article sentence"') {
+  const root = mkdtempSync(join(tmpdir(), "starlite-dialogue-real-hexo-")); roots.push(root);
+  for (const directory of ["source/a", "source/_posts", "themes/preview/layout"]) mkdirSync(join(root, directory), { recursive: true });
+  writeFileSync(join(root, "_config.yml"), "title: Page dialogue\ntheme: preview\npermalink: posts/:title/\nstarlite:\n  pageDialogue:\n    order: sequential\n  dialogue:\n    enter:\n      animation: GentleWave\n      lines: [Global entry]\n");
+  for (const path of ["a/index.md", "_posts/entry.md"]) writeFileSync(join(root, "source", path), `---\ntitle: Entry\n${frontMatter}\n---\n# Cached Markdown`);
+  writeFileSync(join(root, "themes/preview/layout/page.njk"), '<!doctype html><html><body><article>{{ page.content | safe }}</article></body></html>');
+  const hexo = new Hexo(root, { silent: true, safe: true }); hexo.env.init = true;
+  await hexo.init();
+  hexo.config.marked = { gfm: true, breaks: true, headerIds: true, prependRoot: true };
+  const markdown = vi.fn(createRequire(import.meta.url)("hexo-renderer-marked/lib/renderer"));
+  hexo.extend.renderer.register("md", "html", markdown, true);
+  hexo.extend.generator.register("fixture-posts", (locals: any) => locals.posts.toArray().map((post: any) => ({ path: post.path, layout: "page", data: post })));
+  registerHexoWidget(hexo);
+  return { root, hexo, markdown, html: (path: string) => readFileSync(join(root, "public", path), "utf8") };
+}
+function renderedPageContext(html: string) {
+  const marker = /<script type="application\/json" data-starlite-page-dialogue>([\s\S]*?)<\/script>/u.exec(html);
+  expect(marker).not.toBeNull(); expect(html).not.toContain("data-starlite-page-dialogue-raw");
+  return JSON.parse(marker![1]!);
+}
+
+it("real Hexo Post/Page markers refresh site defaults and disabled state without re-rendering Markdown", async () => {
+  const site = await pageDialogueBlog();
+  try {
+    await site.hexo.call("generate");
+    const paths = ["a/index.html", "posts/entry/index.html"], rendered = site.markdown.mock.calls.length;
+    expect(rendered).toBeGreaterThan(0);
+    for (const path of paths) {
+      const html = site.html(path), payload = renderedPageContext(html);
+      expect(html).toMatch(/<article>[\s\S]*data-starlite-page-dialogue>[\s\S]*<\/article>/u);
+      expect(payload.context).toEqual({ lines: ["Article sentence"], animation: "GentleWave", triggers: ["click", "idle"], mode: "replace", order: "sequential" });
+    }
+    site.hexo.config.starlite.pageDialogue = { animation: "Thinking", order: "random" };
+    await site.hexo.call("generate");
+    for (const path of paths) expect(renderedPageContext(site.html(path)).context).toMatchObject({ animation: "Thinking", order: "random" });
+    site.hexo.config.starlite.enable = false;
+    await site.hexo.call("generate");
+    for (const path of paths) { expect(site.html(path)).not.toContain("data-starlite-page-dialogue"); expect(site.html(path)).not.toContain("__hexoStarLiteWidgetState"); }
+    site.hexo.config.starlite.enable = true;
+    await site.hexo.call("generate");
+    for (const path of paths) { expect(renderedPageContext(site.html(path)).context.lines).toEqual(["Article sentence"]); expect(site.html(path)).toContain("__hexoStarLiteWidgetState"); }
+    expect(site.markdown.mock.calls.length).toBe(rendered);
+  } finally { await site.hexo.exit(); }
+});
+
+it("real Hexo rejects unavailable page animations before writing an empty article", async () => {
+  const site = await pageDialogueBlog('starlite:\n  lines: ["Article sentence"]\n  animation: MissingAnimation');
+  try {
+    await expect(site.hexo.call("generate")).rejects.toThrow(/(?:a\/index\.md|_posts\/entry\.md): starlite\.animation.*MissingAnimation/u);
+    expect(existsSync(join(site.root, "public/a/index.html"))).toBe(false);
+    expect(existsSync(join(site.root, "public/posts/entry/index.html"))).toBe(false);
+  } finally { await site.hexo.exit(); }
 });
