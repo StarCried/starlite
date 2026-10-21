@@ -8,7 +8,7 @@ export function readPageDialogue(document: Document, pathname: string, pageRoot 
   order: "sequential" | "random";
 } | null {
   const decodePath = (input: unknown): string | undefined => {
-    if (typeof input !== "string" || input.length > 4096 || /[?#\\\u0000-\u001f]/u.test(input) || input.startsWith("//") || /^[a-z][a-z\d+.-]*:/iu.test(input)) return undefined;
+    if (typeof input !== "string" || input.length > 8192 || /[?#\\\u0000-\u001f]/u.test(input) || input.startsWith("//") || /^[a-z][a-z\d+.-]*:/iu.test(input)) return undefined;
     try {
       const parts = input.replace(/^\//u, "").split("/").map(part => decodeURIComponent(part));
       if (parts.some((part, index) => part === "." || part === ".." || /[/\\\u0000-\u001f]/u.test(part) || (!part && index < parts.length - 1))) return undefined;
@@ -22,11 +22,12 @@ export function readPageDialogue(document: Document, pathname: string, pageRoot 
   const prefix = root && !root.endsWith("/") ? `${root}/` : root;
   if (prefix && !current.startsWith(prefix) && current !== prefix.slice(0, -1)) return null;
   const id = normalize(prefix ? current.slice(prefix.length) : current);
+  if (new TextEncoder().encode(id).byteLength > 2048) return null;
   const record = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
   let result: ReturnType<typeof readPageDialogue> = null;
   for (const marker of document.querySelectorAll('script[type="application/json"][data-starlite-page-dialogue]')) {
     const raw = marker.textContent ?? "";
-    if (!raw || raw.length > 140 * 1024) continue;
+    if (!raw || raw.length > 1024 * 1024) continue;
     try {
       const payload: unknown = JSON.parse(raw);
       if (!record(payload) || Object.keys(payload).some(key => !["path", "context"].includes(key))) continue;

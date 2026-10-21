@@ -24,6 +24,21 @@ it("does not use article-excerpt markers on an index page or make a network requ
   const win=new Window({url:"https://blog.example/"});marker(win,"article/index.html");
   const fetch=vi.spyOn(win,"fetch");expect(read(win)).toBeNull();expect(fetch).not.toHaveBeenCalled();await win.happyDOM.close();
 });
+it("accepts bounded decoded text even when safe JSON escaping expands its serialized size",async()=>{
+  const win=new Window({url:"https://blog.example/a/"}),lines=Array(128).fill("<".repeat(1024));
+  const node=marker(win,"a/index.html",{...context,lines});
+  node.textContent=node.textContent!.replaceAll("<","\\u003c");
+  expect(node.textContent.length).toBeGreaterThan(140*1024);expect(read(win)?.lines).toEqual(lines);
+  node.textContent=" ".repeat(1024*1024)+node.textContent;expect(read(win)).toBeNull();
+  await win.happyDOM.close();
+});
+it("bounds normalized path identities in decoded UTF-8 bytes and supports escaped Unicode paths",async()=>{
+  const path=`${"文".repeat(679)}/index.html`,win=new Window({url:`https://blog.example/${encodeURI(path)}`});
+  marker(win,path);expect(read(win)?.id).toBe(path);
+  const tooLong=`${"文".repeat(680)}/index.html`;
+  win.history.replaceState(null,"",`/${encodeURI(tooLong)}`);win.document.body.replaceChildren();marker(win,tooLong);expect(read(win)).toBeNull();
+  await win.happyDOM.close();
+});
 it.each([
   {...context,lines:[]},{...context,lines:[" "]},{...context,lines:[42]},{...context,lines:["a".repeat(1025)]},
   {...context,lines:Array(129).fill("A")},{...context,triggers:["enter"]},{...context,triggers:["click","click"]},
