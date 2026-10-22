@@ -37,8 +37,11 @@ fingertips. Reports/screenshots remain ignored under the desktop checkout's
 The new runtime SHA-256 is
 `c8717a325d5162d04b403327fc6624d14f47e72e4c2a704735782853f03de13e`.
 JS/CSS size checks measured 1,197,315 raw, 296,446 gzip and 237,130 Brotli bytes,
-within the existing budgets. No new long-run performance measurement, user
-visual approval, publication or deployment is claimed.
+within the existing budgets. On 2026-10-22 the user accepted the functionality
+and appearance in the local `http://127.0.0.1:4196/adjust` browser preview,
+including symmetric palms and independent wrist lift. This acceptance does
+not extend to a separate native GUI operation of the new wrist control.
+No new long-run performance measurement, publication or deployment is claimed.
 
 ## 2026-10-22 local model pose and gaze adjustments
 
