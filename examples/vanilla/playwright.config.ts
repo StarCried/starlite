@@ -9,6 +9,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: [
+    {command: "node ../vrm/server.mjs --model ../hexo-vrm/.generated/source.vrm --port 4183",port:4183,reuseExistingServer:true},
     {command: "npm run serve --workspace @starcried/starlite-hexo-vrm-example",port:4182,reuseExistingServer:true},
     {
       command: "npm run dev",

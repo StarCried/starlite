@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StarLite · 模型调校</title>
+<link rel="stylesheet" href="/runtime/widget.css">
+<link rel="stylesheet" href="/adjust.css">
+<header><a class="brand" href="/adjust">✦ StarLite</a><span>模型调校</span><span class="local">本地预览 · 不修改模型文件</span></header>
+<main>
+  <section class="viewer" aria-label="模型预览">
+    <div class="viewer-top"><label>预览模型 <select id="model-select" aria-label="预览模型"></select></label><span id="status" role="status">正在读取模型…</span></div>
+    <div id="stage"><div id="model"></div></div>
+    <div class="viewer-bottom"><label><input id="pointer" type="checkbox" checked> 跟随光标</label><button id="pause" type="button">暂停</button><label>检查动作 <select id="animation" aria-label="检查动作"></select></label></div>
+    <p id="capabilities" class="note"></p>
+  </section>
+  <aside>
+    <div class="panel-heading"><div><p class="eyebrow">让站姿更适合你的角色</p><h1>姿态与跟随</h1></div><button id="reset-all" type="button">全部还原</button></div>
+    <p class="note">姿态调节只作用于系统默认 Idle，保留呼吸；检查其他动作时不会套用这些修正。</p>
+    <section id="basic-controls" aria-label="基础调节"></section>
+    <details><summary>更多调节</summary><section id="advanced-controls" aria-label="更多调节"></section></details>
+    <section class="export"><h2>用于 Hexo</h2><p class="note">把以下内容合并到现有的 <code>starlite:</code> 配置下。含姿态调节时会明确选用系统 Idle；仅调视线时保留原来的 Idle。模型路径由你设置。</p><textarea id="config-output" readonly rows="8" aria-label="Hexo 调节配置"></textarea><button id="copy" type="button">复制配置</button><output id="copy-result" role="status"></output></section>
+    <p class="note footnote">滑条即时预览，不重新加载模型。调节在本页按模型分别保留；刷新后恢复默认。</p>
+  </aside>
+</main>
+<script type="module" src="/adjust.js"></script>
+</html>
