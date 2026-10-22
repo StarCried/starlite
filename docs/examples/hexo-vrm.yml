@@ -71,6 +71,7 @@ starlite:
 #   idle:
 #     armLiftDegrees: 10       # -30..45，对称抬臂
 #     palmTwistDegrees: -8     # -45..45，掌心朝向
+#     wristLiftDegrees: 6      # -45..45，仅手腕抬高／放低
 #     handCurl: 0.2            # 0 张开..1 握拳；不填保留动作手势
 #     elbowBendDegrees: 5      # -20..45，肘部弯曲
 #   gaze:

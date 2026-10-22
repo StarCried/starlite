@@ -11,6 +11,7 @@ npm run start --workspace @starcried/starlite-vrm-example -- --model /path/to/av
 包含姿态调节时，导出配置还会显式选用系统 `StarLiteIdle`，确保自带 Idle 的模型
 也能应用预览中的姿态；仅调整跟随时保留博客原来的 Idle。
 手部张合需勾选“手动设置”，否则保留原动作。没有眼球或手指映射时显示不可用。
+“掌心朝向”对称调整内外扭转；“手腕抬高”只折动手掌，可与抬臂、掌心朝向组合。
 
 姿态参数仅修改系统默认 `StarLiteIdle`，保留其呼吸。动作下拉框可检查模型自带
 动作，确认这些动作保持原样。切回“系统默认 Idle”后继续调整。

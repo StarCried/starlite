@@ -118,7 +118,7 @@ function simpleHexo(root: string, options: Record<string, unknown> = {}) {
 
 it("forwards model adjustments unchanged into the generated VRM bootstrap",()=>{
  const root=mkdtempSync(join(tmpdir(),"hexo-vrm-adjustments-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),model());
- const adjustments={idle:{armLiftDegrees:12,palmTwistDegrees:-8,handCurl:0,elbowBendDegrees:6},gaze:{headStrength:0,eyeStrength:1.2,smoothingMs:180}};
+ const adjustments={idle:{armLiftDegrees:12,palmTwistDegrees:-8,wristLiftDegrees:14,handCurl:0,elbowBendDegrees:6},gaze:{headStrength:0,eyeStrength:1.2,smoothingMs:180}};
  const blog=simpleHexo(root,{adjustments}),assets=collectVrmFileAssets("./avatar.vrm",root);
  expect(readEnabledConfig(blog.hexo,assets)?.widget).toHaveProperty("adjustments",adjustments);
  expect(blog.generate().filter((route:any)=>route.path.endsWith(".vrm"))).toHaveLength(1);
@@ -132,9 +132,17 @@ it("leaves model adjustments absent by default and permits an explicit empty res
  expect(readEnabledConfig(simpleHexo(root,{adjustments:{}}).hexo,assets)?.widget).toHaveProperty("adjustments",{});
 });
 
+it("preserves zero wrist lift independently of the upper-arm adjustment",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-wrist-zero-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),model());
+ const adjustments={idle:{armLiftDegrees:12,wristLiftDegrees:0}},blog=simpleHexo(root,{adjustments});
+ const assets=collectVrmFileAssets("./avatar.vrm",root);
+ expect(readEnabledConfig(blog.hexo,assets)?.widget).toHaveProperty("adjustments",adjustments);
+ expect(blog.inject()).toContain('"wristLiftDegrees":0');
+});
+
 it.each([
- {idle:{armLiftDegrees:-30,palmTwistDegrees:-45,handCurl:0,elbowBendDegrees:-20},gaze:{headStrength:0,eyeStrength:0,smoothingMs:20}},
- {idle:{armLiftDegrees:45,palmTwistDegrees:45,handCurl:1,elbowBendDegrees:45},gaze:{headStrength:2,eyeStrength:2,smoothingMs:1000}},
+ {idle:{armLiftDegrees:-30,palmTwistDegrees:-45,wristLiftDegrees:-45,handCurl:0,elbowBendDegrees:-20},gaze:{headStrength:0,eyeStrength:0,smoothingMs:20}},
+ {idle:{armLiftDegrees:45,palmTwistDegrees:45,wristLiftDegrees:45,handCurl:1,elbowBendDegrees:45},gaze:{headStrength:2,eyeStrength:2,smoothingMs:1000}},
 ])("preserves the supported adjustment boundaries without replacing zero values: %j",(adjustments)=>{
  const root=mkdtempSync(join(tmpdir(),"hexo-vrm-adjustments-boundary-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),model());
  expect(()=>simpleHexo(root,{adjustments}).generate()).not.toThrow();
@@ -144,6 +152,7 @@ it.each([
  null,false,[],"12",{idle:null},{gaze:[]},{idle:{armLiftDegrees:"12"}},
  {idle:{armLiftDegrees:45.01}},{idle:{armLiftDegrees:-30.01}},
  {idle:{palmTwistDegrees:-45.01}},{idle:{handCurl:1.01}},{idle:{handCurl:-.01}},
+ {idle:{wristLiftDegrees:45.01}},{idle:{wristLiftDegrees:-45.01}},{idle:{wristLiftDegrees:"12"}},
  {idle:{elbowBendDegrees:45.01}},{idle:{elbowBendDegrees:-20.01}},
  {gaze:{headStrength:2.01}},{gaze:{eyeStrength:-.01}},{gaze:{smoothingMs:19}},
  {gaze:{smoothingMs:1001}},{gaze:{headStrength:NaN}},{idle:{handCurl:Infinity}},

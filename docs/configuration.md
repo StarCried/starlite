@@ -94,7 +94,7 @@ starlite:
 
 ## 模型姿态与跟随调节
 
-此功能目前为本地候选，尚未发布到 npm。在独立预览页调好后，将导出的 `adjustments` 合并到博客 `_config.yml` 的 `starlite` 下，再按原 Hexo 命令生成；访客右键菜单不会增加姿态编辑项。参数随当前模型配置保存，更换模型后应重新调整。
+此功能目前为本地候选，尚未发布到 npm。在独立预览页调好后，将页面导出的配置合并到博客 `_config.yml` 的 `starlite` 下，再按原 Hexo 命令生成；访客右键菜单不会增加姿态编辑项。参数随当前模型配置保存，更换模型后应重新调整。
 
 仓库完成依赖安装和构建后，在仓库根目录启动预览：
 
@@ -114,6 +114,7 @@ starlite:
     idle:
       armLiftDegrees: 10
       palmTwistDegrees: -8
+      wristLiftDegrees: 6
       handCurl: 0.2
       elbowBendDegrees: 5
     gaze:
@@ -128,6 +129,7 @@ starlite:
 | --- | --- |
 | `idle.armLiftDegrees` | 双臂对称抬高／放低，−30° 至 45°；以角色身体正面定义方向，改变镜头不改变站姿。省略或 0 保持原角度。 |
 | `idle.palmTwistDegrees` | 掌心对称内外扭转，−45° 至 45°；省略或 0 保持原角度。 |
+| `idle.wristLiftDegrees` | 手腕对称抬高／放低，−45° 至 45°；只调整手腕，不抬起上臂或前臂。省略或 0 保持原角度。可与掌心朝向一起调整。 |
 | `idle.handCurl` | 张合姿态：0 张开、1 握拳；省略时保留动作原手势。依据已映射的标准手指，缺失指骨不补造。 |
 | `idle.elbowBendDegrees` | 肘部弯曲修正，−20° 至 45°；省略或 0 保持原角度。 |
 | `gaze.headStrength` | 转头跟随强度，0–2，默认 1 保留当前响应；0 停止头部的光标响应。 |

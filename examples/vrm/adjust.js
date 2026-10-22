@@ -4,6 +4,7 @@ const $=selector=>document.querySelector(selector);
 const specs=[
   {group:'idle',key:'armLiftDegrees',label:'双臂抬高',min:-30,max:45,step:1,initial:0,unit:'°',hint:'左右对称抬高或放低上臂。'},
   {group:'idle',key:'palmTwistDegrees',label:'掌心朝向',min:-45,max:45,step:1,initial:0,unit:'°',hint:'沿前臂方向调整掌心内外朝向。'},
+  {group:'idle',key:'wristLiftDegrees',label:'手腕抬高',min:-45,max:45,step:1,initial:0,unit:'°',hint:'左右对称抬高或压低手掌，不改变手臂的位置。'},
   {group:'idle',key:'handCurl',label:'手部张合',min:0,max:1,step:.01,initial:.25,manual:true,hint:'0% 张开，100% 握拳；不手动设置时保留原动作。'},
   {group:'gaze',key:'headStrength',label:'转头灵敏度',min:0,max:2,step:.05,initial:1,unit:'×',hint:'0 为不转头；仍然保留最大转动角度限制。'},
   {group:'gaze',key:'eyeStrength',label:'眼球灵敏度',min:0,max:2,step:.05,initial:1,unit:'×',hint:'根据模型有效的眼球骨骼或表情驱动视线。'},

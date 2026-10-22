@@ -5,6 +5,41 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-10-22 palm symmetry and independent wrist lift
+
+The palm direction correction previously applied opposite local-X twist signs
+to the two hands. The actual normalized program Idle has mirrored hand
+rotations; the extra side sign broke that symmetry. Palm twists now use matching
+local-X signs, with the existing VRM0 coordinate conversion retained. Tests
+compare palm normals from the actual loaded Idle at the first, middle and final
+samples for both VRM versions, rather than checking rotation magnitude alone.
+
+Optional `idle.wristLiftDegrees` accepts -45 to +45 degrees, defaults to no
+correction and bends only the hand in the forearm's plane. It composes with
+palm twist without changing the lift direction. Mixer tests verify the wrist's
+world position and upper/lower arm tracks remain unchanged. Reset, breathing,
+finite limits, zero values and model-local persistence remain covered.
+
+Validation passed: 274 VRM tests, 233 Hexo tests, workspace type checks, package
+contents/licenses, runtime budget, and 18 browser tests (2 optional external
+model tests skipped). DSH passed 546 JavaScript tests, 14 dependency checks,
+74 Rust tests (one private fixture ignored), Clippy and both candidate builds.
+The new wrist control uses the existing live-preview/persistence path; this
+round did not repeat native GUI operation of that added control.
+
+Actual Chrome and Edge runs on unchanged Wolfman and Weiguang models checked
+positive/negative palm twist combined with positive/negative wrist lift, paused
+updates, individual/all reset, YAML export and one canvas/model request per
+model. Screenshots were visually inspected for symmetric palms and raised
+fingertips. Reports/screenshots remain ignored under the desktop checkout's
+`release-output/adjustments-20261022/` with `wrist` in their filenames.
+
+The new runtime SHA-256 is
+`c8717a325d5162d04b403327fc6624d14f47e72e4c2a704735782853f03de13e`.
+JS/CSS size checks measured 1,197,315 raw, 296,446 gzip and 237,130 Brotli bytes,
+within the existing budgets. No new long-run performance measurement, user
+visual approval, publication or deployment is claimed.
+
 ## 2026-10-22 local model pose and gaze adjustments
 
 The local VRM candidate exposes optional `adjustments` and the live
