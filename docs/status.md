@@ -1,6 +1,8 @@
 # StarLite 当前状态
 
-本版为 `0.1.0-alpha.3`，包含默认微光 Hexo 体验、可选性能显示、导入诊断和动作切换修复。版本已准备；托管 CI、npm registry 和公开产物验收在执行后单独记录于 [validation](validation.md)，本页不提前宣布发布成功。用户入口见 [README](../README.md) 和[安装说明](release-guide.md)。
+`0.1.0-alpha.3` 已于 2026-10-22 作为 [alpha 预发布](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.3)公开，包含默认微光 Hexo 体验、右键设置、页面专属句子和模型姿态／跟随调节。五个 npm 包的 `alpha` 标签已更新，`latest` 保留 `0.1.0-alpha.1`。用户入口见 [README](../README.md) 和[安装说明](release-guide.md)。
+
+发行 tag、公开 `SOURCE_REVISION` 和精确云端构建均对应 [`f83a4ec`](https://github.com/StarCried/starlite/commit/f83a4ec0f795a14f36d6724465e3a89f9c1e8529)。CI、依赖审计、双平台原生构建、匿名 npm／GitHub 下载及隔离 registry 安装已通过；[公开核验记录](validation.md#2026-10-22-public-alpha3-verification)保留来源和验证边界。
 
 ## 本版功能
 

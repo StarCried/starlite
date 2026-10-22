@@ -5,6 +5,69 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-10-22 public alpha3 verification
+
+[Release `v0.1.0-alpha.3`](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.3)
+was published at `2026-10-22T09:40:34Z` as a non-draft prerelease. Its real Git
+tag, public `SOURCE_REVISION`, and reviewed cloud artifacts all resolve to
+`f83a4ec0f795a14f36d6724465e3a89f9c1e8529`; later documentation commits do not
+move this release identity.
+
+The exact-source [CI](https://github.com/StarCried/starlite/actions/runs/39753402580),
+[dependency audit](https://github.com/StarCried/starlite/actions/runs/39753402465)
+and [release build](https://github.com/StarCried/starlite/actions/runs/39754064471)
+all passed. Linux, Windows Chrome and Edge each passed 18 browser tests with
+2 optional external-model checks skipped. The release build freshly produced
+both Linux x64 and Windows x64 native pipeline binaries, whose embedded
+manifest sizes and hashes were verified before accepting all five tarballs.
+
+Earlier two-worker Chrome runs lost their SwiftShader WebGL context during
+initial shader linking, not while awaiting a slow download. The successful
+single-worker run used the same Windows image `20261018.275.1`, whose published
+[software inventory](https://github.com/actions/runner-images/blob/win25-vs2026/20261018.275/images/windows/Windows2025-VS2026-Readme.md)
+lists Chrome `155.0.8059.85`; successful browser version was not separately
+captured. The failure trace directly recorded that version and ANGLE Vulkan
+SwiftShader. CI now follows Playwright's single-worker recommendation without
+changing assertions, timeouts, retries or renderer flags. This comparison does
+not establish resource contention as the root cause or provide hardware-GPU
+performance evidence.
+
+Anonymous registry downloads of all five fixed `0.1.0-alpha.3` versions matched
+the final cloud tarballs byte-for-byte, including length, SHA-256 and registry
+SHA-512 SRI. Every `alpha` tag points to alpha.3; each existing `latest` remains
+alpha.1. The following hashes also match the anonymous public GitHub downloads:
+
+| Package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `@starcried/starlite-core` | 20,778 | `121f43fa04f9119d9e6e2784bb5a28c72ff2d2cb65507d6504ef7f03f1fd4dfd` |
+| `@starcried/starlite-inochi2d` | 244,372 | `07d58196ecb4918ab0a028ba1b42f30642c80ff95460c379c70437a2c501b7fa` |
+| `@starcried/starlite-vrm` | 415,219 | `135ce13d44f3c0e49089b1303c824b4c38468775e0e69dac9197a4c265429772` |
+| `hexo-starlite` | 51,796 | `60877b05d53dca268fd0d55f9f0413dab79178011eaf8a1174ab1e9f4630b140` |
+| `inochi2d-blog` | 1,328,684 | `ada851a62931119dcb83568c5d7b085f898889967a99868ad4a40e84d944132e` |
+
+A fresh anonymous npm configuration and cache installed `hexo-starlite` and
+its three runtime dependencies from the registry, not local tarballs. Ordinary
+Hexo 7.3 CLI generation passed with an artwork-free synthetic VRM, one model
+route and no WASM route. A separate local install of all five exact cloud
+tarballs also passed page dialogue, wrist-adjustment payload and CLI-help
+checks; this is not described as a public-registry CLI installation.
+
+All seven public GitHub attachments (five packages, `SOURCE_REVISION` and the
+flat `SHA256SUMS`) were independently downloaded without Authorization or
+cookies and matched the reviewed upload manifest. The checksum file covers
+the five packages and source marker. Raw artifact, registry, GitHub-download
+and consumer proofs remain ignored in the desktop checkout under
+`release-output/shared-alpha3-20261022/`; the prior GPU traces retain their
+original failed-run identities.
+
+Vite 8.1.6 and Vitest 4.1.12 remove the newly reported development-tool
+findings. The green audit still includes the existing two Hexo advisories
+across nine affected entries, with their `2026-11-18` review deadline; see
+[dependency maintenance](dependency-audit.md). No new exception was added,
+and this is not a claim of zero vulnerabilities. This publication did not
+repeat long-run GPU/RAM measurements, redeploy the real blog or publish model
+source artwork.
+
 ## 2026-10-22 palm symmetry and independent wrist lift
 
 The palm direction correction previously applied opposite local-X twist signs
