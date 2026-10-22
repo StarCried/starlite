@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "tests",
   timeout: 30_000,
   // Isolate WebGL fixture lifecycles on hosted runners' shared software GPU.
-  workers: process.env.CI ? 1 : undefined,
+  ...(process.env.CI ? { workers: 1 } : {}),
   use: {
     browserName: "chromium",
     channel: process.env.STARLITE_BROWSER_CHANNEL as "chrome" | "msedge" | undefined,
