@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { AnimationClip, Object3D, Quaternion, QuaternionKeyframeTrack, Vector3, VectorKeyframeTrack } from "three";
+import { AnimationClip, AnimationMixer, Object3D, Quaternion, QuaternionKeyframeTrack, Vector3, VectorKeyframeTrack } from "three";
 import type { VRMHumanBoneName, VRMPose } from "@pixiv/three-vrm";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { VRMAnimationLoaderPlugin, type VRMAnimation } from "@pixiv/three-vrm-animation";
 import { AdjustableIdle } from "../src/adjustments.js";
 import { VrmAnimationPlayer } from "../src/playback.js";
 import { validateModelAdjustments, validateVrmWidgetConfig } from "../src/config.js";
+import { defaultIdleBytes } from "../src/default-idle.js";
 
 function fixture(missingFingers = false, version: "0" | "1" = "1") {
   const root = new Object3D(), nodes = new Map<string, Object3D>();
@@ -18,15 +21,32 @@ function fixture(missingFingers = false, version: "0" | "1" = "1") {
   return { root, nodes, source, idle, start, end };
 }
 const rotation = (clip: AnimationClip, node: Object3D, sample = 0) => new Quaternion().fromArray(clip.tracks.find(track => track.name === node.name + ".quaternion")!.values, sample * 4).normalize();
+const mirrorRotation = (q: Quaternion) => new Quaternion(q.x, -q.y, -q.z, q.w);
+
+async function actualProgramIdle(version: "0" | "1") {
+  const loader = new GLTFLoader(); loader.register(parser => new VRMAnimationLoaderPlugin(parser));
+  const asset = await loader.parseAsync(defaultIdleBytes(), "");
+  const animation = (asset.userData.vrmAnimations as VRMAnimation[])[0]!;
+  const root = new Object3D(), nodes = new Map<VRMHumanBoneName, Object3D>();
+  const tracks = [...animation.humanoidTracks.rotation].map(([name, source]) => {
+    const node = new Object3D(); node.name = "Normalized_" + name; root.add(node); nodes.set(name, node);
+    const track = source.clone(); track.name = node.name + ".quaternion";
+    if (version === "0") track.values = track.values.map((value, index) => index % 2 === 0 ? -value : value);
+    return track;
+  });
+  const source = new AnimationClip("StarLiteIdle", animation.duration, tracks);
+  const idle = new AdjustableIdle(source, root, { getNormalizedBoneNode: name => nodes.get(name) ?? null }, version);
+  return { source, idle, nodes };
+}
 
 describe("model adjustment validation", () => {
   it("preserves explicit zeros and accepts the documented boundaries", () => {
-    for (const adjustments of [{}, { idle: {}, gaze: {} }, { idle: { armLiftDegrees: -30, palmTwistDegrees: -45, handCurl: 0, elbowBendDegrees: -20 }, gaze: { headStrength: 0, eyeStrength: 0, smoothingMs: 20 } }, { idle: { armLiftDegrees: 45, palmTwistDegrees: 45, handCurl: 1, elbowBendDegrees: 45 }, gaze: { headStrength: 2, eyeStrength: 2, smoothingMs: 1000 } }]) {
+    for (const adjustments of [{}, { idle: {}, gaze: {} }, { idle: { armLiftDegrees: -30, palmTwistDegrees: -45, wristLiftDegrees: -45, handCurl: 0, elbowBendDegrees: -20 }, gaze: { headStrength: 0, eyeStrength: 0, smoothingMs: 20 } }, { idle: { armLiftDegrees: 45, palmTwistDegrees: 45, wristLiftDegrees: 45, handCurl: 1, elbowBendDegrees: 45 }, gaze: { headStrength: 2, eyeStrength: 2, smoothingMs: 1000 } }, { idle: { wristLiftDegrees: 0 } }]) {
       expect(() => validateModelAdjustments(adjustments)).not.toThrow();
       expect(() => validateVrmWidgetConfig({ model: "x.vrm", fallback: "x.png", adjustments })).not.toThrow();
     }
   });
-  it.each([null, false, [], 1, "", { unknown: 1 }, { idle: null }, { idle: [] }, { gaze: false }, { idle: { xyz: 0 } }, { gaze: { gain: 1 } }, { idle: { handCurl: "0" } }, { idle: { handCurl: -.01 } }, { idle: { armLiftDegrees: 46 } }, { idle: { palmTwistDegrees: -46 } }, { idle: { elbowBendDegrees: Infinity } }, { gaze: { headStrength: 2.01 } }, { gaze: { eyeStrength: NaN } }, { gaze: { smoothingMs: 19 } }])("rejects malformed calibration %j", input => {
+  it.each([null, false, [], 1, "", { unknown: 1 }, { idle: null }, { idle: [] }, { gaze: false }, { idle: { xyz: 0 } }, { gaze: { gain: 1 } }, { idle: { handCurl: "0" } }, { idle: { handCurl: -.01 } }, { idle: { armLiftDegrees: 46 } }, { idle: { palmTwistDegrees: -46 } }, { idle: { wristLiftDegrees: -45.01 } }, { idle: { wristLiftDegrees: 45.01 } }, { idle: { wristLiftDegrees: "0" } }, { idle: { wristLiftDegrees: NaN } }, { idle: { elbowBendDegrees: Infinity } }, { gaze: { headStrength: 2.01 } }, { gaze: { eyeStrength: NaN } }, { gaze: { smoothingMs: 19 } }])("rejects malformed calibration %j", input => {
     expect(() => validateModelAdjustments(input)).toThrow("adjustments");
   });
   it.each(["constructor", "toString", "valueOf", "__proto__"])("rejects the prototype key %s even when its value is undefined", key => {
@@ -39,9 +59,9 @@ describe("model adjustment validation", () => {
 describe("program Idle calibration", () => {
   it("keeps the source immutable, breath/hips tracks unchanged, and resets exactly without accumulating", () => {
     const { source, idle, nodes } = fixture(), original = source.tracks.map(track => Array.from(track.values));
-    idle.update({ armLiftDegrees: 20, palmTwistDegrees: 30, elbowBendDegrees: 10, handCurl: .6 });
+    idle.update({ armLiftDegrees: 20, palmTwistDegrees: 30, wristLiftDegrees: 25, elbowBendDegrees: 10, handCurl: .6 });
     const once = idle.clip.tracks.map(track => Array.from(track.values));
-    for (let i = 0; i < 20; i++) idle.update({ armLiftDegrees: 20, palmTwistDegrees: 30, elbowBendDegrees: 10, handCurl: .6 });
+    for (let i = 0; i < 20; i++) idle.update({ armLiftDegrees: 20, palmTwistDegrees: 30, wristLiftDegrees: 25, elbowBendDegrees: 10, handCurl: .6 });
     expect(idle.clip.tracks.map(track => Array.from(track.values))).toEqual(once);
     expect(source.tracks.map(track => Array.from(track.values))).toEqual(original);
     expect(idle.clip.tracks.at(-1)).toBe(source.tracks.at(-1));
@@ -77,6 +97,58 @@ describe("program Idle calibration", () => {
     expect(neutral.hips!.position).toEqual([0, 1, 0]);
     expect(new Quaternion().fromArray(neutral.leftIndexProximal!.rotation!).angleTo(rotation(idle.clip, finger))).toBeCloseTo(0);
   });
+  it.each(["0", "1"] as const)("keeps actual program Idle palm normals mirrored for VRM%s", async version => {
+    const { source, idle, nodes } = await actualProgramIdle(version);
+    const left = nodes.get("leftHand")!, right = nodes.get("rightHand")!;
+    const samples = source.tracks.find(track => track.name === left.name + ".quaternion")!.times.length;
+    for (const degrees of [-45, 0, 45]) {
+      idle.update({ palmTwistDegrees: degrees });
+      for (const sample of [0, Math.floor(samples / 2), samples - 1]) {
+        const l = rotation(idle.clip, left, sample), r = rotation(idle.clip, right, sample);
+        // In a standard T-pose, palms face down (-Y) on both sides.
+        // Compare their resulting normals, not just rotation magnitudes.
+        const normalL = new Vector3(0, -1, 0).applyQuaternion(l);
+        normalL.x *= -1;
+        expect(normalL.distanceTo(new Vector3(0, -1, 0).applyQuaternion(r))).toBeLessThan(.001);
+        expect(mirrorRotation(l).angleTo(r)).toBeLessThan(.001);
+      }
+    }
+  });
+  it.each(["0", "1"] as const)("raises both wrists independently of palm twist and leaves forearms unchanged for VRM%s", async version => {
+    const { source, idle, nodes } = await actualProgramIdle(version);
+    const basis = version === "0" ? -1 : 1;
+    const getDirection = (side: "left" | "right") => new Vector3((side === "left" ? 1 : -1) * basis, 0, 0).applyQuaternion(rotation(idle.clip, nodes.get(side + "Hand" as VRMHumanBoneName)!));
+    idle.update({ wristLiftDegrees: 30 });
+    const liftedLeft = getDirection("left"), liftedRight = getDirection("right");
+    expect(liftedLeft.y).toBeGreaterThan(new Vector3(basis, 0, 0).applyQuaternion(rotation(source, nodes.get("leftHand")!)).y);
+    expect(liftedRight.y).toBeGreaterThan(new Vector3(-basis, 0, 0).applyQuaternion(rotation(source, nodes.get("rightHand")!)).y);
+    idle.update({ wristLiftDegrees: 30, palmTwistDegrees: 45 });
+    expect(getDirection("left").distanceTo(liftedLeft)).toBeLessThan(.000001);
+    expect(getDirection("right").distanceTo(liftedRight)).toBeLessThan(.000001);
+    for (const name of ["leftUpperArm", "rightUpperArm", "leftLowerArm", "rightLowerArm"] as const) expect(rotation(idle.clip, nodes.get(name)!).angleTo(rotation(source, nodes.get(name)!))).toBeCloseTo(0, 5);
+    idle.update({ wristLiftDegrees: 0, palmTwistDegrees: 0 });
+    expect(rotation(idle.clip, nodes.get("leftHand")!).angleTo(rotation(source, nodes.get("leftHand")!))).toBeCloseTo(0, 5);
+    expect(rotation(idle.clip, nodes.get("rightHand")!).angleTo(rotation(source, nodes.get("rightHand")!))).toBeCloseTo(0, 5);
+  });
+  it("keeps wrist world positions fixed when wrist lift and palm direction change", () => {
+    const { root, nodes, source, idle } = fixture();
+    for (const [side, sign] of [["left", 1], ["right", -1]] as const) {
+      const arm = nodes.get(side + "UpperArm")!, forearm = nodes.get(side + "LowerArm")!, hand = nodes.get(side + "Hand")!;
+      arm.add(forearm); forearm.position.set(sign * .3, 0, 0);
+      forearm.add(hand); hand.position.set(sign * .25, 0, 0);
+    }
+    const sample = (clip: AnimationClip) => {
+      const mixer = new AnimationMixer(root); mixer.clipAction(clip).play(); mixer.update(.6);
+      root.updateMatrixWorld(true);
+      const positions = ["leftHand", "rightHand"].map(name => nodes.get(name)!.getWorldPosition(new Vector3()));
+      mixer.stopAllAction(); mixer.uncacheRoot(root); return positions;
+    };
+    const before = sample(source);
+    idle.update({ wristLiftDegrees: 35, palmTwistDegrees: -30 });
+    const after = sample(idle.clip);
+    expect(after[0]!.distanceTo(before[0]!)).toBeLessThan(.000001);
+    expect(after[1]!.distanceTo(before[1]!)).toBeLessThan(.000001);
+  });
   it("skips unmapped optional fingers and does not invent bone tracks", () => {
     const { source, idle } = fixture(true);
     expect(() => idle.update({ handCurl: 1, armLiftDegrees: 10 })).not.toThrow();
@@ -85,7 +157,7 @@ describe("program Idle calibration", () => {
   });
   it("produces the same character-space corrections for VRM0 and VRM1", () => {
     const old = fixture(false, "0"), current = fixture(false, "1");
-    const settings = { armLiftDegrees: 25, palmTwistDegrees: 30, elbowBendDegrees: 15, handCurl: .8 };
+    const settings = { armLiftDegrees: 25, palmTwistDegrees: 30, wristLiftDegrees: 25, elbowBendDegrees: 15, handCurl: .8 };
     old.idle.update(settings); current.idle.update(settings);
     for (const name of ["leftUpperArm", "rightUpperArm", "leftLowerArm", "rightLowerArm", "leftHand", "rightHand", "leftIndexProximal", "rightIndexIntermediate", "leftThumbMetacarpal", "rightThumbDistal"]) {
       const a = rotation(old.idle.clip, old.nodes.get(name)!).premultiply(old.root.quaternion).multiply(old.root.quaternion.clone().invert());

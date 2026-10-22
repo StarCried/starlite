@@ -43,12 +43,12 @@ const controller = await mountModelWidget(host, {
 
 ```js
 controller.setModelAdjustments({
-  idle: { armLiftDegrees: 10, palmTwistDegrees: 5, handCurl: 0.2, elbowBendDegrees: 8 },
+  idle: { armLiftDegrees: 10, palmTwistDegrees: 5, wristLiftDegrees: 8, handCurl: 0.2, elbowBendDegrees: 8 },
   gaze: { headStrength: 0.8, eyeStrength: 1, smoothingMs: 120 },
 });
 ```
 
-相同对象也可作为挂载配置的 `adjustments`。该方法整体替换当前调节，`{}` 恢复原样；实时调节不重新加载模型、不重启动作。双臂抬高范围为 −30～45°，掌心扭转为 −45～45°，肘部弯曲为 −20～45°；手部张合为 0～1，省略时保留原动作，0 张开、1 握拳，仅处理已映射的标准手指。姿态调节只作用于程序内置 Idle，不改模型自带动作或外部 VRMA。头眼跟随强度各为 0～2，默认 1；0 停用对应跟随，仍尊重现有限角和前景动作方向。平滑时间为 20～1000 ms，省略时沿用 `gaze.smoothingMs`。模型缺少眼球绑定时，调节不能生成眼球跟随。
+相同对象也可作为挂载配置的 `adjustments`。该方法整体替换当前调节，`{}` 恢复原样；实时调节不重新加载模型、不重启动作。双臂抬高范围为 −30～45°，掌心扭转和手腕抬高均为 −45～45°，肘部弯曲为 −20～45°；掌心调节左右对称；手腕抬高在前臂弯曲平面调整手部方向，正值向上折，不移动腕部位置，不改变上臂、前臂或掌心扭转的方向约定。手部张合为 0～1，省略时保留原动作，0 张开、1 握拳，仅处理已映射的标准手指。姿态调节只作用于程序内置 Idle，不改模型自带动作或外部 VRMA。头眼跟随强度各为 0～2，默认 1；0 停用对应跟随，仍尊重现有限角和前景动作方向。平滑时间为 20～1000 ms，省略时沿用 `gaze.smoothingMs`。模型缺少眼球绑定时，调节不能生成眼球跟随。
 
 `0.1.0-alpha.3` 提供 `performance: {show: true}`（默认关闭），也可用
 `controller.setPerformanceVisible?.(true)` 即时切换。含义和测量边界见

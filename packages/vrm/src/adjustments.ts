@@ -45,14 +45,15 @@ export class AdjustableIdle {
     this.clip = new AnimationClip(source.name, source.duration, tracks, source.blendMode);
   }
   update(idle: Idle = {}): void {
-    const rotation = new Quaternion(), correction = new Quaternion(), motion = new Quaternion(), initial = new Quaternion(), axis = new Vector3();
+    const rotation = new Quaternion(), correction = new Quaternion(), wrist = new Quaternion(), motion = new Quaternion(), initial = new Quaternion(), axis = new Vector3();
     for (const target of this.#targets) {
       const { source, track, side, kind } = target;
       track.values.set(source.values);
       const degrees = kind === "arm" ? idle.armLiftDegrees ?? 0
         : kind === "palm" ? idle.palmTwistDegrees ?? 0 : kind === "elbow" ? idle.elbowBendDegrees ?? 0 : 0;
       const hand = kind === "finger" || kind === "thumb";
-      if ((!hand && !degrees) || (hand && idle.handCurl === undefined)) continue;
+      const wristDegrees = kind === "palm" ? idle.wristLiftDegrees ?? 0 : 0;
+      if ((!hand && !degrees && !wristDegrees) || (hand && idle.handCurl === undefined)) continue;
       if (hand) {
         initial.fromArray(source.values, 0).invert();
         // The four fingers curl towards the palm. The thumb has its own
@@ -68,8 +69,12 @@ export class AdjustableIdle {
           correction.setFromAxisAngle(axis.set(0, 0, -side * this.#basis), MathUtils.degToRad((target.joint === "Proximal" ? 45 : 65) * curl));
         }
       } else {
-        axis.set(kind === "palm" ? side * this.#basis : 0, kind === "elbow" ? -side : 0, kind === "arm" ? side * this.#basis : 0);
+        // A rotation axis is an axial vector: mirroring left/right across X
+        // keeps its X sign and reverses Y/Z. Opposite palm-X signs would
+        // turn one palm inward and the other outward.
+        axis.set(kind === "palm" ? this.#basis : 0, kind === "elbow" ? -side : 0, kind === "arm" ? side * this.#basis : 0);
         correction.setFromAxisAngle(axis, MathUtils.degToRad(degrees));
+        if (kind === "palm") wrist.setFromAxisAngle(axis.set(0, 0, side * this.#basis), MathUtils.degToRad(wristDegrees));
       }
       for (let at = 0; at < source.values.length; at += 4) {
         rotation.fromArray(source.values, at);
@@ -78,6 +83,10 @@ export class AdjustableIdle {
           // breathing changes, while replacing only the static finger pose.
           motion.copy(initial).multiply(rotation);
           rotation.copy(correction).multiply(motion);
+        } else if (kind === "palm") {
+          // Bend in the forearm's frame before applying the palm-local twist,
+          // so changing palm direction does not rotate the wrist-lift axis.
+          rotation.premultiply(wrist).multiply(correction);
         } else if (kind === "arm") rotation.premultiply(correction);
         else rotation.multiply(correction);
         rotation.normalize().toArray(track.values, at);

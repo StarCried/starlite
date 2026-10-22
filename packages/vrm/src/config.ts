@@ -8,7 +8,7 @@ export function validateModelAdjustments(input: unknown): asserts input is Model
   const object = (value: unknown): value is Record<string, unknown> => Boolean(value && typeof value === "object" && !Array.isArray(value));
   if (!object(input) || Object.keys(input).some(key => key !== "idle" && key !== "gaze")) throw new Error("invalid model adjustments");
   const groups = {
-    idle: { armLiftDegrees: [-30, 45], palmTwistDegrees: [-45, 45], handCurl: [0, 1], elbowBendDegrees: [-20, 45] },
+    idle: { armLiftDegrees: [-30, 45], palmTwistDegrees: [-45, 45], wristLiftDegrees: [-45, 45], handCurl: [0, 1], elbowBendDegrees: [-20, 45] },
     gaze: { headStrength: [0, 2], eyeStrength: [0, 2], smoothingMs: [20, 1000] },
   } as const;
   for (const [group, limits] of Object.entries(groups)) {

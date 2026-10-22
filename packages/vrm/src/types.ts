@@ -7,6 +7,7 @@ export interface ModelAdjustments {
   idle?: {
     armLiftDegrees?: number;
     palmTwistDegrees?: number;
+    wristLiftDegrees?: number;
     /** 0 opens mapped fingers; 1 closes them. Omit to keep the authored hands. */
     handCurl?: number;
     elbowBendDegrees?: number;
