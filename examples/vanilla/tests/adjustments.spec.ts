@@ -24,7 +24,7 @@ test.beforeEach(async({page})=>{
             record.shadingLanguageVersion=gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
             const debug=gl.getExtension('WEBGL_debug_renderer_info');
             if(debug){record.unmaskedVendor=gl.getParameter(debug.UNMASKED_VENDOR_WEBGL);record.unmaskedRenderer=gl.getParameter(debug.UNMASKED_RENDERER_WEBGL);}
-            record.parallelShaderCompile=Boolean(gl.getExtension('KHR_parallel_shader_compile'));
+            record.parallelShaderCompile=gl.getSupportedExtensions()?.includes('KHR_parallel_shader_compile')??false;
           }catch(error){record.readError=String(error).slice(0,1024);}
           for(const type of ['webglcontextlost','webglcontextrestored'])this.addEventListener(type,event=>{
             if(evidence.events.length<12)evidence.events.push({type,time:performance.now(),statusMessage:(event as WebGLContextEvent).statusMessage?.slice(0,1024)});
