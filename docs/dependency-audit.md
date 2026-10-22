@@ -26,12 +26,17 @@ expired exceptions, scanner/network failures, and incomplete reports fail the
 check. A green result can include the explicitly listed temporary findings below;
 the summary preserves their identities and affected package count.
 
-## Reviewed baseline: 2026-10-19
+## Reviewed baseline: 2026-10-22
 
 | Scan | Result |
 | --- | --- |
 | `npm audit --json` | 9 affected package entries, tracing to 2 upstream advisories |
 | Cargo.lock, cargo-audit 0.22.2 | 57 dependencies, no vulnerability entries or informational warnings |
+
+Vite 8.1.6 and Vitest 4.1.12 replace the affected development-server/test
+versions. The full online gate passed again on 2026-10-22 against RustSec
+database `59ef7abf8ce56ea80fe7eba97ba3835449009fa4`; no new exception was added.
+The remaining 9 npm entries are the previously reviewed Hexo findings below.
 
 The npm findings belong to the Hexo 7.3.0 host/example dependency graph. They
 are not included in the framework-free `core` or browser VRM renderer bundles.
