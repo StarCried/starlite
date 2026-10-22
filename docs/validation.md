@@ -5,6 +5,119 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-10-22 local model pose and gaze adjustments
+
+The local VRM candidate exposes optional `adjustments` and the live
+`setModelAdjustments()` API. Per-controller derivatives of the program Idle
+adjust mirrored arms, palm twist, optional standard finger curl and elbow bend;
+the original tracks, breathing and authored clips remain unchanged. Head and
+eye strength are independent, retain angle limits and yield to foreground
+motions. Missing optional bones do not become required import capabilities.
+
+Hexo passes validated author configuration through `_config.yml`. The independent
+`examples/vrm` adjustment page exports explicit program-Idle selection when pose
+controls are used, including for models with an embedded authored Idle. Gaze-only
+exports preserve the blog's original base animation. DSH stores optional
+adjustments on individual library entries, previews them through local window
+events and debounces persistence; renderer identity excludes these values, so
+sliders do not remount the character. Old settings retain their prior behavior.
+
+Final local checks passed:
+
+- `npm run validate`: Rust formatting, Clippy and 26 Rust tests; build, lint,
+  type checks, license inventory and five-package content checks. JavaScript
+  workspace/tool suites passed 677 tests; 7 optional external-model tests were
+  skipped. The VRM package accounts for 265 passing tests and Hexo for 229.
+- `npm run test:browser`: 18 passed, 2 optional external-model checks skipped.
+  New browser checks exercise live and paused controls, explicit zero values,
+  reset, YAML export and unavailable eye/finger controls while retaining one
+  canvas and one model fetch.
+- Actual Windows Chrome and Edge checks with unchanged Wolfman and Weiguang
+  models passed. Open/fist poses and raised arms were visually inspected; head
+  strength zero, bounded stronger head follow, model-local preview values and
+  foreground-action continuity were checked. No JavaScript page errors occurred.
+- DSH's isolated native Windows app was launched from Explorer and imported
+  Wolfman through the system picker. Its new panel immediately changed the
+  visible pet, persisted 45-degree arm lift and explicit `handCurl: 0`, disabled
+  the unavailable eye control, exposed advanced controls and restored defaults.
+  Production profile files remained unchanged. Native and desktop checks are
+  also recorded in that checkout's ignored `release-output/` reports.
+
+The final VRM runtime SHA-256 is
+`72216358d362be88448185ac273a3356f778cea6f243b21d9e44bd70e2b8ecca`.
+Its JS/CSS budget is 1,197,133 raw, 296,375 gzip and 237,023 Brotli bytes, all
+below the existing gates. Those are transfer-size checks, not new GPU, RAM or
+long-run performance measurements. No dependency or model asset was added to a
+program package. The whole-workspace validation log is ignored at
+`target/adjustments-validate.log`; Windows browser reports and screenshots are
+under the desktop checkout's `release-output/adjustments-20261022/`.
+
+All changes remain local. This records automated/native checks, not user visual
+acceptance, npm publication, public CI, deployment or another long-run benchmark.
+
+## 2026-10-22 downloaded third-party humanoid VRM import
+
+The unchanged **Wolfman (#035)** from Polygonal Mind's 100Avatars collection was
+used as an ordinary downloaded user model. The creator's
+[release notes](https://github.com/PolygonalMind/100Avatars/releases/tag/v24.02.1)
+license the avatars CC0, consistent with the embedded VRM metadata. The original
+[VRM source](https://raw.githubusercontent.com/PolygonalMind/100Avatars/master/100Avatars_035/100Avatars_035_Wolfman.vrm)
+is 2,322,788 bytes, SHA-256
+`b63f699f36d5db203a6029add68982148f4c3868f2ed1c9df0d404b5123a3d40`.
+The asset remains an ignored local test input; no avatar artwork was committed,
+packaged or deployed.
+
+The VRM 0 model has 5,573 triangles, 15 required and 37 optional humanoid bone
+mappings, usable Blink bindings, and no embedded motions. It declares bone
+look-at but has no eye bones. Its supported baseline is the bundled
+`StarLiteIdle`, automatic blinking and limited head follow; visible eye motion
+is not claimed.
+
+A fresh Windows Hexo 7.3.0 site installed `hexo-starlite@alpha` from public npm,
+which resolved to **0.1.0-alpha.2**, without workspace links, local tarballs or a
+prepared model bundle. Ordinary custom-model configuration and `hexo generate`
+passed. Actual Chrome 156 and Edge 155 checks confirmed:
+
+- Textured, full-body rendering, active bundled Idle, automatic Blink and
+  approximately -15 to +14 degree head-follow response.
+- Text-only click bubbles work without an event motion, render literal text and
+  preserve clicks on the underlying page.
+- Twenty PJAX replacements keep the same controller/canvas and issue one VRM
+  request, with zero VRMA or WASM requests.
+- A fresh 390 x 844 mobile page requests zero model or StarLite runtime JS files;
+  its stylesheet is still requested normally.
+- Original, copied and generated model hashes match; no JavaScript page errors.
+  The loader's quaternion-proxy warning and the example theme's missing favicon
+  were non-blocking. This was not a performance or dependency-audit run.
+
+The current local StarLite for DSH source was built with separate Tauri test
+identities and profile/cache directories; it used the native **Add VRM model**
+file picker and a loopback status-only mock, without model API requests. Import
+saved the original Wolfman, selected it automatically and listed one bundled
+Idle without manual animation mapping. The ordinary desktop launch was verified
+by double-clicking the executable in Windows Explorer: its parent was Explorer,
+and Windows reported no package identity. In that fresh profile the imported
+model immediately appeared with textures and full body, without restarting or
+manually changing preferences.
+
+Two earlier launches from the packaged Codex environment saved the model but
+received HTTP 403 for the generated bundled Idle VRMA. A canonical-path probe
+located the files in Codex's package-virtualized LocalCache, outside the scope
+computed before the test profile existed. Restarting worked because the existing
+path then canonicalized differently. The same executable's unpackaged Explorer
+launch passed first import; the packaged-launch failure is test-environment
+evidence, not a reproduced ordinary DSH installation defect. No product source
+fix or workaround was applied to obtain the unpackaged result.
+
+Ignored reports, screenshots, native diagnostics and exact configuration are
+under the desktop checkout's
+`release-output/vrm-user-import-20261022/`; the fresh public Hexo commands and
+results are in its `hexo/RESULTS.md`. Local previews use ports 4194 (minimal) and
+4195 (text bubble). Real blog configuration, installed character preferences and
+DSH sessions were not replaced. This qualifies one actual third-party VRM input;
+conversion of a VRChat Unity avatar project was researched separately and was
+not executed.
+
 ## 2026-10-19 alpha.3 version preparation
 
 All workspace versions and internal dependency references, npm lock metadata,
