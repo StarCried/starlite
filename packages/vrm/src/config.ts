@@ -1,11 +1,29 @@
 import { resolveDialogueSentences, validatePerformanceConfig } from "@starcried/starlite-core";
-import type { CharacterProfile, VrmWidgetConfig } from "./types.js";
+import type { CharacterProfile, ModelAdjustments, VrmWidgetConfig } from "./types.js";
 
 function finite(value: unknown, min: number, max: number): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
 }
+export function validateModelAdjustments(input: unknown): asserts input is ModelAdjustments {
+  const object = (value: unknown): value is Record<string, unknown> => Boolean(value && typeof value === "object" && !Array.isArray(value));
+  if (!object(input) || Object.keys(input).some(key => key !== "idle" && key !== "gaze")) throw new Error("invalid model adjustments");
+  const groups = {
+    idle: { armLiftDegrees: [-30, 45], palmTwistDegrees: [-45, 45], handCurl: [0, 1], elbowBendDegrees: [-20, 45] },
+    gaze: { headStrength: [0, 2], eyeStrength: [0, 2], smoothingMs: [20, 1000] },
+  } as const;
+  for (const [group, limits] of Object.entries(groups)) {
+    const values = input[group];
+    if (values === undefined) continue;
+    if (!object(values)) throw new Error(`invalid model adjustments.${group}`);
+    for (const [key, value] of Object.entries(values)) {
+      const range = Object.hasOwn(limits, key) ? (limits as Record<string, readonly [number, number]>)[key] : undefined;
+      if (!range || (value !== undefined && !finite(value, range[0], range[1]))) throw new Error(`invalid model adjustments.${group}.${key}`);
+    }
+  }
+}
 export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   if (!config || (config.backend !== undefined && config.backend !== "vrm")) throw new Error("invalid VRM backend");
+  if (config.adjustments !== undefined) validateModelAdjustments(config.adjustments);
   validatePerformanceConfig(config.performance);
   if (config.interactions?.passThrough !== undefined && typeof config.interactions.passThrough !== "boolean") throw new Error("interactions.passThrough must be boolean");
   if (config.interactions?.passThrough && config.interactions.drag) throw new Error("passThrough and drag cannot both be enabled");

@@ -2,6 +2,17 @@ import type { DialogueSceneConfig, ModelController, PerformanceConfig } from "@s
 export type { ModelController, AnimationPlaybackResult, AnimationPlaybackOptions } from "@starcried/starlite-core";
 export interface VrmAnimationSource { name: string; url: string; durationMs?: number }
 export interface BonePose { rotation: [number, number, number, number]; position?: [number, number, number] }
+/** Per-model calibration. Omitted values preserve the original pose and gaze. */
+export interface ModelAdjustments {
+  idle?: {
+    armLiftDegrees?: number;
+    palmTwistDegrees?: number;
+    /** 0 opens mapped fingers; 1 closes them. Omit to keep the authored hands. */
+    handCurl?: number;
+    elbowBendDegrees?: number;
+  };
+  gaze?: { headStrength?: number; eyeStrength?: number; smoothingMs?: number };
+}
 /** Data only: imported profiles cannot execute scripts. All rotations use glTF coordinates. */
 export interface CharacterProfile {
   schemaVersion: 1;
@@ -16,6 +27,7 @@ export interface CharacterProfile {
 }
 export interface VrmWidgetConfig {
   backend?: "vrm";
+  adjustments?: ModelAdjustments;
   performance?: PerformanceConfig;
   model: string;
   fallback: string;
@@ -56,6 +68,7 @@ export interface VrmDiagnostics {
   springPose?: readonly { name: string; rotation: [number, number, number, number] }[];
 }
 export interface VrmController extends ModelController {
+ setModelAdjustments(adjustments: ModelAdjustments): void;
  diagnostics(): VrmDiagnostics;
  captureFrame(): string;
  getExpressions(): readonly string[];

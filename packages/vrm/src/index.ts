@@ -4,7 +4,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMPose } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip, type VRMAnimation } from "@pixiv/three-vrm-animation";
 import { RenderedHitMask, observePassThroughClicks, type ModelHitMaskListener, DialogueBubble, DialogueScheduler, resolveDialogueSentences, resolveDialogueContext, fetchBounded, type DialogueContext, type DialogueAction, type MountOptions, type WidgetStatus, type AnimationPlaybackOptions, type AnimationPlaybackResult } from "@starcried/starlite-core";
-import { validateCharacterProfile, validateVrmWidgetConfig } from "./config.js";
+import { validateCharacterProfile, validateModelAdjustments, validateVrmWidgetConfig } from "./config.js";
 import { parseGlb, inspectVrma, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { VrmAnimationPlayer } from "./playback.js";
 import { visibleModelBounds, framePortrait, ExpandedViewport } from "./camera.js";
@@ -14,10 +14,11 @@ import { PointerGaze } from "./gaze.js";
 import { CharacterBehavior } from "./character.js";
 import { prepareEmbeddedAnimations } from "./embedded.js";
 import { defaultIdleBytes } from "./default-idle.js";
-import type { CharacterProfile, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
+import { AdjustableIdle } from "./adjustments.js";
+import type { CharacterProfile, ModelAdjustments, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
 export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem } from "@starcried/starlite-core";
-export { validateVrmWidgetConfig } from "./config.js";
+export { validateModelAdjustments, validateVrmWidgetConfig } from "./config.js";
 
 export async function mountModelWidget(host: HTMLElement, config: VrmWidgetConfig, options: MountOptions = {}): Promise<VrmController> {
   validateVrmWidgetConfig(config); options.signal?.throwIfAborted();
@@ -58,6 +59,9 @@ class Controller implements VrmController {
   #applyEmbeddedMorphs: (() => void) | undefined;
   #embeddedEyeClips: ReadonlySet<string> = new Set();
   #neutral: VRMPose | undefined;
+  #neutralAnimation: string | undefined;
+  #adjustableIdle: AdjustableIdle | undefined;
+  #adjustments: ModelAdjustments = {};
   #portraitBounds: THREE.Box3 | undefined;
   #poseBounds: PoseBounds | undefined;
   #hostMotion: HostMotion | undefined;
@@ -81,6 +85,8 @@ class Controller implements VrmController {
 
   constructor(host: HTMLElement, config: VrmWidgetConfig) {
     this.#host = host; this.#config = config; this.#gaze = new PointerGaze(config.gaze);
+    this.#adjustments = { ...(config.adjustments?.idle ? { idle: { ...config.adjustments.idle } } : {}), ...(config.adjustments?.gaze ? { gaze: { ...config.adjustments.gaze } } : {}) };
+    this.#gaze.setAdjustments(this.#adjustments.gaze);
     this.#frameRate = config.render?.fps ?? 30; this.#pointerEnabled = config.interactions?.pointer ?? true;
     this.#viewport = new ExpandedViewport(config.render?.viewportPadding);
     this.#bubble = new DialogueBubble(host);
@@ -171,6 +177,7 @@ class Controller implements VrmController {
       this.#baseAnimation = this.#config.ambient?.animations?.[0] ?? (this.#config.ambient?.animations ? undefined
         : this.#config.neutralAnimation ?? this.#profile?.neutralAnimation ?? (this.#clips.has("Idle") ? "Idle" : "StarLiteIdle"));
       const neutralAnimation = this.#config.neutralAnimation ?? this.#profile?.neutralAnimation ?? this.#baseAnimation;
+      this.#neutralAnimation = neutralAnimation;
       const requested = [this.#baseAnimation, neutralAnimation,
         ...(this.#config.interactions?.click ? this.#config.interactions.click.animations ?? [this.#config.interactions.click.animation] : []),
         ...Object.values(this.#config.dialogue ?? {}).flatMap(scene => scene ? scene.animations ?? (scene.animation ? [scene.animation] : []) : [])];
@@ -180,7 +187,10 @@ class Controller implements VrmController {
         const animation = (asset.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0];
         if (!animation) throw new Error("bundled Idle is invalid");
         const clip = createVRMAnimationClip(animation, vrm);
-        clip.name = "StarLiteIdle"; this.#clips.set(clip.name, clip);
+        clip.name = "StarLiteIdle";
+        this.#adjustableIdle = new AdjustableIdle(clip, vrm.scene, vrm.humanoid, vrm.meta.metaVersion);
+        this.#adjustableIdle.update(this.#adjustments.idle);
+        this.#clips.set(clip.name, this.#adjustableIdle.clip);
       }
       if (neutralAnimation) {
         const clip = this.#clips.get(neutralAnimation);
@@ -282,6 +292,20 @@ class Controller implements VrmController {
     if (this.#status === "destroyed" || this.#status === "disabled") return;
     this.#pointerEnabled = enabled;
     if (!enabled) this.#gaze.reset();
+  }
+  setModelAdjustments(adjustments: ModelAdjustments): void {
+    validateModelAdjustments(adjustments);
+    if (this.#status === "destroyed" || this.#status === "disabled") return;
+    this.#adjustments = { ...(adjustments.idle ? { idle: { ...adjustments.idle } } : {}), ...(adjustments.gaze ? { gaze: { ...adjustments.gaze } } : {}) };
+    this.#gaze.restoreHead(); this.#gaze.setAdjustments(this.#adjustments.gaze);
+    this.#adjustableIdle?.update(this.#adjustments.idle);
+    if (this.#neutral && this.#neutralAnimation === "StarLiteIdle" && this.#adjustableIdle) {
+      this.#neutral = this.#adjustableIdle.neutralPose(this.#neutral);
+      if (!this.#player?.activeName) this.#vrm?.humanoid.setNormalizedPose(this.#neutral);
+    }
+    // The player shares the derivative's owned sample arrays, so phase,
+    // promises and an in-flight captured-pose transition remain intact.
+    if (this.#status === "paused") this.#tick(0);
   }
   setBubblesVisible(visible: boolean): void {
     if (typeof visible !== "boolean") throw new Error("bubble visibility must be boolean");
@@ -510,7 +534,7 @@ class Controller implements VrmController {
       });
       VRMUtils.deepDispose(this.#vrm.scene); this.#scene.remove(this.#vrm.scene);
     }
-    this.#clips.clear(); this.#character = undefined; this.#applyEmbeddedMorphs = undefined; this.#embeddedEyeClips = new Set(); this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#poseBounds = undefined;
+    this.#clips.clear(); this.#adjustableIdle = undefined; this.#character = undefined; this.#applyEmbeddedMorphs = undefined; this.#embeddedEyeClips = new Set(); this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#poseBounds = undefined;
     this.#renderer?.dispose(); this.#renderer?.forceContextLoss(); this.#renderer = undefined;
   }
 }

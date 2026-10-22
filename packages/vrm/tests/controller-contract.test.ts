@@ -16,6 +16,7 @@ let renderCalls = 0;
 let onAnimationParse: (() => void) | undefined;
 let embeddedModel = false;
 let relaxedIdle = false;
+let calibrationIdle = false;
 vi.mock("three", async (original) => ({...await original<typeof import("three")>(), WebGLRenderer: class {
  info={render:{calls:1,triangles:12},memory:{geometries:1,textures:0}};
  setClearColor(){} setPixelRatio(){} setSize(){} render(){renderCalls++} dispose(){} forceContextLoss(){}
@@ -30,12 +31,13 @@ vi.mock("three/addons/loaders/GLTFLoader.js",()=>({GLTFLoader:class {
   if(rejectTexture)this.manager.itemError("blob:blocked-texture");
   scene=new THREE.Scene();const mesh=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial());mesh.name="body";scene.add(mesh);
   const head=new THREE.Object3D();head.name="head";head.position.y=.4;scene.add(head);
-  const humanoid={getNormalizedBoneNode:()=>head,getRawBoneNode:()=>head,getNormalizedPose:()=>({head:{rotation:head.quaternion.toArray()}}),setNormalizedPose:(pose:any)=>{mesh.position.x=0;head.quaternion.fromArray(pose.head?.rotation??[0,0,0,1])},update:()=>{}};
+  const arm=new THREE.Object3D();arm.name="leftUpperArm";if(calibrationIdle)scene.add(arm);
+  const humanoid={getNormalizedBoneNode:(name:string)=>calibrationIdle?(name==="head"?head:name==="leftUpperArm"?arm:null):head,getRawBoneNode:()=>head,getNormalizedPose:()=>({head:{rotation:head.quaternion.toArray()},...(calibrationIdle?{leftUpperArm:{rotation:arm.quaternion.toArray()}}:{})}),setNormalizedPose:(pose:any)=>{mesh.position.x=0;head.quaternion.fromArray(pose.head?.rotation??[0,0,0,1]);if(calibrationIdle)arm.quaternion.fromArray(pose.leftUpperArm?.rotation??[0,0,0,1])},update:()=>{}};
   const lookAt=new VRMLookAt(humanoid as unknown as VRMHumanoid,{applyYawPitch(){}});
   return {scene,animations:embeddedModel?[new THREE.AnimationClip("Jump",1,[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])]:[],userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[{update:(delta:number)=>{if(throwMaterial)throw new Error('material update failed');materialDeltas.push(delta)}}],humanoid,lookAt,expressionManager:{getExpression(){return null},resetValues(){},expressions:[],setValue(){},update(){}}}}};
  }
 }}));
-vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,relaxedIdle?[new THREE.QuaternionKeyframeTrack("head.quaternion",[0,1],[0,0,.2,Math.sqrt(.96),0,0,.2,Math.sqrt(.96)])]:[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));
+vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,calibrationIdle?[new THREE.QuaternionKeyframeTrack("leftUpperArm.quaternion",[0,1],[0,Math.sin(.05),0,Math.cos(.05),0,Math.sin(.1),0,Math.cos(.1)])]:relaxedIdle?[new THREE.QuaternionKeyframeTrack("head.quaternion",[0,1],[0,0,.2,Math.sqrt(.96),0,0,.2,Math.sqrt(.96)])]:[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));
 vi.mock("../src/inspect.js",async(original)=>({...await original<typeof import("../src/inspect.js")>(),inspectVrma:()=>({durationMs:1000})}));
 let time=0,id=0;const frames=new Map<number,FrameRequestCallback>();
 function advance(ms:number){for(let end=time+ms;time<end;){time=Math.min(end,time+1000/60);const batch=[...frames];frames.clear();for(const [,callback]of batch)callback(time)}}
@@ -54,7 +56,7 @@ function model(){
  return b;
 }
 beforeEach(()=>{
- rejectTexture=false;materialDeltas=[];throwMaterial=false;compileGate=undefined;compileCalls=0;renderCalls=0;onAnimationParse=undefined;embeddedModel=false;relaxedIdle=false;time=0;id=0;frames.clear();document.body.replaceChildren();
+ rejectTexture=false;materialDeltas=[];throwMaterial=false;compileGate=undefined;compileCalls=0;renderCalls=0;onAnimationParse=undefined;embeddedModel=false;relaxedIdle=false;calibrationIdle=false;time=0;id=0;frames.clear();document.body.replaceChildren();
  vi.spyOn(performance,"now").mockImplementation(()=>time);
  vi.stubGlobal("requestAnimationFrame",requestFrame);vi.stubGlobal("cancelAnimationFrame",cancelFrame);
  vi.stubGlobal("matchMedia",()=>({matches:false,addEventListener(){},removeEventListener(){}}));
@@ -138,6 +140,33 @@ it('gives a model without motions a bundled Idle and allows text-only click bubb
  expect(host.querySelector('.model-widget__bubble')!.textContent).toBe('Hello without gesture');
  expect(c.diagnostics().activeAnimation).toBe('StarLiteIdle');
  c.stopAnimation();expect(scene.getObjectByName('head')!.quaternion.angleTo(new THREE.Quaternion())).toBeGreaterThan(.3);
+});
+it('calibrates the bundled Idle live and while paused without fetching, remounting or restarting playback',async()=>{
+ calibrationIdle=true;const host=document.createElement('div');document.body.append(host);
+ const fetched=vi.spyOn(globalThis,'fetch');
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},interactions:{pointer:false},adjustments:{idle:{armLiftDegrees:10}}});resources.push(c);
+ const canvas=host.querySelector('canvas'),arm=scene.getObjectByName('leftUpperArm')!;
+ const promise=c.playAnimation('StarLiteIdle',{mode:'loop'});advance(500);
+ const settings={idle:{armLiftDegrees:20}};c.setModelAdjustments(settings);settings.idle.armLiftDegrees=40;advance(20);
+ expect(c.playAnimation('StarLiteIdle',{mode:'loop'})).toBe(promise);
+ expect(arm.quaternion.z).toBeCloseTo(Math.sin(THREE.MathUtils.degToRad(20)/2),2);
+ expect(Math.abs(arm.quaternion.y)).toBeGreaterThan(.07); // Time remains near .5, not the first sample.
+ c.pause();const frameCount=frames.size;c.setModelAdjustments({idle:{armLiftDegrees:30}});
+ expect(c.status).toBe('paused');expect(frames.size).toBe(frameCount);
+ expect(arm.quaternion.z).toBeCloseTo(Math.sin(THREE.MathUtils.degToRad(30)/2),2);
+ c.stopAnimation();const neutral=arm.quaternion.clone();
+ expect(neutral.z).toBeCloseTo(Math.sin(THREE.MathUtils.degToRad(30)/2),2);
+ c.setModelAdjustments({});expect(Math.abs(arm.quaternion.z)).toBeLessThan(.001);
+ expect(()=>c.setModelAdjustments({idle:{handCurl:2}})).toThrow('adjustments');
+ expect(host.querySelector('canvas')).toBe(canvas);expect(fetched).toHaveBeenCalledOnce();expect(compileCalls).toBe(1);
+ c.resume();c.destroy();expect(host.childElementCount).toBe(0);
+});
+it('never calibrates an externally supplied clip even when it is named StarLiteIdle',async()=>{
+ calibrationIdle=true;const host=document.createElement('div');document.body.append(host);
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},interactions:{pointer:false},animations:[{name:'StarLiteIdle',url:'custom.vrma'}],adjustments:{idle:{armLiftDegrees:30,handCurl:1}}});resources.push(c);
+ advance(300);const arm=scene.getObjectByName('leftUpperArm')!;
+ expect(arm.quaternion.z).toBe(0);c.setModelAdjustments({idle:{armLiftDegrees:-20}});advance(100);expect(arm.quaternion.z).toBe(0);
+ c.stopAnimation();expect(arm.quaternion.z).toBe(0);
 });
 it('lists and plays a model embedded animation alongside the program-provided Idle',async()=>{
  embeddedModel=true;const host=document.createElement('div');document.body.append(host);

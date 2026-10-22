@@ -64,3 +64,33 @@ for (const version of ["0", "1"]) it(`turns the VRM${version} head visibly witho
  head.rotation.z=.1;const authored=head.quaternion.clone();gaze.updateHead(head,camera,.033,true);
  expect(head.quaternion.angleTo(authored)).toBeCloseTo(0);
 });
+
+it("adjusts head and eye response independently, preserves limits and resets each zero strength", () => {
+ const {look,camera}=fixture("1"),head=new Object3D(),gaze=new PointerGaze(),rect={left:100,top:100,width:260,height:390};
+ head.position.y=1.6;head.updateMatrixWorld(true);gaze.move(10000,-10000,rect);
+ gaze.setAdjustments({headStrength:.5,eyeStrength:0});
+ for(let i=0;i<100;i++){gaze.updateHead(head,camera,.033,false);gaze.update(look,camera,.033,false);}
+ expect(gaze.headAngles.yawDegrees).toBeCloseTo(7.5);expect(gaze.headAngles.pitchDegrees).toBeCloseTo(4.5);
+ expect(look.yaw).toBe(0);expect(look.pitch).toBe(0);
+ gaze.setAdjustments({headStrength:0,eyeStrength:.5});
+ for(let i=0;i<100;i++){gaze.updateHead(head,camera,.033,false);gaze.update(look,camera,.033,false);}
+ expect(gaze.headAngles.yawDegrees).toBe(0);expect(head.quaternion.angleTo(new Object3D().quaternion)).toBeCloseTo(0);
+ expect(Math.abs(look.yaw)).toBeCloseTo(12.5);expect(Math.abs(look.pitch)).toBeCloseTo(7.5);
+ gaze.setAdjustments({headStrength:2,eyeStrength:2});
+ for(let i=0;i<100;i++){gaze.updateHead(head,camera,.033,false);gaze.update(look,camera,.033,false);}
+ expect(Math.abs(gaze.headAngles.yawDegrees)).toBeLessThanOrEqual(25);expect(Math.abs(gaze.headAngles.pitchDegrees)).toBeLessThanOrEqual(15);
+ expect(Math.abs(look.yaw)).toBeLessThanOrEqual(25);expect(Math.abs(look.pitch)).toBeLessThanOrEqual(15);
+ look.yaw=8;look.pitch=5;gaze.setAdjustments({headStrength:0,eyeStrength:0});gaze.update(look,camera,.1,true);
+ expect(look.yaw).toBe(8);expect(look.pitch).toBe(5); // Authored action still owns the eyes.
+ gaze.setAdjustments({});gaze.updateHead(head,camera,.1,false);expect(gaze.headAngles.yawDegrees).toBeGreaterThan(0);
+});
+
+it("changes smoothing without changing the final target or mutating caller configuration", () => {
+ const fast=fixture("1"),slow=fixture("1"),a=new PointerGaze(),b=new PointerGaze(),rect={left:100,top:100,width:260,height:390};
+ const settings={eyeStrength:1,smoothingMs:20};a.setAdjustments(settings);settings.eyeStrength=0;
+ b.setAdjustments({smoothingMs:1000});a.move(10000,-10000,rect);b.move(10000,-10000,rect);
+ a.update(fast.look,fast.camera,.033,false);b.update(slow.look,slow.camera,.033,false);
+ expect(Math.abs(fast.look.yaw)).toBeGreaterThan(Math.abs(slow.look.yaw)*5);
+ for(let i=0;i<300;i++){a.update(fast.look,fast.camera,.033,false);b.update(slow.look,slow.camera,.033,false);}
+ expect(Math.abs(fast.look.yaw)).toBeCloseTo(Math.abs(slow.look.yaw),2);
+});
