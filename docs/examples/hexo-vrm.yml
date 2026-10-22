@@ -64,6 +64,20 @@ starlite:
 #       lines: ["你好。"]
 #       durationMs: 7200
 
+# 内置 StarLiteIdle 姿态与跟随校准（本地候选，尚未发布到 npm）。
+# 将需要的字段加入上方自定义模型配置；不修改模型自带的 Idle 或其他动作。
+# 不填保留原表现，adjustments: {} 还原；完整说明见 docs/configuration.md。
+# adjustments:
+#   idle:
+#     armLiftDegrees: 10       # -30..45，对称抬臂
+#     palmTwistDegrees: -8     # -45..45，掌心朝向
+#     handCurl: 0.2            # 0 张开..1 握拳；不填保留动作手势
+#     elbowBendDegrees: 5      # -20..45，肘部弯曲
+#   gaze:
+#     headStrength: 0.8        # 0..2，默认 1；仍受原有限角约束
+#     eyeStrength: 1           # 0..2，需要有效 VRM LookAt
+#     smoothingMs: 150         # 20..1000，越小跟随越快
+
 # 自定义模型确有 Wave/Nod 动作时，可将 click 替换为：
 # click:
 #   animations: [Wave, Nod]

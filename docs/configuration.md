@@ -72,6 +72,7 @@ starlite:
 | `performance.show` | 默认 false；true 时在角色左下角显示实际 FPS、帧间隔 p95 与 CPU 侧帧耗时 p95，点击仍穿透。CPU 耗时包含模型更新和 WebGL 提交，不是 GPU 时间或 CPU 占用率。 |
 | `camera` | `yawDegrees`、`pitchDegrees`、`fovDegrees`、`targetHeight`。 |
 | `gaze` | 默认最大水平 25°、垂直 15°，平滑 100 ms；动作接管视线时暂停光标覆盖。 |
+| `adjustments` | 按模型校准内置 Idle 的臂、手姿态，以及头眼跟随；省略时保持原表现，见下方说明。 |
 | `mobile` | 默认 `show: false`、`breakpoint: 768`，在运行时导入前判断。 |
 | `interactions.pointer` | 光标跟随，默认开启。 |
 | `interactions.passThrough` | VRM 博客默认 true，让下层页面同时处理点击；显式开启拖动时默认 false，可手动指定。 |
@@ -90,6 +91,50 @@ starlite:
   bottom: 32px;
 }
 ```
+
+## 模型姿态与跟随调节
+
+此功能目前为本地候选，尚未发布到 npm。在独立预览页调好后，将导出的 `adjustments` 合并到博客 `_config.yml` 的 `starlite` 下，再按原 Hexo 命令生成；访客右键菜单不会增加姿态编辑项。参数随当前模型配置保存，更换模型后应重新调整。
+
+仓库完成依赖安装和构建后，在仓库根目录启动预览：
+
+```sh
+npm run start --workspace @starcried/starlite-vrm-example -- --model /path/to/avatar.vrm
+```
+
+打开终端显示的本地地址或 `/adjust`。可用 `--compare-model /path/to/another.vrm` 对照第二个模型；[完整预览说明](../examples/vrm/README.md)包含端口设置和动作检查。
+
+```yaml
+starlite:
+  model: ./models/avatar.vrm
+  publication:
+    confirm: true
+    allowRedistribution: true
+  adjustments:
+    idle:
+      armLiftDegrees: 10
+      palmTwistDegrees: -8
+      handCurl: 0.2
+      elbowBendDegrees: 5
+    gaze:
+      headStrength: 0.8
+      eyeStrength: 1
+      smoothingMs: 150
+```
+
+所有字段均可省略；删除某项即恢复该项原表现，删除 `adjustments` 或设置 `adjustments: {}` 恢复全部原表现。无需重新制作、转换或覆盖 VRM。姿态修正**仅作用于程序内置的 `StarLiteIdle`**，保留原有呼吸；模型自带的 `Idle`、挥手、坐下等动作保持原样。需要明确选用程序 Idle 时，可设置 `neutralAnimation: StarLiteIdle` 和 `ambient: {animations: [StarLiteIdle]}`。
+
+| 字段（位于 `adjustments` 下） | 含义与范围 |
+| --- | --- |
+| `idle.armLiftDegrees` | 双臂对称抬高／放低，−30° 至 45°；以角色身体正面定义方向，改变镜头不改变站姿。省略或 0 保持原角度。 |
+| `idle.palmTwistDegrees` | 掌心对称内外扭转，−45° 至 45°；省略或 0 保持原角度。 |
+| `idle.handCurl` | 张合姿态：0 张开、1 握拳；省略时保留动作原手势。依据已映射的标准手指，缺失指骨不补造。 |
+| `idle.elbowBendDegrees` | 肘部弯曲修正，−20° 至 45°；省略或 0 保持原角度。 |
+| `gaze.headStrength` | 转头跟随强度，0–2，默认 1 保留当前响应；0 停止头部的光标响应。 |
+| `gaze.eyeStrength` | 眼球跟随强度，0–2，默认 1；0 停止眼球的光标响应。需要模型已有有效的 VRM LookAt。 |
+| `gaze.smoothingMs` | 跟随平滑时间，20–1000 ms；越小越快。省略时沿用 `starlite.gaze.smoothingMs`，其默认值为 100 ms。 |
+
+灵敏度影响转动幅度，平滑时间影响跟随速度；现有水平／垂直限角仍生效。前景动作接管头眼时暂停光标覆盖。没有有效眼骨或视线表情的模型只能转头，调高强度不会增加眼球能力。滑条也无法修复错误蒙皮或不规范绑定；一期不提供腿间距或任意骨骼编辑。
 
 ## 动作和气泡
 

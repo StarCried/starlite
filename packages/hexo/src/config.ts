@@ -60,6 +60,7 @@ export function readEnabledConfig(
       ...(embeddedAnimations ? {embeddedAnimations} : {}), ...(neutralAnimation ? {neutralAnimation} : {}),
       ...(input.display ? {display:input.display} : {}), ...(input.mobile ? {mobile:input.mobile} : {}),
       ...(input.gaze ? {gaze:input.gaze} : {}),
+      ...(input.adjustments !== undefined ? {adjustments:input.adjustments} : {}),
       ...(input.camera ? {camera:input.camera} : {}),
       ...(input.performance !== undefined ? {performance:input.performance} : {}),
       render:{fps:30,maxDevicePixelRatio:1.5,autoFit:true,...input.render},

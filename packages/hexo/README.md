@@ -63,6 +63,8 @@ starlite:
 
 ## 进阶
 
+默认站姿不适合模型时，可[调整内置 Idle 的臂、手姿态和头眼跟随](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#模型姿态与跟随调节)，不会修改模型自带动作；此功能目前为本地候选。
+
 每篇文章也能有自己的句子，在 Markdown 开头的 front matter 中添加：
 
 ```yaml
