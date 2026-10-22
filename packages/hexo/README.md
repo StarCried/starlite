@@ -63,7 +63,7 @@ starlite:
 
 ## 进阶
 
-默认站姿不适合模型时，可[调整内置 Idle 的臂、手姿态和头眼跟随](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#模型姿态与跟随调节)，不会修改模型自带动作；此功能目前为本地候选。
+默认站姿不适合模型时，可[调整内置 Idle 的臂、手姿态和头眼跟随](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#模型姿态与跟随调节)，不会修改模型自带动作。
 
 每篇文章也能有自己的句子，在 Markdown 开头的 front matter 中添加：
 
@@ -73,7 +73,7 @@ starlite:
   - "慢慢看，我在这里。"
 ```
 
-默认点击和偶发互动共用顺序句库。此功能目前为本地候选，尚未发布到 npm；[完整说明与默认值](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#页面专属句子)。
+默认点击和偶发互动共用顺序句库。[完整说明与默认值](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#页面专属句子)。
 
 [动作、气泡与性能](https://github.com/StarCried/starlite/blob/main/docs/configuration.md) · [完整配置示例](https://github.com/StarCried/starlite/blob/main/docs/examples/hexo-vrm.yml) · [安装、更新与卸载](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md) · [VRM API](https://github.com/StarCried/starlite/blob/main/packages/vrm/README.md)
 

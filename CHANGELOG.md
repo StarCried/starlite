@@ -3,7 +3,19 @@
 All notable changes will be recorded here. The project follows semantic
 versioning; prereleases use the explicit npm `alpha` channel.
 
-## 0.1.0-alpha.3 - 2026-10-19
+## 0.1.0-alpha.3 - 2026-10-22
+
+- Add a shared right-click menu with model size, gaze, animation, bubble and
+  position controls. Menus stay anchored while resizing, and hiding bubbles
+  does not disable animation playback.
+- Read page-specific dialogue from Hexo Markdown front matter, including
+  shorthand sentence lists, site defaults, ordered/random selection and
+  replace/merge behavior without remounting the model during PJAX navigation.
+- Add per-model program Idle and gaze adjustments, with symmetric palm twist,
+  independent wrist lift, optional finger curl and live preview/config export.
+  Authored motions and original model files remain unchanged.
+- Patch Vite to 8.1.6 and Vitest to 4.1.12. The online dependency gate passes
+  without new exceptions; the documented Hexo host findings remain visible.
 
 - Add the default Weiguang Hexo preset: no configuration is needed, while
   `_config.yml` can disable it, override its dialogue/display settings or select

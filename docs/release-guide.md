@@ -39,7 +39,7 @@ starlite:
 
 动作、逐动作句库、位置和性能开关见[完整配置](configuration.md)及 [YAML 示例](examples/hexo-vrm.yml)。默认微光使用 60 FPS、DPR 1、260 × 390 画布，位置为右侧 112 px、底部 160 px；保持抗锯齿，按目标设备验收。
 
-单篇文章或独立页面可在 Markdown front matter 中写 `starlite: ["欢迎来到这一页。", "慢慢看。"]`，默认按顺序回应点击和偶发互动；选项及全站 `pageDialogue` 默认值见[页面专属句子](configuration.md#页面专属句子)。此功能目前为本地候选，尚未发布到 npm。
+单篇文章或独立页面可在 Markdown front matter 中写 `starlite: ["欢迎来到这一页。", "慢慢看。"]`，默认按顺序回应点击和偶发互动；选项及全站 `pageDialogue` 默认值见[页面专属句子](configuration.md#页面专属句子)。
 
 ### 使用自己的模型
 
