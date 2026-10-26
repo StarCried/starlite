@@ -11,6 +11,12 @@ motions. Public blog delivery must be an expressly permitted use, since visitors
 receive the files needed to render the character. Restrictions on re-use cannot
 technically prevent downloading those files.
 
+The example models have separate terms: [Weiguang](weiguang-license.md) and
+[Big Fat Blue Fish](bluefish-license.md). The latter's general prohibition on
+redistribution has a limited StarLite distribution and necessary blog-hosting
+exception; it is not a general permission to redistribute the asset. Preserve
+its original author credits and do not label model artwork as BSD-2-Clause.
+
 An Inochi2D blog puppet must be a separate Creator export with explicit publication
 approval. The alpha profile accepts PNG/TGA source textures up to 8192 pixels
 per dimension and 32 Mi pixels, resizes browser output to at most 4096 pixels
@@ -26,7 +32,8 @@ are supported.
 hash and set both publication booleans. A model declaring redistribution as
 prohibited is always blocked; required attribution must be provided.
 
-Third-party puppets are local-only test inputs and remain ignored by Git. Record
+Third-party puppets without an approved example-distribution grant are local-only
+test inputs and remain ignored by Git. Record
 their origin, exact source hash, license, and attribution in
 `docs/validation.md`. Automated and packaged artifacts may contain only
 synthetic artwork-free fixtures.

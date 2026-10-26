@@ -1,16 +1,44 @@
 import { expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import type { HexoWidgetConfig } from "../src/types";
 import {
   isDefaultPreset,
+  getDefaultExample,
   resolveDefaultPreset,
   WEIGUANG_ASSETS,
   WEIGUANG_CACHE_DIRECTORY,
   WEIGUANG_POSITION,
   WEIGUANG_VERSION,
 } from "../src/default-preset";
+import { EXAMPLE_LICENSES } from "../src/example-licenses";
 
 const model = "/cache/Weiguang-StarLite-Blog.vrm";
 const config = (input: object): HexoWidgetConfig => input as HexoWidgetConfig;
+
+it("selects independent examples without changing the initial Weiguang default", () => {
+  expect(getDefaultExample().id).toBe("weiguang");
+  expect(getDefaultExample("bluefish")).toMatchObject({id:"bluefish",title:"蓝色大肥鱼",author:"水原镜（Mzkagami）"});
+  for (const id of ["Wolfman", "Bluefish", "", null, {}, "__proto__"]) {
+    expect(() => getDefaultExample(id)).toThrow("starlite.preset");
+  }
+  const fish = resolveDefaultPreset({preset:"bluefish"}, "/cache/BlueFish-StarLite.vrm");
+  expect(fish).toMatchObject({backend:"vrm",render:{fps:60,maxDevicePixelRatio:1},interactions:{passThrough:true}});
+  expect(fish).not.toHaveProperty("embeddedAnimations");
+  expect(fish).not.toHaveProperty("neutralAnimation");
+  expect(JSON.stringify(fish)).not.toMatch(/微光|GentleWave|RaisedHandWave|Thinking/);
+  expect(fish.dialogue?.click).toHaveProperty("lines");
+  const custom = {preset:"bluefish" as const,model:"other.vrm"};
+  expect(resolveDefaultPreset(custom,"ignored.vrm")).toEqual(custom);
+});
+
+it("keeps full pre-download model terms synchronized with their own licenses", () => {
+  for (const id of ["weiguang","bluefish"] as const) {
+    expect(EXAMPLE_LICENSES[id]).toBe(readFileSync(new URL(`../../../docs/${id}-license.md`, import.meta.url),"utf8"));
+    expect(getDefaultExample(id).licenseText).toBe(EXAMPLE_LICENSES[id]);
+  }
+  expect(EXAMPLE_LICENSES.bluefish).toContain("禁止商业使用");
+  expect(EXAMPLE_LICENSES.bluefish).toContain("StarLite 用途的特别授权");
+});
 const clickScene = (input: HexoWidgetConfig) => {
   const scene = input.dialogue?.click;
   if (!scene) throw new Error("expected an enabled click scene");

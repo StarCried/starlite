@@ -38,6 +38,11 @@
 - Third-party puppets are ignored local test inputs only, with license and
   attribution recorded in `docs/validation.md`.
 - Package checks must reject `.inp`, `.inx`, `.vrm`, `.vrma` and `.blend` files.
+- Default Hexo examples are selected with `starlite.preset`; keep the initial
+  Weiguang choice and download only the selected example. Each catalog entry
+  has separate pinned assets and model terms, available before download. The
+  code's BSD license never applies to example artwork. Verify exported VRM0
+  orientation in the actual runtime (which rotates VRM0), not only Blender.
 
 ## Compatibility contract
 

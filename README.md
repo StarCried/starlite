@@ -65,4 +65,4 @@ starlite:
 
 [模型、动作和气泡配置](docs/configuration.md) · [VRM API](packages/vrm/README.md) · [开发](docs/development.md) · [当前状态](docs/status.md)
 
-程序采用 [BSD-2-Clause](LICENSE)。模型和动作按各自许可使用；微光另有专属许可。
+程序采用 [BSD-2-Clause](LICENSE)。模型和动作按各自许可使用；[微光](docs/weiguang-license.md)与[蓝色大肥鱼](docs/bluefish-license.md)均为独立授权的可选示例。

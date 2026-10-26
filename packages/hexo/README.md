@@ -63,6 +63,15 @@ starlite:
 
 ## 进阶
 
+除初始默认的微光，本地候选版本也可在 `_config.yml` 选择蓝色大肥鱼（尚未发布到 npm）：
+
+```yaml
+starlite:
+  preset: bluefish
+```
+
+模型作者水原镜（Mzkagami），遵守[独立模型条款](https://github.com/StarCried/starlite/blob/main/docs/bluefish-license.md)。它使用基础 Idle、眨眼和跟随，不附带微光的事件动作。指定 `model` 后使用自定义模型，不再获取示例。
+
 默认站姿不适合模型时，可[调整内置 Idle 的臂、手姿态和头眼跟随](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#模型姿态与跟随调节)，不会修改模型自带动作。
 
 每篇文章也能有自己的句子，在 Markdown 开头的 front matter 中添加：
@@ -77,4 +86,4 @@ starlite:
 
 [动作、气泡与性能](https://github.com/StarCried/starlite/blob/main/docs/configuration.md) · [完整配置示例](https://github.com/StarCried/starlite/blob/main/docs/examples/hexo-vrm.yml) · [安装、更新与卸载](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md) · [VRM API](https://github.com/StarCried/starlite/blob/main/packages/vrm/README.md)
 
-BSD-2-Clause；微光模型独立授权，其他模型和动作由使用者按各自许可提供。
+程序采用 BSD-2-Clause；微光、蓝色大肥鱼及其他模型和动作分别遵守各自许可。

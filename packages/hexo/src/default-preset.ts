@@ -1,4 +1,7 @@
 import type { HexoWidgetConfig } from "./types";
+import { BLUEFISH_ASSETS, BLUEFISH_PRESET, BLUEFISH_VERSION } from "./bluefish-preset";
+import type { DefaultAsset } from "./default-assets";
+import { EXAMPLE_LICENSES } from "./example-licenses";
 
 export const WEIGUANG_VERSION = "weiguang-v3.0.0-starlite.1";
 export const WEIGUANG_CACHE_DIRECTORY = `node_modules/.cache/hexo-starlite/${WEIGUANG_VERSION}`;
@@ -9,6 +12,35 @@ export const WEIGUANG_ASSETS = [
   { file: "LICENSE-Weiguang.md", url: `${release}/LICENSE-Weiguang.md`, bytes: 4399, sha256: "c36c593d2932e4cfb0d451a8acf69c8444abbbab1a255300abc42efe4d36a211" },
   { file: "ASSET-SOURCES.md", url: `${release}/ASSET-SOURCES.md`, bytes: 2595, sha256: "2b1616fcd4d6009e5810953e703e2bcb9a907c7a29906735ad1c6f92cd24e066" },
 ] as const;
+
+export interface DefaultExample {
+  id: "weiguang" | "bluefish";
+  title: string;
+  author: string;
+  cacheDirectory: string;
+  assets: readonly DefaultAsset[];
+  licenseUrl: string;
+  licenseText: string;
+  licenseFile: string;
+}
+
+/** Reject misspelled selections instead of silently loading another character. */
+export function getDefaultExample(id: unknown = "weiguang"): DefaultExample {
+  if (id === "weiguang") return {
+    id, title: "微光", author: "StarCried", cacheDirectory: WEIGUANG_CACHE_DIRECTORY,
+    assets: WEIGUANG_ASSETS,
+    licenseUrl: "https://github.com/StarCried/starlite/blob/main/docs/weiguang-license.md",
+    licenseText: EXAMPLE_LICENSES.weiguang, licenseFile: "LICENSE-Weiguang.md",
+  };
+  if (id === "bluefish") return {
+    id, title: "蓝色大肥鱼", author: "水原镜（Mzkagami）",
+    cacheDirectory: `node_modules/.cache/hexo-starlite/${BLUEFISH_VERSION}`,
+    assets: BLUEFISH_ASSETS,
+    licenseUrl: "https://github.com/StarCried/starlite/blob/main/docs/bluefish-license.md",
+    licenseText: EXAMPLE_LICENSES.bluefish, licenseFile: "LICENSE-BlueFish.md",
+  };
+  throw new Error("starlite.preset must be weiguang or bluefish");
+}
 
 // The public Weiguang blog preset; artwork remains in the separately licensed release.
 const PRESET = {
@@ -202,15 +234,17 @@ export function resolveDefaultPreset(
   modelPath: string,
 ): HexoWidgetConfig {
   if (!isDefaultPreset(input)) return clone(input!);
+  const example = getDefaultExample(input?.preset);
+  const preset: HexoWidgetConfig = example.id === "bluefish" ? BLUEFISH_PRESET : PRESET;
   const defaults = {
-    ...PRESET,
+    ...preset,
     enable: true,
     model: modelPath,
     position: WEIGUANG_POSITION,
     publication: {
       confirm: true,
       allowRedistribution: true,
-      sourceSha256: WEIGUANG_ASSETS[0].sha256,
+      sourceSha256: example.assets[0]?.sha256,
     },
   };
   const output = merge(defaults, input ?? {}) as HexoWidgetConfig;
@@ -218,19 +252,22 @@ export function resolveDefaultPreset(
   if (overrides) {
     for (const scene of ["enter", "click", "idle"] as const) {
       if (isRecord(overrides[scene])) {
-        output.dialogue![scene] = mergeScene(PRESET.dialogue[scene], overrides[scene]);
+        const base = preset.dialogue?.[scene];
+        output.dialogue![scene] = mergeScene(isRecord(base) ? base : {}, overrides[scene]);
       }
     }
   }
   const click = input?.interactions?.click;
   if (isRecord(click)) {
-    output.interactions!.click = mergeSelection(PRESET.interactions.click, click) as Exclude<NonNullable<HexoWidgetConfig["interactions"]>["click"], false | undefined>;
+    const base = preset.interactions?.click;
+    output.interactions!.click = mergeSelection(isRecord(base) ? base : {}, click) as Exclude<NonNullable<HexoWidgetConfig["interactions"]>["click"], false | undefined>;
   }
   // Dialogue owns click playback when enabled. An interaction override also
   // replaces its inherited pool unless the caller supplied explicit dialogue.
   if (click !== undefined && !Object.hasOwn(overrides ?? {}, "click")) {
+    const base = preset.dialogue?.click;
     output.dialogue!.click = click === false ? false
-      : mergeScene(PRESET.dialogue.click, click);
+      : mergeScene(isRecord(base) ? base : {}, click);
   }
   return output;
 }

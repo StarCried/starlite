@@ -6,7 +6,7 @@ import { createBootstrapSource } from "./bootstrap";
 import { normalizeRoot, readEnabledConfig } from "./config";
 import { ensureDefaultAssets } from "./default-assets";
 import {markPageDialogue,readPageDialogueDefaults,resolvePageDialogueMarkers} from "./page-dialogue";
-import { isDefaultPreset, resolveDefaultPreset, WEIGUANG_ASSETS, WEIGUANG_CACHE_DIRECTORY } from "./default-preset";
+import { getDefaultExample, isDefaultPreset, resolveDefaultPreset } from "./default-preset";
 import type { HexoLike, HexoWidgetConfig, ModelAssetBundle, RuntimeAssetBundle } from "./types";
 
 declare const hexo: HexoLike | undefined;
@@ -18,10 +18,11 @@ export function registerHexoWidget(instance: HexoLike): void {
   let cachedModelBundle: ModelAssetBundle | undefined;
   let localPreviewWarningLogged = false;
   let defaultReady = false;
-  let defaultNoticeLogged = false;
+  const defaultNoticesLogged = new Set<string>();
   let preparing: Promise<void> | undefined;
-  const defaultDirectory = resolve(instance.base_dir ?? process.cwd(), WEIGUANG_CACHE_DIRECTORY);
-  const defaultModel = join(defaultDirectory, WEIGUANG_ASSETS[0]!.file);
+  const defaultExample = () => getDefaultExample(readInput()?.preset);
+  const defaultDirectory = () => resolve(instance.base_dir ?? process.cwd(), defaultExample().cacheDirectory);
+  const defaultModel = () => join(defaultDirectory(), defaultExample().assets[0]!.file);
   const readInput = (): HexoWidgetConfig | undefined => {
     const input = instance.config.starlite;
     if (input !== undefined && (input === null || typeof input !== "object" || Array.isArray(input))) {
@@ -29,6 +30,7 @@ export function registerHexoWidget(instance: HexoLike): void {
     }
     if (input?.enable !== undefined && typeof input.enable !== "boolean") throw new Error("starlite.enable must be true or false");
     if (input?.enable === false) return input;
+    if (input?.preset !== undefined) getDefaultExample(input.preset);
     readPageDialogueDefaults(input?.pageDialogue);
     if (input?.backend !== undefined && input.backend !== "vrm" && input.backend !== "inochi2d") throw new Error("unknown model backend");
     for (const key of ["model", "bundle"] as const) {
@@ -46,7 +48,7 @@ export function registerHexoWidget(instance: HexoLike): void {
     if (input?.enable === false) return undefined;
     if (isDefaultPreset(input) && !defaultReady) return undefined;
     const starlite = isDefaultPreset(input)
-      ? resolveDefaultPreset(input, defaultModel)
+      ? resolveDefaultPreset(input, defaultModel())
       : resolveCustomConfig(input!);
     return { ...instance, config: { ...instance.config, starlite } };
   };
@@ -90,17 +92,22 @@ export function registerHexoWidget(instance: HexoLike): void {
       const pages = (["Post", "Page"] as const).flatMap(name => instance.model?.(name).toArray() ?? []);
       for (const page of pages) markPageDialogue(page, input?.enable !== false);
       if (isDefaultPreset(input)) {
+        const example = defaultExample();
+        if (!defaultNoticesLogged.has(example.id)) {
+          instance.log.info?.(`StarLite: 使用示例“${example.title}”（${example.author}）。使用即同意该模型独立许可；不接受请改用其他模型或设置 starlite.enable: false。\n${example.licenseText}`);
+          defaultNoticesLogged.add(example.id);
+        }
+        if (!example.assets.length) {
+          instance.log.warn(`StarLite: “${example.title}”的默认资源尚未发布，本次跳过看板娘，博客继续生成。可先用 starlite.model 指定本地已授权 VRM 进行预览。`);
+          return;
+        }
         try {
-          await ensureDefaultAssets(defaultDirectory, WEIGUANG_ASSETS);
+          await ensureDefaultAssets(defaultDirectory(), example.assets);
         } catch {
-          instance.log.warn("StarLite: 无法获取或校验默认微光，本次跳过看板娘，博客继续生成。请检查网络后重新生成；已有有效缓存时无需联网。也可设置 starlite.enable: false 禁用。");
+          instance.log.warn(`StarLite: 无法获取或校验默认${example.title}，本次跳过看板娘，博客继续生成。请检查网络后重新生成；已有有效缓存时无需联网。也可设置 starlite.enable: false 禁用。`);
           return;
         }
         defaultReady = true;
-        if (!defaultNoticeLogged) {
-          instance.log.info?.("StarLite: 默认使用 StarCried 的微光模型；使用即同意独立模型许可，不接受请设置 starlite.enable: false。许可与来源说明随站点模型资源生成。");
-          defaultNoticeLogged = true;
-        }
       }
       // Hexo can log and swallow late HTML rendering errors. Reject invalid
       // action references here, before it starts generating any page routes.
@@ -128,9 +135,9 @@ export function registerHexoWidget(instance: HexoLike): void {
       data: asset.contents,
     }));
     const notices = isDefaultPreset(instance.config.starlite) && modelBundle
-      ? WEIGUANG_ASSETS.slice(1).map(asset => ({
+      ? defaultExample().assets.slice(1).map(asset => ({
           path: `${modelBundle.routePrefix}/${asset.file}`,
-          data: readFileSync(join(defaultDirectory, asset.file)),
+          data: readFileSync(join(defaultDirectory(), asset.file)),
         }))
       : [];
     return [...runtimeRoutes, ...(modelRoutes ?? []), ...notices];

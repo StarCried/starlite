@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { registerHexoWidget } from "../src/index";
 import { ensureDefaultAssets } from "../src/default-assets";
-import { WEIGUANG_ASSETS } from "../src/default-preset";
+import { getDefaultExample, WEIGUANG_ASSETS } from "../src/default-preset";
 import type { HexoLike } from "../src/types";
 // @ts-expect-error artwork-free JavaScript fixture
 import { model, glb } from "../../../tests/fixtures/vrm.mjs";
@@ -63,7 +63,7 @@ function blog(config: HexoLike["config"] = {}) {
 beforeEach(() => {
   vi.mocked(ensureDefaultAssets).mockReset().mockImplementation(async (directory, assets) => {
     mkdirSync(directory, { recursive: true });
-    for (const [index, asset] of assets.entries()) writeFileSync(join(directory, asset.file), index === 0 ? animatedModel() : "Synthetic model notice");
+    for (const [index, asset] of assets.entries()) writeFileSync(join(directory, asset.file), index === 0 ? (asset.file.startsWith("BlueFish") ? model() : animatedModel()) : "Synthetic model notice");
   });
 });
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
@@ -94,6 +94,44 @@ it("explicit disable downloads nothing and emits no companion resources", async 
   await site.registrations.prepare!();
   expect(ensureDefaultAssets).not.toHaveBeenCalled();
   expect(site.registrations.generate!()).toBeUndefined(); expect(site.registrations.inject!()).toBeUndefined();
+});
+
+it("offers the selected model terms before fetching any artwork", async () => {
+  const site = blog();
+  await site.registrations.prepare!();
+  expect(site.hexo.log.info).toHaveBeenCalledWith(expect.stringContaining("微光示例模型使用许可"));
+  expect(vi.mocked(site.hexo.log.info!).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(ensureDefaultAssets).mock.invocationCallOrder[0]!);
+});
+
+it("rejects an unknown example instead of silently downloading Weiguang", async () => {
+  const site = blog({starlite:{preset:"unknown" as "bluefish"}});
+  await expect(site.registrations.prepare!()).rejects.toThrow("starlite.preset");
+  expect(ensureDefaultAssets).not.toHaveBeenCalled();
+});
+
+it("prepares only BlueFish and its independent terms when selected", async () => {
+  const site = blog({starlite:{preset:"bluefish"}});
+  await site.registrations.prepare!();
+  expect(ensureDefaultAssets).toHaveBeenCalledOnce();
+  expect(vi.mocked(ensureDefaultAssets).mock.calls[0]![1]).toBe(getDefaultExample("bluefish").assets);
+  const routes = site.registrations.generate!()!, html = site.registrations.inject!()!;
+  expect(routes.filter(route => route.path.endsWith(".vrm"))).toHaveLength(1);
+  expect(routes.some(route => route.path.endsWith("LICENSE-BlueFish.md"))).toBe(true);
+  expect(routes.some(route => route.path.endsWith("LICENSE-Weiguang.md"))).toBe(false);
+  expect(html).not.toMatch(/微光|GentleWave|StumbleAndRecover/);
+  expect(site.hexo.log.info).toHaveBeenCalledWith(expect.stringContaining("水原镜"));
+  expect(site.hexo.log.warn).not.toHaveBeenCalled();
+});
+
+it("regenerates with the newly selected catalog and forgets the previous character bundle", async () => {
+  const site = blog();
+  await site.registrations.prepare!();
+  expect(site.registrations.inject!()).toContain("GentleWave");
+  site.hexo.config.starlite = {preset:"bluefish"};
+  await site.registrations.prepare!();
+  expect(ensureDefaultAssets).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(ensureDefaultAssets).mock.calls[1]![1]).toBe(getDefaultExample("bluefish").assets);
+  expect(site.registrations.inject!()).not.toContain("GentleWave");
 });
 
 it("continues normal generation after acquisition failure and recovers on the next generation", async () => {

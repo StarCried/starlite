@@ -36,6 +36,15 @@ afterEach(() => {
 });
 
 describe("default model asset cache", () => {
+  it("accepts the pinned BlueFish release but rejects another version", async () => {
+    const directory = temporaryDirectory();
+    const selected = {...asset, url:"https://github.com/StarCried/starlite/releases/download/bluefish-v1.0.0-starlite.1/BlueFish-StarLite.vrm",file:"BlueFish-StarLite.vrm"};
+    const fetchAsset = vi.fn<typeof fetch>().mockResolvedValue(bodyResponse());
+    await ensureDefaultAssets(directory, [selected], {fetch:fetchAsset});
+    expect(fetchAsset).toHaveBeenCalledOnce();
+    await expect(ensureDefaultAssets(directory, [{...selected,url:selected.url.replace("starlite.1/","starlite.2/")}], {fetch:fetchAsset})).rejects.toThrow(/source/);
+    expect(fetchAsset).toHaveBeenCalledOnce();
+  });
   it("downloads verified bytes once and uses a validated cache completely offline", async () => {
     const directory = join(temporaryDirectory(), "node_modules", ".cache", "hexo-starlite", "version");
     const fetchAsset = vi.fn<typeof fetch>().mockResolvedValueOnce(bodyResponse());

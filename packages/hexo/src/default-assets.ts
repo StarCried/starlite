@@ -12,7 +12,10 @@ export interface DefaultAsset {
   sha256: string;
 }
 
-const RELEASE_PREFIX = "https://github.com/StarCried/starlite/releases/download/weiguang-v3.0.0-starlite.1/";
+const RELEASE_PREFIXES = [
+  "https://github.com/StarCried/starlite/releases/download/weiguang-v3.0.0-starlite.1/",
+  "https://github.com/StarCried/starlite/releases/download/bluefish-v1.0.0-starlite.1/",
+];
 const DOWNLOAD_HOSTS = new Set([
   "github.com",
   "objects.githubusercontent.com",
@@ -101,9 +104,10 @@ function validateAsset(asset: DefaultAsset): void {
     throw new DefaultAssetError("StarLite default asset metadata is invalid.");
   }
   const url = trustedUrl(asset.url);
+  const prefix = RELEASE_PREFIXES.find(value => url.href.startsWith(value));
   if (
-    !url.href.startsWith(RELEASE_PREFIX) || url.search || url.hash ||
-    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(url.href.slice(RELEASE_PREFIX.length))
+    !prefix || url.search || url.hash ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(url.href.slice(prefix.length))
   ) {
     throw new DefaultAssetError("StarLite default asset source is invalid.");
   }

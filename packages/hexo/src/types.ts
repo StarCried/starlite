@@ -11,6 +11,8 @@ export type HexoWidgetConfig = HexoWidgetOptions & (
 );
 export interface HexoWidgetOptions {
   enable?: boolean;
+  /** Select an independently licensed example when no custom model is set. */
+  preset?: "weiguang" | "bluefish";
   /** Defaults for article/page front-matter dialogue, not the global library. */
   pageDialogue?: PageDialogueDefaults;
   /** Fixed placement in CSS pixels; applies only to the Hexo host. */
