@@ -17,6 +17,7 @@ let onAnimationParse: (() => void) | undefined;
 let embeddedModel = false;
 let relaxedIdle = false;
 let calibrationIdle = false;
+let elevatedEntry = false;
 vi.mock("three", async (original) => ({...await original<typeof import("three")>(), WebGLRenderer: class {
  info={render:{calls:1,triangles:12},memory:{geometries:1,textures:0}};
  setClearColor(){} setPixelRatio(){} setSize(){} render(){renderCalls++} dispose(){} forceContextLoss(){}
@@ -37,7 +38,7 @@ vi.mock("three/addons/loaders/GLTFLoader.js",()=>({GLTFLoader:class {
   return {scene,animations:embeddedModel?[new THREE.AnimationClip("Jump",1,[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])]:[],userData:{vrm:{scene,meta:{metaVersion:"1"},materials:[{update:(delta:number)=>{if(throwMaterial)throw new Error('material update failed');materialDeltas.push(delta)}}],humanoid,lookAt,expressionManager:{getExpression(){return null},resetValues(){},expressions:[],setValue(){},update(){}}}}};
  }
 }}));
-vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,calibrationIdle?[new THREE.QuaternionKeyframeTrack("leftUpperArm.quaternion",[0,1],[0,Math.sin(.05),0,Math.cos(.05),0,Math.sin(.1),0,Math.cos(.1)])]:relaxedIdle?[new THREE.QuaternionKeyframeTrack("head.quaternion",[0,1],[0,0,.2,Math.sqrt(.96),0,0,.2,Math.sqrt(.96)])]:[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));
+vi.mock("@pixiv/three-vrm-animation",async(original)=>({...await original<typeof import("@pixiv/three-vrm-animation")>(),createVRMAnimationClip:()=>new THREE.AnimationClip("Action",1,elevatedEntry?[new THREE.NumberKeyframeTrack("body.position[y]",[0,1],[3,3])]:calibrationIdle?[new THREE.QuaternionKeyframeTrack("leftUpperArm.quaternion",[0,1],[0,Math.sin(.05),0,Math.cos(.05),0,Math.sin(.1),0,Math.cos(.1)])]:relaxedIdle?[new THREE.QuaternionKeyframeTrack("head.quaternion",[0,1],[0,0,.2,Math.sqrt(.96),0,0,.2,Math.sqrt(.96)])]:[new THREE.NumberKeyframeTrack("body.position[x]",[0,.5,1],[0,1,0])])}));
 vi.mock("../src/inspect.js",async(original)=>({...await original<typeof import("../src/inspect.js")>(),inspectVrma:()=>({durationMs:1000})}));
 let time=0,id=0;const frames=new Map<number,FrameRequestCallback>();
 function advance(ms:number){for(let end=time+ms;time<end;){time=Math.min(end,time+1000/60);const batch=[...frames];frames.clear();for(const [,callback]of batch)callback(time)}}
@@ -56,7 +57,7 @@ function model(){
  return b;
 }
 beforeEach(()=>{
- rejectTexture=false;materialDeltas=[];throwMaterial=false;compileGate=undefined;compileCalls=0;renderCalls=0;onAnimationParse=undefined;embeddedModel=false;relaxedIdle=false;calibrationIdle=false;time=0;id=0;frames.clear();document.body.replaceChildren();
+ rejectTexture=false;materialDeltas=[];throwMaterial=false;compileGate=undefined;compileCalls=0;renderCalls=0;onAnimationParse=undefined;embeddedModel=false;relaxedIdle=false;calibrationIdle=false;elevatedEntry=false;time=0;id=0;frames.clear();document.body.replaceChildren();
  vi.spyOn(performance,"now").mockImplementation(()=>time);
  vi.stubGlobal("requestAnimationFrame",requestFrame);vi.stubGlobal("cancelAnimationFrame",cancelFrame);
  vi.stubGlobal("matchMedia",()=>({matches:false,addEventListener(){},removeEventListener(){}}));
@@ -591,4 +592,15 @@ it('samples the reference silhouette only once, never during actions or resume',
  const c=await mount('vrm'),anchor=c.getBubbleAnchor!();expect(read).toHaveBeenCalledOnce();expect(anchor).toBeDefined();
  const action=c.playAnimation('Action');advance(1500);await action;c.pause();c.resume();advance(500);
  expect(read).toHaveBeenCalledOnce();expect(c.getBubbleAnchor!()).toEqual(anchor);
+});
+
+it('samples neutral before a zero-delay entry with no ambient animation',async()=>{
+ elevatedEntry=true;
+ const sampledHeights:number[]=[];
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue({drawImage(){},getImageData:(x:number,y:number,w:number,h:number)=>{
+  sampledHeights.push(scene.getObjectByName('body')!.position.y);const data=new Uint8ClampedArray(w*h*4);data[(50*w+100)*4+3]=255;return {data};
+ }} as any);
+ const c=await mount('vrm',undefined,{enter:{animation:'Action',lines:['Immediate'],delayMs:0,durationMs:1000}});
+ expect(sampledHeights).toEqual([0]);expect(document.querySelector('.model-widget__bubble')!.textContent).toBe('Immediate');
+ const anchor=c.getBubbleAnchor!();advance(500);expect(scene.getObjectByName('body')!.position.y).toBe(3);expect(c.getBubbleAnchor!()).toEqual(anchor);
 });

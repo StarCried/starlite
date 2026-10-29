@@ -222,9 +222,11 @@ class Controller implements VrmController {
       await this.#renderer.compileAsync(this.#scene, this.#camera);
       this.#abort.signal.throwIfAborted();
       this.#bind(); this.#startAmbient();
-      this.#dialogue.start(0, this.#reduced.matches);
-      this.#tick(0);
+      this.#tick(0, true);
       this.#bubbleAnchor = sampleBubbleAnchor(this.#canvas, this.#viewport.rect, this.#baseCamera, this.#portraitBounds);
+      this.#dialogue.start(0, this.#reduced.matches);
+      const entry = this.#dialogue.poll(0, this.#foregroundActive());
+      if (entry) this.#showDialogue(entry);
       this.#bubble.position();
       this.#stats.loadMs = performance.now() - started; this.#sync();
     } catch (error) {
@@ -418,7 +420,7 @@ class Controller implements VrmController {
       this.#schedule();
     });
   }
-  #tick(delta: number): void {
+  #tick(delta: number, referenceOnly = false): void {
     const vrm = this.#vrm, renderer = this.#renderer;
     if (!vrm || !renderer) return;
     const started = performance.now(); this.#elapsed += delta;
@@ -428,7 +430,7 @@ class Controller implements VrmController {
     const animationDelta = this.#playStartedAt === undefined ? delta : Math.min(delta, Math.max(0, (performance.now() - this.#playStartedAt) / 1000));
     this.#playStartedAt = undefined;
     this.#player?.update(animationDelta); this.#startAmbient();
-    const action = this.#dialogue.poll(this.#elapsed * 1000, this.#foregroundActive());
+    const action = referenceOnly ? undefined : this.#dialogue.poll(this.#elapsed * 1000, this.#foregroundActive());
     if (action) this.#showDialogue(action);
     this.#bubble.update(this.#elapsed * 1000);
     // Only the base Idle pose follows the pointer. Foreground gestures retain
