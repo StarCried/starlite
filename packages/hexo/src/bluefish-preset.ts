@@ -6,9 +6,9 @@ const release = `https://github.com/StarCried/starlite/releases/download/${BLUEF
 // Local candidate pins. The separately licensed assets must be published before
 // shipping this selection; local QA seeds this exact verified cache instead.
 export const BLUEFISH_ASSETS: readonly DefaultAsset[] = [
-  {file:"BlueFish-StarLite.vrm",url:`${release}/BlueFish-StarLite.vrm`,bytes:9994124,sha256:"bb14934cf2e37b7b62e1bf2949cdadc6e3add588985207aadd8a121bcd080a15"},
-  {file:"LICENSE-BlueFish.md",url:`${release}/LICENSE-BlueFish.md`,bytes:2378,sha256:"d22675b34ae1a3736497f15aeb702e0be13f0e7cad041dadfb84e9f8038bb792"},
-  {file:"ASSET-SOURCES.md",url:`${release}/ASSET-SOURCES.md`,bytes:2242,sha256:"c880ce08b8803e1003eaae396ab42d747ce9cfb37716c0a4f5f6b9169bff447b"},
+  {file:"BlueFish-StarLite.vrm",url:`${release}/BlueFish-StarLite.vrm`,bytes:9990468,sha256:"c94b0a9e06503feadd002cc0dd167edb6bf9d73e9346265594cf0d7cf3260710"},
+  {file:"LICENSE-BlueFish.md",url:`${release}/LICENSE-BlueFish.md`,bytes:2490,sha256:"c6b6bfcd77cfa5caec91378226526e797da610d43e8723b186a8049be573f70d"},
+  {file:"ASSET-SOURCES.md",url:`${release}/ASSET-SOURCES.md`,bytes:2512,sha256:"e3d0e7fa55938cab09c9589c081c15eeffdf2f33117bfdaae6a5cc883b8b5205"},
 ];
 
 /** Generic StarLite Idle/gaze/blink; no Weiguang motion or character dialogue. */
