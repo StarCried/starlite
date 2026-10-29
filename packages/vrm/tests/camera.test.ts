@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { Bone, Box3, BoxGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from "three";
-import { framePortrait, visibleModelBounds, ExpandedViewport } from "../src/camera.js";
+import { framePortrait, visibleModelBounds, ExpandedViewport, projectBubbleAnchor } from "../src/camera.js";
 import { PoseBounds } from "../src/pose-bounds.js";
 import { validateVrmWidgetConfig } from "../src/config.js";
 
@@ -92,4 +92,17 @@ it("bounds posed weighted skin and blended morphs without resampling vertices", 
  mesh.morphTargetInfluences![1]=.5;expect(bounds.measure(root).containsBox(visibleModelBounds(root))).toBe(true);
  mesh.morphTargetInfluences![1]=0;
  a.position.x=1.8;expect(bounds.measure(root).max.x).toBeGreaterThan(1.8);
+});
+
+it("projects different silhouettes to stable host-local anchors without canvas padding or DPR",()=>{
+ const camera=new PerspectiveCamera(),tall=new Box3(new Vector3(-.4,0,-.2),new Vector3(.4,1.8,.2));
+ framePortrait(camera,tall,2/3,{fitPadding:.9},{targetHeight:.53,pitchDegrees:5});
+ const short=new Box3(new Vector3(-.4,0,-.2),new Vector3(.4,.9,.2));
+ const a=projectBubbleAnchor(tall,camera,320,480)!,b=projectBubbleAnchor(short,camera,320,480)!;
+ expect(a.x).toBeCloseTo(160);expect(b.y).toBeGreaterThan(a.y+100);
+ const double=projectBubbleAnchor(short,camera,640,960)!;expect(double.x).toBeCloseTo(b.x*2);expect(double.y).toBeCloseTo(b.y*2);
+ const viewport=new ExpandedViewport({left:128,top:64,right:128,bottom:128}),renderCamera=camera.clone();viewport.resize(320,480);viewport.apply(renderCamera);
+ expect(projectBubbleAnchor(short,camera,320,480)).toEqual(b);
+ expect(projectBubbleAnchor(new Box3(),camera,320,480)).toBeUndefined();
+ expect(projectBubbleAnchor(short,camera,NaN,480)).toBeUndefined();
 });

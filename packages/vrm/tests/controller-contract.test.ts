@@ -196,10 +196,14 @@ it('keeps a fixed canvas and emits no viewport changes while an action begins, c
  const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},render:{viewportPadding:{left:128,top:64,right:128,bottom:128}},interactions:{pointer:false},animations:[{name:'Action',url:'a.vrma'}]});resources.push(c);
  const viewport={left:-128,top:-64,width:576,height:672,baseWidth:320,baseHeight:480};
  expect(changed).toHaveBeenCalledOnce();expect(c.diagnostics().framing?.viewport).toEqual(viewport);
- const action=c.playAnimation('Action');advance(1500);await expect(action).resolves.toBe('completed');
+ const anchor=c.getBubbleAnchor()!;expect(Number.isFinite(anchor.y)).toBe(true);
+ const action=c.playAnimation('Action');advance(500);expect(c.getBubbleAnchor()).toEqual(anchor);
+ advance(1000);await expect(action).resolves.toBe('completed');
  c.stopAnimation();c.resetCamera();advance(500);
  expect(changed).toHaveBeenCalledOnce();expect(c.diagnostics().framing?.viewport).toEqual(viewport);
  const canvas=host.querySelector('canvas')!;expect(canvas.style.width).toBe('576px');expect(canvas.style.top).toBe('-64px');
+ expect(c.getBubbleAnchor()).toEqual(anchor);c.pause();expect(c.getBubbleAnchor()).toEqual(anchor);
+ c.destroy();expect(c.getBubbleAnchor()).toBeUndefined();
 });
 for(const backend of ['inochi2d','vrm'])describe(`${backend} public controller contract`,()=>{
  it('uses animation-bound entry and click sentences through the public mount',async()=>{
@@ -579,4 +583,12 @@ it('refreshes a paused silhouette after native resize acknowledgement without sa
  expect(scene.getObjectByName('body')!.position.toArray()).toEqual(pose);
  c.resume();advance(1000);await expect(playing).resolves.toBe('completed');
  c.destroy();const finalCount=accepted.length;c.refreshInteractionMask!();expect(accepted).toHaveLength(finalCount);
+});
+
+it('samples the reference silhouette only once, never during actions or resume',async()=>{
+ const read=vi.fn((x,y,w,h)=>{const data=new Uint8ClampedArray(w*h*4);data[(Math.floor(h/3)*w+Math.floor(w/2))*4+3]=255;return {data}});
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue({drawImage(){},getImageData:read} as any);
+ const c=await mount('vrm'),anchor=c.getBubbleAnchor!();expect(read).toHaveBeenCalledOnce();expect(anchor).toBeDefined();
+ const action=c.playAnimation('Action');advance(1500);await action;c.pause();c.resume();advance(500);
+ expect(read).toHaveBeenCalledOnce();expect(c.getBubbleAnchor!()).toEqual(anchor);
 });

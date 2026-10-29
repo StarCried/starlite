@@ -61,6 +61,11 @@
   inertialization.
   Explicit stop/destroy still restore neutral immediately; the Inochi2D animation
   restrictions above are unchanged.
+- VRM bubble anchors sample the initial neutral alpha silhouette once and project
+  the cached reference point (falling back to visible bounds) through the base
+  portrait camera, in host-local CSS pixels. Do not use animated bounds, expanded
+  canvas padding or device pixels: doing so moves bubbles during gestures or DPI
+  changes. DSH consumes this optional core capability without resizing its window.
 - Keep official SDK source, toolchain, raw WASM, optimized WASM, LLD, and
   Binaryen versions synchronized with `tools/official-sdk/pin.json` and
   `docs/upstream.md`.

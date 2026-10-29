@@ -7,7 +7,7 @@ import { RenderedHitMask, observePassThroughClicks, type ModelHitMaskListener, D
 import { validateCharacterProfile, validateModelAdjustments, validateVrmWidgetConfig } from "./config.js";
 import { parseGlb, inspectVrma, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { VrmAnimationPlayer } from "./playback.js";
-import { visibleModelBounds, framePortrait, ExpandedViewport } from "./camera.js";
+import { visibleModelBounds, framePortrait, ExpandedViewport, projectBubbleAnchor, sampleBubbleAnchor } from "./camera.js";
 import { PoseBounds } from "./pose-bounds.js";
 import { HostMotion } from "./host-motion.js";
 import { PointerGaze } from "./gaze.js";
@@ -63,6 +63,7 @@ class Controller implements VrmController {
   #adjustableIdle: AdjustableIdle | undefined;
   #adjustments: ModelAdjustments = {};
   #portraitBounds: THREE.Box3 | undefined;
+  #bubbleAnchor: THREE.Vector3 | undefined;
   #poseBounds: PoseBounds | undefined;
   #hostMotion: HostMotion | undefined;
   readonly #motionBounds = new THREE.Box3();
@@ -89,7 +90,7 @@ class Controller implements VrmController {
     this.#gaze.setAdjustments(this.#adjustments.gaze);
     this.#frameRate = config.render?.fps ?? 30; this.#pointerEnabled = config.interactions?.pointer ?? true;
     this.#viewport = new ExpandedViewport(config.render?.viewportPadding);
-    this.#bubble = new DialogueBubble(host);
+    this.#bubble = new DialogueBubble(host, () => this.getBubbleAnchor());
     const d = config.dialogue;
     this.#dialogue = new DialogueScheduler({
       enter: d?.enter ? { ...d.enter, ...resolveDialogueSentences(d.enter, d.enter.animations ?? (d.enter.animation ? [d.enter.animation] : []), "dialogue.enter"), durationMs: d.enter.durationMs ?? 4000, delayMs: d.enter.delayMs ?? 1000 } : false,
@@ -222,7 +223,10 @@ class Controller implements VrmController {
       this.#abort.signal.throwIfAborted();
       this.#bind(); this.#startAmbient();
       this.#dialogue.start(0, this.#reduced.matches);
-      this.#tick(0); this.#stats.loadMs = performance.now() - started; this.#sync();
+      this.#tick(0);
+      this.#bubbleAnchor = sampleBubbleAnchor(this.#canvas, this.#viewport.rect, this.#baseCamera, this.#portraitBounds);
+      this.#bubble.position();
+      this.#stats.loadMs = performance.now() - started; this.#sync();
     } catch (error) {
       this.#fail(error);
     } finally { clearTimeout(timeout); }
@@ -245,6 +249,15 @@ class Controller implements VrmController {
   pause(): void { this.#paused = true; this.#bubble.hide(); this.#sync(); }
   resume(): void { this.#paused = false; this.#dialogue.deferIdle(this.#elapsed * 1000); this.#sync(); }
   resetCamera(): void { this.#resize(); if (this.#status === "paused") this.#tick(0); }
+  getBubbleAnchor(): import("@starcried/starlite-core").ModelBubbleAnchor | undefined {
+    if (!this.#portraitBounds || !this.#renderer || this.#status === "destroyed" || this.#status === "fallback") return undefined;
+    const { baseWidth, baseHeight } = this.#viewport.rect;
+    if (this.#bubbleAnchor) {
+      const point = this.#bubbleAnchor.clone().project(this.#baseCamera);
+      return { x: (point.x + 1) * baseWidth / 2, y: (1 - point.y) * baseHeight / 2 };
+    }
+    return projectBubbleAnchor(this.#portraitBounds, this.#baseCamera, baseWidth, baseHeight);
+  }
   observeInteractionMask(listener?: ModelHitMaskListener): void {
     this.#hitMask.setListener(this.#status === "destroyed" ? undefined : listener);
     if (listener && this.#renderer && this.#vrm) {
@@ -466,6 +479,7 @@ class Controller implements VrmController {
     this.#viewport.apply(this.#camera);
     this.#renderer.setSize(viewport.width, viewport.height, false);
     Object.assign(this.#canvas.style, { left: `${viewport.left}px`, top: `${viewport.top}px`, width: `${viewport.width}px`, height: `${viewport.height}px` });
+    this.#bubble.position();
     this.#host.dispatchEvent(new CustomEvent("model-viewport-change", { bubbles: true, detail: viewport }));
   }
   #bind(): void {
@@ -534,7 +548,7 @@ class Controller implements VrmController {
       });
       VRMUtils.deepDispose(this.#vrm.scene); this.#scene.remove(this.#vrm.scene);
     }
-    this.#clips.clear(); this.#adjustableIdle = undefined; this.#character = undefined; this.#applyEmbeddedMorphs = undefined; this.#embeddedEyeClips = new Set(); this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#poseBounds = undefined;
+    this.#clips.clear(); this.#adjustableIdle = undefined; this.#character = undefined; this.#applyEmbeddedMorphs = undefined; this.#embeddedEyeClips = new Set(); this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#bubbleAnchor = undefined; this.#poseBounds = undefined;
     this.#renderer?.dispose(); this.#renderer?.forceContextLoss(); this.#renderer = undefined;
   }
 }

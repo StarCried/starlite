@@ -1,5 +1,48 @@
 import { Box3, MathUtils, Mesh, PerspectiveCamera, Vector3, type Object3D, type SkinnedMesh } from "three";
 import type { ModelViewport, VrmWidgetConfig } from "./types.js";
+import type { ModelBubbleAnchor } from "@starcried/starlite-core";
+
+/** Use the cached neutral silhouette, including ears, never the animated bounds.
+ * The base camera excludes the extra transparent canvas needed for gestures. */
+export function projectBubbleAnchor(bounds: Box3, camera: PerspectiveCamera, width: number, height: number): ModelBubbleAnchor | undefined {
+  if (bounds.isEmpty() || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return undefined;
+  const point = new Vector3();
+  let top = Infinity;
+  for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+    point.set(x, y, z).project(camera);
+    if (![point.x, point.y, point.z].every(Number.isFinite)) return undefined;
+    top = Math.min(top, (1 - point.y) * height / 2);
+  }
+  bounds.getCenter(point).project(camera);
+  const x = (point.x + 1) * width / 2;
+  return Number.isFinite(x) && Number.isFinite(top) ? { x, y: top } : undefined;
+}
+
+
+/** Refine the stable anchor once from the rendered neutral silhouette. Transparent
+ * expression/prop quads can extend far above the visible character. Reproject a
+ * fixed point at the model center's depth after resize; never read animated frames. */
+export function sampleBubbleAnchor(canvas: HTMLCanvasElement, viewport: ModelViewport, camera: PerspectiveCamera, bounds: Box3): Vector3 | undefined {
+  if (!canvas.width || !canvas.height || bounds.isEmpty()) return undefined;
+  const scale = Math.min(1, 512 / canvas.width, 512 / canvas.height);
+  const width = Math.max(1, Math.ceil(canvas.width * scale)), height = Math.max(1, Math.ceil(canvas.height * scale));
+  const surface = document.createElement("canvas"); surface.width = width; surface.height = height;
+  try {
+    const context = surface.getContext("2d", { willReadFrequently: true });
+    if (!context) return undefined;
+    context.drawImage(canvas, 0, 0, width, height);
+    const rgba = context.getImageData(0, 0, width, height).data;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      if (rgba[(y * width + x) * 4 + 3]! < 16) continue;
+      const top = viewport.top + y / height * viewport.height;
+      const point = bounds.getCenter(new Vector3()).project(camera);
+      point.y = 1 - top / viewport.baseHeight * 2;
+      point.unproject(camera);
+      return point.toArray().every(Number.isFinite) ? point : undefined;
+    }
+  } catch { /* Keep the geometry anchor when canvas sampling is unavailable. */ }
+  return undefined;
+}
 
 /** Measure the visible, posed mesh once. Hidden accessories and stale skin bounds
  * must not widen the portrait, and a later resize must not chase a moving hand. */

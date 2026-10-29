@@ -5,6 +5,7 @@ export interface AnimationPlaybackOptions { mode?: "once" | "loop"; restart?: bo
 export interface ModelAnimationInfo { name: string; durationMs: number }
 import type { ModelHitMaskListener } from "./hit-mask.js";
 import type { DialogueContext } from "./dialogue.js";
+import type { ModelBubbleAnchor } from "./bubble.js";
 export { RenderedHitMask, packAlphaMask, type ModelHitMask, type ModelHitMaskListener } from "./hit-mask.js";
 export interface ModelController {
   readonly status: WidgetStatus;
@@ -14,6 +15,8 @@ export interface ModelController {
   playAnimation(name: string, options?: AnimationPlaybackOptions): Promise<AnimationPlaybackResult>;
   stopAnimation(): void;
   resetCamera(): void;
+  /** Stable reference-pose top, in host-local CSS pixels; no canvas padding/DPR. */
+  getBubbleAnchor?(): ModelBubbleAnchor | undefined;
   observeInteractionMask(listener?: ModelHitMaskListener): void;
   /** Refresh current alpha coverage after a host resize, including while paused. */
   refreshInteractionMask?(): void;
@@ -115,7 +118,7 @@ export async function fetchBounded(url: string, maximumBytes: number, signal: Ab
 
 export { DialogueScheduler, resolveDialogueSentences, resolveDialogueContext, type DialogueContext, type DialogueAction, type DialogueSchedule, type DialogueSceneConfig, type ResolvedDialogueScene } from "./dialogue.js";
 
-export { DialogueBubble } from "./bubble.js";
+export { DialogueBubble, type ModelBubbleAnchor } from "./bubble.js";
 export { observePassThroughClicks } from "./pass-through.js";
 export { PerformanceOverlay, FrameSamples, validatePerformanceConfig, type PerformanceConfig, type PerformanceFrameDetails } from "./performance.js";
 
