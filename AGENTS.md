@@ -29,6 +29,11 @@
   `hexo deploy` before rights, identity, preparation, generation, and browser
   gates have all passed.
 - Examples may depend on packages; packages must not depend on examples.
+- Shared UI locales are `zh-CN` and `en`. Hexo resolves an explicit locale before
+  its configured language; preserve user-authored dialogue and model metadata.
+  The Inochi2D raw browser distribution needs its local locale facade and bundled
+  `locale.js`, not a bare package import. Keep translated example terms in sync
+  with canonical documents and the DSH copies.
 
 ## Public and private assets
 

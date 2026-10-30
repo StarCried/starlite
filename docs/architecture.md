@@ -56,4 +56,4 @@ Inochi2D 保留 `inochi2d-pipeline` 和 `inochi2d-blog`，以及 `.inochi2d` 缓
 
 ## 尚待完成的产品边界
 
-标准人形 VRM 可直接使用程序唯一内置的 `StarLiteIdle`，获得基础站姿与轻呼吸；眨眼依赖 Blink，眼球跟随依赖 lookAt。模型内嵌动作自动列出，其他动作由用户提供；公共气泡可独立配置。Hexo 直读本地 VRM 并生成哈希路由，DSH 直导入 VRM；不再以自定义 ZIP 作为模型导入格式。当前限制与验收边界见 [status](status.md)。
+标准人形 VRM 可直接使用程序内置的 `StarLiteIdle`，获得基础站姿与轻呼吸；眨眼依赖 Blink，眼球跟随依赖 lookAt。当前源码还提供 `StarLiteCuriousPeek`、`StarLiteHappyWave`、`StarLiteSleepyStartle` 三个可选通用动作，和模型内嵌动作一起列出，按需映射，不自动更改用户选择。额外动作可由用户提供；公共气泡可独立配置。Hexo 直读本地 VRM 并生成哈希路由，DSH 直导入 VRM；不再以自定义 ZIP 作为模型导入格式。当前限制与验收边界见 [status](status.md)。

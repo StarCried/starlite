@@ -1,5 +1,21 @@
 # StarLite 当前状态
 
+## 当前源码（尚未发布）
+
+- 在基础 `StarLiteIdle` 外，为所有标准人形 VRM 增加可选的
+  `StarLiteCuriousPeek`、`StarLiteHappyWave`、`StarLiteSleepyStartle`。
+  动作在运行时内嵌，不额外联网，也不包含蓝鱼模型或问号、汗滴装饰。
+  旧映射保持不变；手指或 Blink 缺失时按模型能力播放。
+- 公共菜单、气泡控件、Hexo 默认示例句库与模型调校页提供英文；新增英文
+  README、安装和配置文档。`starlite.locale` 可显式选择 `en` 或 `zh-CN`，
+  否则跟随 Hexo 的语言。用户自己的句子与模型名称不会自动翻译。
+- 蓝鱼与微光挥手的半眯眼、蓝鱼动作里的问号／汗滴触发已在本地派生资产
+  中修正。资源发行仍独立于源码推送；旧公开模型链接不会因此自动换成新文件。
+
+以下内容描述已发布版本，不能据此判断当前源码的全部能力或检查状态。
+
+## 已发布版本
+
 `0.1.0-alpha.3` 已于 2026-10-22 作为 [alpha 预发布](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.3)公开，包含默认微光 Hexo 体验、右键设置、页面专属句子和模型姿态／跟随调节。五个 npm 包的 `alpha` 标签已更新，`latest` 保留 `0.1.0-alpha.1`。用户入口见 [README](../README.md) 和[安装说明](release-guide.md)。
 
 发行 tag、公开 `SOURCE_REVISION` 和精确云端构建均对应 [`f83a4ec`](https://github.com/StarCried/starlite/commit/f83a4ec0f795a14f36d6724465e3a89f9c1e8529)。CI、依赖审计、双平台原生构建、匿名 npm／GitHub 下载及隔离 registry 安装已通过；[公开核验记录](validation.md#2026-10-22-public-alpha3-verification)保留来源和验证边界。
