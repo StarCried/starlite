@@ -1,4 +1,4 @@
-import type { ModelController, PerformanceConfig } from "@starcried/starlite-core";
+import type { StarLiteLocale, ModelController, PerformanceConfig } from "@starcried/starlite-core";
 export type WidgetStatus =
   | "disabled"
   | "loading"
@@ -210,6 +210,7 @@ export type ResolvedParameterBindings = {
 };
 
 export interface WidgetConfig {
+  locale?: StarLiteLocale;
   backend?: "inochi2d";
   performance?: PerformanceConfig;
   model: string;

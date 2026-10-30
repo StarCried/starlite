@@ -1,5 +1,7 @@
 # @starcried/starlite-inochi2d
 
+简体中文 · [English](README.en.md)
+
 StarLite 的 Inochi2D WebGL2 后端，使用可复现构建的官方 D SDK，支持模型内动作、参数、物理和公共气泡。与 Inochi2D 官方项目无隶属关系。
 
 在 Node.js 22.12+ 项目中安装 alpha 版本：

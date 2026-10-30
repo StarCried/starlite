@@ -1,3 +1,4 @@
+export { resolveLocale, type StarLiteLocale } from "./locale.js";
 import { mountWithDependencies } from "./controller.js";
 import { createDefaultDependencies } from "./dependencies.js";
 

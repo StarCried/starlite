@@ -1,3 +1,4 @@
+import { validateLocale } from "./locale.js";
 import { resolveDialogueSentences } from "./dialogue.js";
 import { validatePerformanceConfig } from "./performance.js";
 import type {
@@ -76,6 +77,7 @@ export function resolveConfig(config: WidgetConfig): ResolvedWidgetConfig {
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
     throw new Error("widget config must be an object");
   }
+  validateLocale(config.locale);
   validatePerformanceConfig(config.performance);
   for (const field of [
     "network",
