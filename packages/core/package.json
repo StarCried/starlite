@@ -4,7 +4,8 @@
   "type": "module",
   "license": "BSD-2-Clause",
   "files": [
-    "dist"
+    "dist",
+    "README.en.md"
   ],
   "exports": {
     ".": {

@@ -1,3 +1,5 @@
+import { resolveLocale, validateLocale, type StarLiteLocale } from "./locale.js";
+
 export type QuickSettingCallback<T> = (value: T) => void | Promise<void>;
 interface QuickSettingBase { id: string; label: string; description?: string; disabled?: boolean }
 export type QuickSettingItem =
@@ -6,6 +8,7 @@ export type QuickSettingItem =
   | (QuickSettingBase & { kind: "select"; value: string; options: readonly { value: string; label: string }[]; onChange: QuickSettingCallback<string> })
   | (QuickSettingBase & { kind: "action"; onAction: () => void | Promise<void> });
 export interface QuickSettingsOptions {
+  locale?: StarLiteLocale;
   title?: string;
   tabs: readonly { id: string; label: string; items: readonly QuickSettingItem[] }[];
 }
@@ -143,6 +146,7 @@ export class QuickSettingsMenu {
     this.element.remove(); this.#controls.clear(); this.#outputs.clear(); this.#selects.clear();
   }
   #validate(options: QuickSettingsOptions): void {
+    validateLocale(options.locale);
     const ids = new Set<string>();
     if (!options.tabs.length) throw new Error("quick settings requires a tab");
     for (const tab of options.tabs) {
@@ -157,15 +161,15 @@ export class QuickSettingsMenu {
   }
   #item(id: string): QuickSettingItem | undefined { return this.#options.tabs.flatMap(tab => tab.items).find(item => item.id === id); }
   #render(): void {
-    const structure = JSON.stringify([this.#activeTab, this.#options.title, this.#options.tabs.map(tab => [tab.id, tab.label, tab.items.map(item => [item.id, item.kind, item.label, item.description, item.kind === "select" ? item.options : item.kind === "range" ? [item.min, item.max, item.step] : null])])]);
+    const structure = JSON.stringify([this.#activeTab, this.#options.title, this.#options.locale, this.#options.tabs.map(tab => [tab.id, tab.label, tab.items.map(item => [item.id, item.kind, item.label, item.description, item.kind === "select" ? item.options : item.kind === "range" ? [item.min, item.max, item.step] : null])])]);
     if (structure === this.#structure) { this.#sync(); return; }
     this.#closeSelect();
     this.#structure = structure; this.#controls.clear(); this.#outputs.clear(); this.#selects.clear(); this.#draggingRanges.clear();
     this.element.replaceChildren();
     const header = document.createElement("div"); header.className = "starlite-menu__header";
     const title = document.createElement("span"); title.textContent = this.#options.title ?? "StarLite";
-    const close = document.createElement("button"); close.type = "button"; close.className = "starlite-menu__close"; close.textContent = "×"; close.setAttribute("aria-label", "关闭菜单"); close.onclick = () => this.close(); header.append(title, close);
-    const tabs = document.createElement("div"); tabs.setAttribute("role", "tablist"); tabs.setAttribute("aria-label", "设置分类");
+    const close = document.createElement("button"); close.type = "button"; close.className = "starlite-menu__close"; close.textContent = "×"; close.setAttribute("aria-label", resolveLocale(this.#options.locale) === "en" ? "Close menu" : "关闭菜单"); close.onclick = () => this.close(); header.append(title, close);
+    const tabs = document.createElement("div"); tabs.setAttribute("role", "tablist"); tabs.setAttribute("aria-label", resolveLocale(this.#options.locale) === "en" ? "Settings categories" : "设置分类");
     for (const [index, tab] of this.#options.tabs.entries()) {
       const button = document.createElement("button"); button.type = "button"; button.textContent = tab.label;
       button.id = `${this.#id}-tab-${index}`; button.setAttribute("role", "tab"); button.setAttribute("aria-selected", String(tab.id === this.#activeTab)); button.tabIndex = tab.id === this.#activeTab ? 0 : -1;
@@ -332,7 +336,7 @@ export class QuickSettingsMenu {
   #reportError(): void {
     if (this.#destroyed) return;
     const status = this.element.querySelector<HTMLElement>("[role=status]")!;
-    status.textContent = "未能应用设置，请重试。"; status.hidden = false;
+    status.textContent = resolveLocale(this.#options.locale) === "en" ? "Could not apply this setting. Please try again." : "未能应用设置，请重试。"; status.hidden = false;
   }
   #position(): void {
     // Position once per explicit open. Host/model resizes and expanded controls

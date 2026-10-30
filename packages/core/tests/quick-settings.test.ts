@@ -190,3 +190,17 @@ it("uses updated select callbacks and rolls back a failed asynchronous choice", 
   await vi.waitFor(() => expect(menu.element.querySelector<HTMLElement>("[role=status]")!.hidden).toBe(false));
   expect(old).not.toHaveBeenCalled(); expect(change).toHaveBeenCalledWith("detailed"); expect(trigger.textContent).toBe("精简"); expect(trigger.disabled).toBe(false);
 });
+
+it("localizes shared chrome and failures and updates locale without moving an open menu", async () => {
+  const tabs: QuickSettingsOptions["tabs"] = [{id: "a", label: "Display", items: [{id: "fail", label: "Apply", kind: "action", onAction: () => { throw new Error("private"); }}]}];
+  const menu = make({locale: "en", tabs}); menu.open(25, 35);
+  expect(menu.element.querySelector(".starlite-menu__close")?.getAttribute("aria-label")).toBe("Close menu");
+  expect(menu.element.querySelector("[role=tablist]")?.getAttribute("aria-label")).toBe("Settings categories");
+  menu.element.querySelector<HTMLButtonElement>('[data-setting-id="fail"]')!.click();
+  await Promise.resolve();
+  expect(menu.element.textContent).toContain("Could not apply this setting");
+  const position = [menu.element.style.left, menu.element.style.top];
+  menu.update({locale: "zh-CN", tabs});
+  expect(menu.element.querySelector(".starlite-menu__close")?.getAttribute("aria-label")).toBe("关闭菜单");
+  expect([menu.element.style.left, menu.element.style.top]).toEqual(position);
+});

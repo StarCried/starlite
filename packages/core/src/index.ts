@@ -1,3 +1,5 @@
+export { resolveLocale, validateLocale, type StarLiteLocale } from "./locale.js";
+
 export type ModelBackend = "inochi2d" | "vrm";
 export type WidgetStatus = "disabled" | "loading" | "running" | "paused" | "fallback" | "destroyed";
 export type AnimationPlaybackResult = "completed" | "interrupted" | "stopped";

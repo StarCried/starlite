@@ -1,5 +1,7 @@
 # @starcried/starlite-core
 
+简体中文 · [English](README.en.md)
+
 StarLite 的公共播放契约、生命周期和气泡组件。该包不导入 Three.js 或 Inochi2D WASM；宿主先选择后端，再加载对应运行时。
 
 在 Node.js 22.12+ 项目中安装 alpha 版本：
