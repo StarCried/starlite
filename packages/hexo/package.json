@@ -13,7 +13,8 @@
   "homepage": "https://github.com/StarCried/starlite#readme",
   "bugs": "https://github.com/StarCried/starlite/issues",
   "files": [
-    "dist"
+    "dist",
+    "README.en.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

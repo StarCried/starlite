@@ -1,3 +1,4 @@
+import { readLocale } from "./locale";
 import type { WidgetConfig } from "@starcried/starlite-inochi2d" with { "resolution-mode": "import" };
 
 import type { BrowserWidgetConfig, HexoLike, HexoWidgetConfig, ModelAssetBundle } from "./types";
@@ -55,7 +56,7 @@ export function readEnabledConfig(
       throw new Error(`starlite.neutralAnimation references unavailable animation ${JSON.stringify(neutralAnimation)}; choose an embedded/configured VRMA animation or StarLiteIdle`);
     }
     const widget = {
-      backend:"vrm" as const, ...artifactUrls,
+      backend:"vrm" as const, ...artifactUrls, locale: readLocale(hexo.config),
       ...(animations ? {animations} : {}), ...(profile ? {profile} : {}),
       ...(embeddedAnimations ? {embeddedAnimations} : {}), ...(neutralAnimation ? {neutralAnimation} : {}),
       ...(input.display ? {display:input.display} : {}), ...(input.mobile ? {mobile:input.mobile} : {}),
@@ -79,6 +80,7 @@ export function readEnabledConfig(
     modelBundle?.animations,
     modelBundle !== undefined,
   );
+  widget.locale = readLocale(hexo.config);
   validateInochi2DWidgetConfig(widget);
   return {
     widget,

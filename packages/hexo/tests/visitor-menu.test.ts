@@ -135,3 +135,14 @@ it("does not turn unavailable page dialogue into a saved opt-out when changing a
   expect(h.item("pause").value).toBe(true);expect(h.host.style.visibility).toBe("hidden");expect(h.state.quickSettings.recovery.hidden).toBe(false);
   await h.win.happyDOM.close();
 });
+
+it("uses English controls and restore text without changing visitor interactions", async () => {
+  const h = harness({locale: "en"});
+  expect(h.menu.options.locale).toBe("en");
+  expect(h.item("size").label).toBe("Model size");
+  expect(h.item("bubbles").label).toBe("Show bubbles");
+  expect(h.state.quickSettings.recovery.textContent).toBe("Show character");
+  h.item("bubbles").onChange(false); expect(h.controller.pause).not.toHaveBeenCalled();
+  h.item("hide").onAction(); h.state.quickSettings.recovery.click();
+  expect(h.controller.resume).toHaveBeenCalled(); await h.win.happyDOM.close();
+});

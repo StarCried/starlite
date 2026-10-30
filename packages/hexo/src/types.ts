@@ -64,6 +64,7 @@ export interface HexoLike {
   model?(name: "Post" | "Page"): {toArray(): RenderedPage[]};
   config: {
     root?: string;
+    language?: string | readonly string[];
     public_dir?: string;
     starlite?: HexoWidgetConfig;
   };

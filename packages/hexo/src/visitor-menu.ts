@@ -10,6 +10,8 @@ export function installVisitorMenu(runtime: any, state: any, options: {
   const host = state.host as HTMLElement;
   const controller = state.controller;
   const config = options.config;
+  const en = config.locale === "en";
+  const text = (zh: string, english: string) => en ? english : zh;
   const storageKey = "starlite:visitor-settings:v1";
   const baseWidth = config.display?.width ?? 320;
   const baseHeight = config.display?.height ?? 480;
@@ -44,8 +46,8 @@ export function installVisitorMenu(runtime: any, state: any, options: {
   const recovery = document.createElement("button");
   recovery.type = "button";
   recovery.dataset.starliteWidgetRestore = "";
-  recovery.textContent = "显示角色";
-  recovery.setAttribute("aria-label", "重新显示 StarLite 角色");
+  recovery.textContent = text("显示角色", "Show character");
+  recovery.setAttribute("aria-label", text("重新显示 StarLite 角色", "Show the StarLite character again"));
   Object.assign(recovery.style, {
     position: "fixed", right: "16px", bottom: "16px", zIndex: String(position?.zIndex ?? 20),
     border: "1px solid #9c8fba", borderRadius: "999px", padding: "8px 14px",
@@ -102,27 +104,27 @@ export function installVisitorMenu(runtime: any, state: any, options: {
   };
   recovery.addEventListener("click", () => setHidden(false));
   const menuOptions = () => ({
-    title: "StarLite",
+    title: "StarLite", locale: config.locale,
     tabs: [
-      { id: "display", label: "显示", items: [
-        { id: "size", kind: "range", label: "模型大小", value: Math.round(preferences.scale * 100), min: 50, max: 150, step: 5,
+      { id: "display", label: text("显示", "Display"), items: [
+        { id: "size", kind: "range", label: text("模型大小", "Model size"), value: Math.round(preferences.scale * 100), min: 50, max: 150, step: 5,
           disabled: typeof controller.setDisplaySize !== "function", formatValue: (value: number) => `${value}%`, onChange: (value: number) => set("scale", value / 100) },
-        { id: "reset-size", kind: "action", label: "恢复默认大小", disabled: typeof controller.setDisplaySize !== "function", onAction: () => set("scale", 1) },
-        { id: "fps", kind: "select", label: "帧率上限", value: String(preferences.fps),
+        { id: "reset-size", kind: "action", label: text("恢复默认大小", "Reset size"), disabled: typeof controller.setDisplaySize !== "function", onAction: () => set("scale", 1) },
+        { id: "fps", kind: "select", label: text("帧率上限", "Frame rate limit"), value: String(preferences.fps),
           disabled: typeof controller.setFrameRate !== "function",
-          options: [...(preferences.fps !== 30 && preferences.fps !== 60 ? [{ value: String(preferences.fps), label: preferences.fps === "display" ? "跟随屏幕" : `${preferences.fps} FPS` }] : []), { value: "30", label: "30 FPS" }, { value: "60", label: "60 FPS" }],
+          options: [...(preferences.fps !== 30 && preferences.fps !== 60 ? [{ value: String(preferences.fps), label: preferences.fps === "display" ? text("跟随屏幕", "Match display") : `${preferences.fps} FPS` }] : []), { value: "30", label: "30 FPS" }, { value: "60", label: "60 FPS" }],
           onChange: (value: string) => set("fps", Number(value)) },
-        { id: "performance", kind: "toggle", label: "显示性能", value: preferences.performance,
+        { id: "performance", kind: "toggle", label: text("显示性能", "Show performance"), value: preferences.performance,
           disabled: typeof controller.setPerformanceVisible !== "function", onChange: (value: boolean) => set("performance", value) },
-        { id: "reset-position", kind: "action", label: "恢复默认位置", onAction: restorePosition },
-        { id: "hide", kind: "action", label: "暂时隐藏角色", onAction: () => setHidden(true) },
+        { id: "reset-position", kind: "action", label: text("恢复默认位置", "Reset position"), onAction: restorePosition },
+        { id: "hide", kind: "action", label: text("暂时隐藏角色", "Hide character"), onAction: () => setHidden(true) },
       ] },
-      { id: "interaction", label: "互动", items: [
-        { id: "pointer", kind: "toggle", label: "跟随光标", value: preferences.pointer,
+      { id: "interaction", label: text("互动", "Interaction"), items: [
+        { id: "pointer", kind: "toggle", label: text("跟随光标", "Follow pointer"), value: preferences.pointer,
           disabled: !pointerAllowed || typeof controller.setPointerEnabled !== "function", onChange: (value: boolean) => set("pointer", value) },
-        { id: "bubbles", kind: "toggle", label: "显示气泡", value: preferences.bubbles,
+        { id: "bubbles", kind: "toggle", label: text("显示气泡", "Show bubbles"), value: preferences.bubbles,
           disabled: !bubblesAllowed || typeof controller.setBubblesVisible !== "function", onChange: (value: boolean) => set("bubbles", value) },
-        { id: "pause", kind: "toggle", label: "暂停动画", value: paused, onChange: (value: boolean) => {
+        { id: "pause", kind: "toggle", label: text("暂停动画", "Pause animation"), value: paused, onChange: (value: boolean) => {
           paused = value;
           if (paused) controller.pause(); else if (!hidden) controller.resume();
           menu.update(menuOptions());

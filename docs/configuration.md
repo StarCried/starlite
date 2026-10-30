@@ -1,6 +1,12 @@
 # StarLite 配置
 
+简体中文 · [English](configuration.en.md)
+
 普通启动见 [Hexo README](../packages/hexo/README.md)，可直接复制[完整 YAML 示例](examples/hexo-vrm.yml)。
+
+## 界面与默认句库语言
+
+插件跟随 Hexo 顶层 `language`（列表取第一项），中文标签使用中文，其他非空标签使用英文，未设置时保留中文。也可显式设置 `starlite.locale: en` 或 `zh-CN`。语言只影响菜单、提示与示例句库；用户自定义句子、文章内容、模型元数据和动作名称保持原样。更改后重新生成博客。
 
 ## 默认微光与自定义
 
@@ -69,7 +75,7 @@ starlite:
 
 眨眼为可选能力，缺少时仍可加载、播放动作和使用气泡，只停用自动眨眼。自动眨眼使用有实际 morph 绑定的标准 Blink：VRM0 的 `blink` 或一对 `blink_l / blink_r`，VRM1 的 `blink` 或一对 `blinkLeft / blinkRight`。仅重命名形态键不够；形态键自身名称可自定。只有单侧 Blink、空绑定或全部零权重时不自动眨眼，不会猜测其他形态键。已声明的错误绑定仍会拒绝导入。眼球跟随需要正确配置 VRM lookAt（眼骨或视线表达）；头部跟随有角度限制。
 
-程序仅自带 `StarLiteIdle`，为无动作模型提供基础站姿和轻呼吸。有自己的 `Idle` 时优先使用；其他动作均由用户提供。模型内嵌 glTF 动作自动列出；名字建议为唯一英文，区分大小写，`StarLiteIdle` 为保留名。
+程序自带 `StarLiteIdle`，为无动作模型提供基础站姿和轻呼吸，并为所有标准人形 VRM 提供可选的 `StarLiteCuriousPeek`（好奇探头）、`StarLiteHappyWave`（开心招手）、`StarLiteSleepyStartle`（困倦惊醒）。三个动作仅供按需映射，不自动替用户分配事件；不包含蓝鱼模型或问号、汗滴装饰。有自己的 `Idle` 时优先使用。模型内嵌 glTF 动作自动列出；名字建议为唯一英文，区分大小写，上述四个 `StarLite` 动作名均为保留名。
 
 ## Hexo：直接放入 VRM
 

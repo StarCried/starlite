@@ -291,3 +291,16 @@ it("real Hexo rejects unavailable page animations before writing an empty articl
     expect(existsSync(join(site.root, "public/posts/entry/index.html"))).toBe(false);
   } finally { await site.hexo.exit(); }
 });
+
+
+it("uses Hexo language for default UI, dialogue and pre-download terms without changing custom content", async () => {
+  const config = {language:"en-US",starlite:{dialogue:{click:{lines:["原文 stays unchanged"]}}}}, site = blog(config);
+  await site.registrations.prepare!();
+  const html = site.registrations.inject!()!;
+  expect(html).toContain('"locale":"en"');
+  expect(html).toContain("Hi! I'm Weiguang!");
+  expect(html).toContain("原文 stays unchanged");
+  expect(site.hexo.log.info).toHaveBeenCalledWith(expect.stringContaining("Weiguang Example Model License"));
+  expect(vi.mocked(site.hexo.log.info!).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(ensureDefaultAssets).mock.invocationCallOrder[0]!);
+  expect(config).toEqual({language:"en-US",starlite:{dialogue:{click:{lines:["原文 stays unchanged"]}}}});
+});

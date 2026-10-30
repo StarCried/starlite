@@ -1,3 +1,4 @@
+import { englishPreset } from "./preset-english";
 import type { HexoWidgetConfig } from "./types";
 import { BLUEFISH_ASSETS, BLUEFISH_PRESET, BLUEFISH_VERSION } from "./bluefish-preset";
 import type { DefaultAsset } from "./default-assets";
@@ -235,7 +236,8 @@ export function resolveDefaultPreset(
 ): HexoWidgetConfig {
   if (!isDefaultPreset(input)) return clone(input!);
   const example = getDefaultExample(input?.preset);
-  const preset: HexoWidgetConfig = example.id === "bluefish" ? BLUEFISH_PRESET : PRESET;
+  const basePreset: HexoWidgetConfig = example.id === "bluefish" ? BLUEFISH_PRESET : PRESET;
+  const preset = input?.locale === "en" ? englishPreset(basePreset, example.id) : basePreset;
   const defaults = {
     ...preset,
     enable: true,

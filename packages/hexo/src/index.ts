@@ -1,3 +1,5 @@
+import { EXAMPLE_LICENSES_EN } from "./example-licenses.en";
+import { readLocale } from "./locale";
 import { lstatSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
@@ -38,7 +40,7 @@ export function registerHexoWidget(instance: HexoLike): void {
         throw new Error(`starlite.${key} must be a non-empty path or URL; omit it to use default Weiguang`);
       }
     }
-    return input;
+    return { ...input, locale: readLocale(instance.config) };
   };
   // Keep page data in the article fragment rather than body_end: PJAX themes
   // can replace the article while retaining the original widget and bootstrap.
@@ -94,17 +96,19 @@ export function registerHexoWidget(instance: HexoLike): void {
       if (isDefaultPreset(input)) {
         const example = defaultExample();
         if (!defaultNoticesLogged.has(example.id)) {
-          instance.log.info?.(`StarLite: 使用示例“${example.title}”（${example.author}）。使用即同意该模型独立许可；不接受请改用其他模型或设置 starlite.enable: false。\n${example.licenseText}`);
+          instance.log.info?.(input?.locale === "en"
+            ? `StarLite: Using ${example.id === "weiguang" ? "Weiguang" : "Big Fat Blue Fish"} (${example.author}). Use means accepting the separate model terms; choose another model or set starlite.enable: false if you disagree.\n${EXAMPLE_LICENSES_EN[example.id]}`
+            : `StarLite: 使用示例“${example.title}”（${example.author}）。使用即同意该模型独立许可；不接受请改用其他模型或设置 starlite.enable: false。\n${example.licenseText}`);
           defaultNoticesLogged.add(example.id);
         }
         if (!example.assets.length) {
-          instance.log.warn(`StarLite: “${example.title}”的默认资源尚未发布，本次跳过看板娘，博客继续生成。可先用 starlite.model 指定本地已授权 VRM 进行预览。`);
+          instance.log.warn(input?.locale === "en" ? `StarLite: The ${example.id} example assets are not published yet. The blog will build without the companion. Set starlite.model to an authorized local VRM for preview.` : `StarLite: “${example.title}”的默认资源尚未发布，本次跳过看板娘，博客继续生成。可先用 starlite.model 指定本地已授权 VRM 进行预览。`);
           return;
         }
         try {
           await ensureDefaultAssets(defaultDirectory(), example.assets);
         } catch {
-          instance.log.warn(`StarLite: 无法获取或校验默认${example.title}，本次跳过看板娘，博客继续生成。请检查网络后重新生成；已有有效缓存时无需联网。也可设置 starlite.enable: false 禁用。`);
+          instance.log.warn(input?.locale === "en" ? `StarLite: Could not download or verify the ${example.id} example. The blog will build without the companion. Check your network and generate again; a verified cache works offline. Set starlite.enable: false to disable it.` : `StarLite: 无法获取或校验默认${example.title}，本次跳过看板娘，博客继续生成。请检查网络后重新生成；已有有效缓存时无需联网。也可设置 starlite.enable: false 禁用。`);
           return;
         }
         defaultReady = true;

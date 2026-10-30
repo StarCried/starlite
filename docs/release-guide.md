@@ -1,5 +1,7 @@
 # StarLite for Hexo：安装与使用
 
+简体中文 · [English](release-guide.en.md)
+
 本页适用于 `0.1.0-alpha.3`；普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
 
 ## 安装与启动
@@ -57,7 +59,7 @@ starlite:
 
 两项 `publication` 确认涵盖模型、贴图和内嵌动作的博客托管权；模型许可仍须遵守。来源 SHA-256 由实际文件计算，也可设置 `publication.sourceSha256` 固定已审阅版本，文件变化时拒绝生成。必要博客托管会把模型文件交给访客；许可可以约束再利用，不能保证文件无法下载。
 
-标准人形骨骼为必需；Blink 和 lookAt 为可选能力。无动作模型使用唯一内置的 `StarLiteIdle` 基础站姿和轻呼吸，有自己的 `Idle` 时优先采用；其他内嵌动作自动识别，按需映射到点击或偶发互动。气泡也可独立使用。模型约定、外部动作和两个后端的配置见[配置说明](configuration.md)。
+标准人形骨骼为必需；Blink 和 lookAt 为可选能力。无动作模型使用内置的 `StarLiteIdle` 基础站姿和轻呼吸，有自己的 `Idle` 时优先采用；其他内嵌动作自动识别；当前源码另提供通用好奇探头、开心招手和困倦惊醒，均按需映射到点击或偶发互动。名称见配置说明，新源码功能需对应后续发行版。气泡也可独立使用。模型约定、外部动作和两个后端的配置见[配置说明](configuration.md)。
 
 自定义 VRM 通用默认值为 30 FPS、DPR 上限 1.5、手机断点 768 px。默认保留下层页面点击；显式开启拖动时默认拥有点击区域。无需同时安装旧的 `hexo-model-companion`；旧配置键 `inochi2d_widget:` 应改为 `starlite:`。
 
