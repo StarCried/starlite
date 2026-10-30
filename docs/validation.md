@@ -5,6 +5,46 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-10-31 bundled gestures and English source validation
+
+The source changes through `99cce47` add three optional, artwork-free humanoid
+gestures and English interfaces/documentation. This is source validation, not a
+new npm release, model release, or blog deployment.
+
+- `npm run validate` passed: 26 Rust tests, formatting/Clippy, builds, lint,
+  type checks, license inventory, package checks and runtime budgets. Package
+  suites passed 296 VRM, 247 Hexo, 63 core and 73 Inochi2D tests; seven optional
+  external Inochi2D fixture tests were skipped. Demo, budget and audit-policy
+  tool tests also passed.
+- `npm run test:browser` passed 21 Chromium tests, with two optional external
+  model cases initially skipped. The public Aka pipeline/WASM browser case was
+  then run separately with the existing local fixture and passed. The private
+  Mannequin browser case was not repeated.
+- Both VRM0 and VRM1 fixtures play all three actual embedded clips, complete,
+  return to Idle and make no external motion requests. Official retargeting
+  tests include optional missing fingers/Blink, reserved-name rejection, and
+  preserved hips. Existing model mappings are not automatically changed.
+- Independent local model checks covered BlueFish gestures, 27 Weiguang clips,
+  Blender expression actions and six actual Chrome waving renders. The waving
+  eyes stay open; added question/sweat animation triggers are absent. Original
+  optional model morphs remain. Body motion bytes are unchanged where only
+  expressions were edited. Private models and screenshots remain local.
+- English adjustment controls passed browser tests. English package READMEs
+  and local document links were checked; user-authored sentences and model
+  metadata remain untouched by UI translation.
+
+The shared VRM JS/CSS measured 1,438,720 raw, 478,652 gzip and 416,997 Brotli
+bytes. The updated budget explicitly accounts for the three bundled motions;
+this is not a new CPU/GPU, memory, or long-run performance measurement.
+
+The online dependency gate passed with the exact, time-limited local-Hexo
+`deepmerge` exception documented in [dependency maintenance](dependency-audit.md).
+There are six low-severity affected entries, not zero vulnerabilities. The
+existing legacy model-authoring checker still rejects the unchanged quiet
+Working motion's amplitude; it is not counted as passing or used as evidence
+for this expression-only edit. Body-byte equality, expression binding checks
+and real renders are the relevant checks for that edit.
+
 ## 2026-10-22 public alpha3 verification
 
 [Release `v0.1.0-alpha.3`](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.3)
