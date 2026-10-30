@@ -28,7 +28,8 @@ vi.mock("../src/default-preset", async importOriginal => {
 const roots: string[] = [];
 const Hexo = createRequire(import.meta.url)("hexo");
 const names = ["Idle", "GentleWave", "HighFive", "HighWave", "StumbleAndRecover", "PlayfulScare", "RaisedHandWave", "Stretch", "BackStretch", "AbsentmindedWait", "Thinking", "HaveAnIdea", "AwkwardHeadScratch"];
-function animatedModel(): Buffer {
+const fishNames = ["Idle", "CuriousPeek", "HappyWave", "SleepyStartle"];
+function animatedModel(animationNames = names): Buffer {
   const original = model(), size = original.readUInt32LE(12);
   const json = JSON.parse(original.subarray(20, 20 + size).toString());
   const binary = Buffer.concat([original.subarray(28 + size), Buffer.from(new Float32Array([0, 1, 0, 0, 0, 1, 0, 0, .15, Math.sqrt(1 - .15 ** 2)]).buffer)]);
@@ -36,7 +37,7 @@ function animatedModel(): Buffer {
   json.buffers[0].byteLength = binary.byteLength;
   json.bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: 8 }, { buffer: 0, byteOffset: offset + 8, byteLength: 32 });
   json.accessors.push({ bufferView: view, componentType: 5126, type: "SCALAR", count: 2, min: [0], max: [1] }, { bufferView: view + 1, componentType: 5126, type: "VEC4", count: 2 });
-  json.animations = names.map(name => ({ name, samplers: [{ input: accessor, output: accessor + 1 }], channels: [{ sampler: 0, target: { node: 2, path: "rotation" } }] }));
+  json.animations = animationNames.map(name => ({ name, samplers: [{ input: accessor, output: accessor + 1 }], channels: [{ sampler: 0, target: { node: 2, path: "rotation" } }] }));
   return glb(json, binary);
 }
 function blog(config: HexoLike["config"] = {}) {
@@ -63,7 +64,7 @@ function blog(config: HexoLike["config"] = {}) {
 beforeEach(() => {
   vi.mocked(ensureDefaultAssets).mockReset().mockImplementation(async (directory, assets) => {
     mkdirSync(directory, { recursive: true });
-    for (const [index, asset] of assets.entries()) writeFileSync(join(directory, asset.file), index === 0 ? (asset.file.startsWith("BlueFish") ? model() : animatedModel()) : "Synthetic model notice");
+    for (const [index, asset] of assets.entries()) writeFileSync(join(directory, asset.file), index === 0 ? animatedModel(asset.file.startsWith("BlueFish") ? fishNames : names) : "Synthetic model notice");
   });
 });
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
@@ -119,6 +120,8 @@ it("prepares only BlueFish and its independent terms when selected", async () =>
   expect(routes.some(route => route.path.endsWith("LICENSE-BlueFish.md"))).toBe(true);
   expect(routes.some(route => route.path.endsWith("LICENSE-Weiguang.md"))).toBe(false);
   expect(html).not.toMatch(/微光|GentleWave|StumbleAndRecover/);
+  expect(html).toContain('"embeddedAnimations":' + JSON.stringify(fishNames));
+  expect(html).toContain('"neutralAnimation":"Idle"');
   expect(site.hexo.log.info).toHaveBeenCalledWith(expect.stringContaining("水原镜"));
   expect(site.hexo.log.warn).not.toHaveBeenCalled();
 });

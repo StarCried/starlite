@@ -23,10 +23,15 @@ it("selects independent examples without changing the initial Weiguang default",
   }
   const fish = resolveDefaultPreset({preset:"bluefish"}, "/cache/BlueFish-StarLite.vrm");
   expect(fish).toMatchObject({backend:"vrm",render:{fps:60,maxDevicePixelRatio:1},interactions:{passThrough:true}});
-  expect(fish).not.toHaveProperty("embeddedAnimations");
-  expect(fish).not.toHaveProperty("neutralAnimation");
+  expect(fish).toMatchObject({embeddedAnimations:["Idle","CuriousPeek","HappyWave","SleepyStartle"], neutralAnimation:"Idle"});
+  expect(fish.ambient?.animations).toEqual(["Idle"]);
   expect(JSON.stringify(fish)).not.toMatch(/微光|GentleWave|RaisedHandWave|Thinking/);
-  expect(fish.dialogue?.click).toHaveProperty("lines");
+  expect(fish.dialogue?.enter).toMatchObject({animation:"HappyWave"});
+  expect(fish.dialogue?.click).toMatchObject({animations:["HappyWave","CuriousPeek"],linesByAnimation:{HappyWave:expect.any(Array),CuriousPeek:expect.any(Array)}});
+  expect(fish.dialogue?.idle).toMatchObject({animations:["CuriousPeek","SleepyStartle"]});
+  const overrides=resolveDefaultPreset({preset:"bluefish",dialogue:{click:{animation:"CuriousPeek",lines:["我的句子"]}}},"/cache/BlueFish-StarLite.vrm");
+  expect(overrides.dialogue?.click).toMatchObject({animation:"CuriousPeek",lines:["我的句子"]});
+  expect(overrides.dialogue?.click).not.toHaveProperty("linesByAnimation");
   const custom = {preset:"bluefish" as const,model:"other.vrm"};
   expect(resolveDefaultPreset(custom,"ignored.vrm")).toEqual(custom);
 });
