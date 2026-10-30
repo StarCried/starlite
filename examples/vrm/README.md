@@ -1,5 +1,9 @@
 # 本地模型调校
 
+简体中文 · [English](README.en.md)
+
+界面跟随浏览器语言；可用 `/adjust?lang=zh-CN` 或 `/adjust?lang=en` 手动选择中文或英文。
+
 在仓库完成依赖安装和构建后，用自己的标准人形 VRM 启动：
 
 ```sh

@@ -46,7 +46,7 @@ test("model adjustments preserve one loaded model and export zero values",async(
   const models:string[]=[],errors:string[]=[];
   page.on("request",request=>{if(request.url().endsWith('.vrm'))models.push(request.url());});
   page.on("pageerror",error=>errors.push(error.message));
-  await page.goto('http://127.0.0.1:4183/adjust');
+  await page.goto('http://127.0.0.1:4183/adjust?lang=zh-CN');
   await expect(page.locator('[data-model-status="running"]')).toHaveCount(1);
   await page.evaluate(()=>{(globalThis as any).__adjustCanvas=document.querySelector('canvas');});
   await page.locator('#armLiftDegrees').focus();await page.locator('#armLiftDegrees').press('End');
@@ -77,10 +77,30 @@ test("model adjustments preserve one loaded model and export zero values",async(
 });
 
 test("adjustment preview explains absent eye and finger capabilities",async({page})=>{
-  await page.goto('http://127.0.0.1:4183/adjust');
+  await page.goto('http://127.0.0.1:4183/adjust?lang=zh-CN');
   await expect(page.locator('[data-model-status="running"]')).toHaveCount(1);
   await expect(page.locator('#eyeStrength')).toBeDisabled();
   await expect(page.locator('#hand-manual')).toBeDisabled();
   await expect(page.locator('#capabilities')).toContainText('无有效眼球绑定');
   await expect(page.locator('#capabilities')).toContainText('无标准手指映射');
+});
+
+
+test("English adjustment preview renders usable labels, capability states and export controls",async({page})=>{
+  await page.goto('http://127.0.0.1:4183/adjust?lang=en');
+  await expect(page.locator('[data-model-status="running"]')).toHaveCount(1);
+  await expect(page.locator('html')).toHaveAttribute('lang','en');
+  await expect(page.getByRole('heading',{name:'Pose and following'})).toBeVisible();
+  await expect(page.locator('#capabilities')).toContainText('No valid eye bindings');
+  await expect(page.locator('#capabilities')).toContainText('No standard finger mappings');
+  await page.getByLabel('Arm lift',{exact:true}).focus();
+  await page.getByLabel('Arm lift',{exact:true}).press('End');
+  await expect(page.locator('#config-output')).toHaveValue(/armLiftDegrees: 45/);
+  await page.getByRole('button',{name:'Reset Arm lift',exact:true}).click();
+  await expect(page.locator('#config-output')).not.toHaveValue(/armLiftDegrees:/);
+  await page.getByRole('button',{name:'Pause',exact:true}).click();
+  await expect(page.locator('[data-model-status="paused"]')).toHaveCount(1);
+  await page.getByRole('button',{name:'Resume',exact:true}).click();
+  await expect(page.locator('[data-model-status="running"]')).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Copy configuration'})).toBeVisible();
 });

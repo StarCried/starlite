@@ -49,7 +49,7 @@ const server=createServer(async(req,res)=>{
     let path;
     if(url.pathname==="/") path=resolve(here,assets?"index.html":"adjust.html");
     else if(url.pathname==="/adjust") path=resolve(here,"adjust.html");
-    else if(["/adjust.js","/adjust.css"].includes(url.pathname)) path=resolve(here,url.pathname.slice(1));
+    else if(["/adjust.js","/adjust-locale.js","/adjust.css"].includes(url.pathname)) path=resolve(here,url.pathname.slice(1));
     else if(adjustmentModels.some(model=>url.pathname===`/adjust-model/${model.id}.vrm`))path=adjustmentModels.find(model=>url.pathname===`/adjust-model/${model.id}.vrm`).path;
     else if(url.pathname==="/qa.js") path=resolve(here,"qa.js");
     else if(url.pathname==="/original.vrm"&&original) path=original;
