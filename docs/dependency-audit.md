@@ -26,41 +26,84 @@ expired exceptions, scanner/network failures, and incomplete reports fail the
 check. A green result can include the explicitly listed temporary findings below;
 the summary preserves their identities and affected package count.
 
-## Reviewed baseline: 2026-10-22
+## Reviewed baseline: 2026-10-31
 
 | Scan | Result |
 | --- | --- |
-| `npm audit --json` | 9 affected package entries, tracing to 2 upstream advisories |
+| `npm audit --json` | 6 low-severity affected package entries, tracing to 1 upstream advisory |
 | Cargo.lock, cargo-audit 0.22.2 | 57 dependencies, no vulnerability entries or informational warnings |
 
-Vite 8.1.6 and Vitest 4.1.12 replace the affected development-server/test
-versions. The full online gate passed again on 2026-10-22 against RustSec
-database `59ef7abf8ce56ea80fe7eba97ba3835449009fa4`; no new exception was added.
-The remaining 9 npm entries are the previously reviewed Hexo findings below.
+Happy DOM is updated to 21.0.4, including the upstream fix for
+[the ESM import-alias code-execution issue](https://github.com/advisories/GHSA-834v-8h66-3h79).
+It is used by the test harness, not shipped as a browser runtime. DOMPurify in
+the Hexo renderer dependency chain is updated to 3.4.17, including
+[the shadow-root template-sanitization fix](https://github.com/advisories/GHSA-cg2g-xh64-v4q7).
+The lockfile records the resolved versions; no automatic force downgrade or
+unreviewed replacement package is used.
 
-The npm findings belong to the Hexo 7.3.0 host/example dependency graph. They
-are not included in the framework-free `core` or browser VRM renderer bundles.
-Hexo users still execute this host dependency code when building or previewing
-their sites; the findings are not dismissed as development-only.
+The complete online gate passed against RustSec database
+`2295466c4e9df26647fd67d8fa1c705ac2fc7f81`. Raw findings and the decision
+summary are retained in the ignored `target/dependency-audit/` directory.
 
-| Advisory | Installed root package | Scope and decision |
+### Unpatched Hexo host finding
+
+[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)
+reports returned-object prototype poisoning in deepmerge 4.2.0 through 4.3.1.
+GitHub reviewed it as **low** severity on 2026-10-27 and lists **no patched
+version**. This is a temporary accepted risk, not a fixed vulnerability or a
+zero-vulnerability audit.
+
+The installed call path is `Hexo 7.3.0 -> hexo-util 3.3.0 -> deepmerge 4.3.1`.
+Inspection of the installed Hexo code found `deepMerge` calls in configuration
+loading, multi-configuration merging, theme configuration and post scaffold
+creation. Inputs include local `_config.yml`/JSON, theme configuration,
+scaffolds and post-creation data. The
+[upstream report](https://github.com/TehShrike/deepmerge/issues/273) describes
+inherited properties on returned objects, including targets with null
+prototypes or certain placeholder values; it does not require global
+`Object.prototype` mutation.
+
+This project supports trusted local blog authoring. Do not pass untrusted
+configuration, themes, scaffolds or post-creation data into the Hexo build.
+A hosted service that accepts those inputs would need a separate security
+review; this exception does not cover that use. The dependency is absent from
+StarLite's browser core/VRM bundles and from DSH, but Hexo users execute it
+while building or previewing sites, so it is not dismissed as development-only.
+
+The temporary exception covers only these installed paths and versions, all
+reported at low severity under this one advisory:
+
+| Package | Version | Lockfile path |
 | --- | --- | --- |
-| [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) | braces 3.0.3 | Stack exhaustion from deeply nested patterns, reached through Hexo glob/watch dependencies. Upstream lists no patched version. Temporary exception for trusted local blog configuration and source trees. |
-| [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) | sprintf-js 1.1.3 | Denial of service from unbounded precision in controlled format strings, through hexo-i18n. Upstream lists no patched version. Templates and translation format strings must remain trusted. |
+| deepmerge | 4.3.1 | `node_modules/deepmerge` |
+| hexo | 7.3.0 | `node_modules/hexo` |
+| hexo-cli | 4.3.2 | `node_modules/hexo-cli` |
+| hexo-fs | 4.1.3 | `node_modules/hexo-fs` |
+| hexo-renderer-marked | 7.0.1 | `node_modules/hexo-renderer-marked` |
+| hexo-util | 3.3.0 | `node_modules/hexo-util` |
 
-Both decisions must be reviewed by **2026-11-18**. The machine-readable policy
-in `tools/dependency-audit-policy.json` pins the advisory ID, reported range,
-severity, all 9 affected package versions, and their exact lockfile paths. It
-does not permit another advisory on the same package or another dependency copy.
-The raw npm report remains visible; these are accepted temporary risks, not fixed
-vulnerabilities. Do not run untrusted themes, configuration, or build inputs.
+Review this decision by **2026-11-18**. The machine-readable policy pins the
+advisory ID, affected range, severity, all six versions and exact paths. Another
+advisory, nested copy, version or severity change still fails the gate. The
+original npm report and accepted advisory remain visible in its summary.
 
-The registry's automatic suggestion currently selects Hexo 3.9.0. Downgrading
-the supported Hexo 7 host to bypass an audit is not an acceptable fix. Do not run
-`npm audit fix --force`. When compatible upstream fixes become available, update
-the dependency chain, rerun full tests and real packed installation checks, then
-remove the obsolete exception. A dependency/version change deliberately forces
-review instead of silently extending the old exception.
+The registry currently suggests downgrading Hexo to 4.0.0 or
+hexo-renderer-marked to 2.0.0. These are not compatible fixes for the supported
+Hexo 7 host. Do not run `npm audit fix --force`, vendor an unreviewed patch, or
+raise the severity threshold. When a compatible upstream fix becomes
+available, update the dependency chain, rerun tests and packed-install checks,
+and remove the obsolete exception.
+
+### Retired findings
+
+The previous exceptions for
+[braces / GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+and
+[sprintf-js / GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c)
+have been removed. GitHub withdrew those advisories on 2026-10-23 and
+2026-10-22 respectively, and the fresh registry report no longer lists them.
+This is an upstream advisory correction, not a claim that their package code
+was patched here. A later new or reinstated advisory must be reviewed again.
 
 ## Maintaining a decision
 

@@ -22,6 +22,18 @@ const pnpm = () => ({ advisories: {}, metadata: { vulnerabilities: { info: 0, lo
 test('reviewed advisory and its exact transitive scope are accepted, with findings visible', () => {
   assert.deepEqual(evaluateJavascript(npm(), policy(), lock()), { affectedPackages: 2, acceptedAdvisories: [id] });
 });
+test('an accepted low-severity advisory stays visible and cannot hide another low advisory', () => {
+  const p = policy(), report = npm();
+  p.javascript.advisories[id] = { ...p.javascript.advisories[id], severity: 'low' };
+  for (const item of Object.values(p.javascript.affectedPackages)) item.severity = 'low';
+  for (const item of Object.values(report.vulnerabilities)) item.severity = 'low';
+  report.vulnerabilities.fixture.via[0].severity = 'low';
+  report.metadata.vulnerabilities.high = 0;
+  report.metadata.vulnerabilities.low = 2;
+  assert.deepEqual(evaluateJavascript(report, p, lock()), { affectedPackages: 2, acceptedAdvisories: [id] });
+  report.vulnerabilities.fixture.via.push({ name: 'fixture', range: '<=1.0.0', severity: 'low', url: 'https://github.com/advisories/GHSA-neww-loww-xxxx' });
+  assert.throws(() => evaluateJavascript(report, p, lock()), /New or changed npm advisory/);
+});
 test('a changed dependency version requires a new review', () => {
   const changed = lock(); changed.packages['node_modules/fixture'].version = '1.0.1';
   assert.throws(() => evaluateJavascript(npm(), policy(), changed), /version changed/);
