@@ -70,7 +70,7 @@ starlite:
   preset: bluefish
 ```
 
-模型作者水原镜（Mzkagami），遵守[独立模型条款](https://github.com/StarCried/starlite/blob/main/docs/bluefish-license.md)。它使用基础 Idle、眨眼和跟随，不附带微光的事件动作。指定 `model` 后使用自定义模型，不再获取示例。
+模型作者水原镜（Mzkagami），遵守[独立模型条款](https://github.com/StarCried/starlite/blob/main/docs/bluefish-license.md)。本地候选包含蓝鱼适配的好奇探头、开心招手和困倦惊醒；招手按用户要求改编高挥手上半身，来源另记于模型声明。指定 `model` 后使用自定义模型，不再获取示例。
 
 默认站姿不适合模型时，可[调整内置 Idle 的臂、手姿态和头眼跟随](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#模型姿态与跟随调节)，不会修改模型自带动作。
 
@@ -85,5 +85,7 @@ starlite:
 默认点击和偶发互动共用顺序句库。[完整说明与默认值](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#页面专属句子)。
 
 [动作、气泡与性能](https://github.com/StarCried/starlite/blob/main/docs/configuration.md) · [完整配置示例](https://github.com/StarCried/starlite/blob/main/docs/examples/hexo-vrm.yml) · [安装、更新与卸载](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md) · [VRM API](https://github.com/StarCried/starlite/blob/main/packages/vrm/README.md)
+
+模型在首次生成时从固定 GitHub Release 下载并校验，缓存后可离线生成；没有安装下载脚本。访客从博客静态资源加载模型。域名、缓存和停用方式见[下载与联网说明](https://github.com/StarCried/starlite/blob/main/docs/release-guide.md#下载缓存与加载失败)。
 
 程序采用 BSD-2-Clause；微光、蓝色大肥鱼及其他模型和动作分别遵守各自许可。

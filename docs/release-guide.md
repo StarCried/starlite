@@ -65,6 +65,10 @@ starlite:
 
 默认模型不随 npm 包分发，安装 npm 包时也不下载。首次生成按固定版本 `weiguang-v3.0.0-starlite.1` 获取资源，缓存于博客根目录的 `node_modules/.cache/hexo-starlite/weiguang-v3.0.0-starlite.1/`。每次生成校验固定长度与 SHA-256，有效缓存可离线使用；不会自动改用未知的最新模型。生成资源同时附带 `LICENSE-Weiguang.md` 和 `ASSET-SOURCES.md`。
 
+生成进程向 `github.com/StarCried/starlite/releases/download/` 下的固定版本资源发送 HTTPS GET；允许的 GitHub 资源域名为 `github.com`、`objects.githubusercontent.com`、`release-assets.githubusercontent.com`。不发送模型 API Key 或访客信息；模型与许可的地址、大小和校验值可在 [`default-preset.ts`](../packages/hexo/src/default-preset.ts) 和 [`bluefish-preset.ts`](../packages/hexo/src/bluefish-preset.ts) 核对。只获取选中的示例；指定自己的 `model` 或设置 `enable: false` 不会下载示例。
+
+部署后，模型和运行时作为博客静态资源提供，访客按生成的站点资源地址加载，而不是向 GitHub 获取示例。若博客配置了 CDN，访客会请求该 CDN；默认移动端守卫在请求运行时和模型之前执行。插件没有遥测、余额查询或 AI 请求。
+
 下载遵循生成进程的 `HTTP_PROXY`、`HTTPS_PROXY`、`NO_PROXY` 环境变量；不要把代理凭据写入配置或提交。默认资源超时或校验失败时，本次只生成正常博客并记录警告；修复网络后重新生成会重试。
 
 浏览器端加载或渲染失败时隐藏角色，不展示静态替代图片、不拦截下层点击；按 2、5、15 秒的间隔最多后台重试三次，成功后恢复。隐藏、离线和手机守卫仍生效。正文优先加载，PJAX 保留单实例；完整文档导航重新挂载，同一标签页不重复首次入场。CSP 需允许内嵌贴图使用的 `blob:`。
