@@ -4,27 +4,82 @@
   "baseline": {
     "date": "2026-10-19",
     "note": "Pre-maturity Windows Node 24 build; zlib output may vary slightly with the supported Node version. VRM bundle includes Three.js, three-vrm, core and the author-owned fallback Idle. Limits allow roughly 10% raw/encoded VRM growth; changing them requires a measured reason. Inochi2D retains its existing 1.5 MiB raw limit; new encoded limits allow roughly 12% growth.",
-    "vrm": { "raw": 1166631, "gzip": 288309, "brotli": 229226 },
-    "inochi2d": { "raw": 589016, "gzip": 200668, "brotli": 166244 }
+    "vrm": {
+      "raw": 1166631,
+      "gzip": 288309,
+      "brotli": 229226
+    },
+    "inochi2d": {
+      "raw": 589016,
+      "gzip": 200668,
+      "brotli": 166244
+    },
+    "bundledGestures20261031": {
+      "note": "User-approved CuriousPeek, HappyWave and SleepyStartle are now bundled for every humanoid. Measured with English UI on Node 22.22.1. Gesture VRMA totals 242912 bytes, stored losslessly deflated; no model artwork or extra requests. Revised limits allow about 10% headroom for this explicit feature scope.",
+      "raw": 1438683,
+      "gzip": 478646,
+      "brotli": 416525
+    }
   },
   "runtime": {
     "vrm": {
       "directory": "packages/vrm/dist",
-      "files": ["index.js", "widget.css"],
-      "maxBytes": { "raw": 1280000, "gzip": 320000, "brotli": 255000 }
+      "files": [
+        "index.js",
+        "widget.css"
+      ],
+      "maxBytes": {
+        "raw": 1600000,
+        "gzip": 530000,
+        "brotli": 460000
+      }
     },
     "inochi2d": {
       "directory": "packages/inochi2d/dist",
-      "maxBytes": { "raw": 1572864, "gzip": 225000, "brotli": 185000 }
+      "maxBytes": {
+        "raw": 1572864,
+        "gzip": 225000,
+        "brotli": 185000
+      }
     }
   },
   "measurement": {
     "note": "A fixed-scene physical-GPU target and same-machine relative software regression gate; neither is a promise for arbitrary avatars/devices. No GPU-memory estimate is inferred from JS heap.",
     "minimumSampleMs": 10000,
     "minimumFrames": 200,
-    "physical30": { "scene": { "width": 320, "height": 480, "dpr": 1 }, "fpsMin": 27, "frameP95MsMax": 50, "renderP95MsMax": 16.7, "localLoadMsMax": 10000 },
-    "physical60": { "scene": { "width": 320, "height": 480, "dpr": 1 }, "fpsMin": 54, "frameP95MsMax": 25, "renderP95MsMax": 8.3, "localLoadMsMax": 10000 },
-    "relative": { "fpsRatioMin": 0.85, "frameP95RatioMax": 1.2, "renderP95RatioMax": 1.2, "renderNoiseMs": 1, "loadRatioMax": 1.25, "loadNoiseMs": 150, "heapGrowthBytesMax": 8388608, "geometryGrowthMax": 0, "textureGrowthMax": 0 },
+    "physical30": {
+      "scene": {
+        "width": 320,
+        "height": 480,
+        "dpr": 1
+      },
+      "fpsMin": 27,
+      "frameP95MsMax": 50,
+      "renderP95MsMax": 16.7,
+      "localLoadMsMax": 10000
+    },
+    "physical60": {
+      "scene": {
+        "width": 320,
+        "height": 480,
+        "dpr": 1
+      },
+      "fpsMin": 54,
+      "frameP95MsMax": 25,
+      "renderP95MsMax": 8.3,
+      "localLoadMsMax": 10000
+    },
+    "relative": {
+      "fpsRatioMin": 0.85,
+      "frameP95RatioMax": 1.2,
+      "renderP95RatioMax": 1.2,
+      "renderNoiseMs": 1,
+      "loadRatioMax": 1.25,
+      "loadNoiseMs": 150,
+      "heapGrowthBytesMax": 8388608,
+      "geometryGrowthMax": 0,
+      "textureGrowthMax": 0
+    },
     "ownedBrowserWeiguang": {
       "scope": "Isolated Windows Chrome 155 process tree, RTX 5080, fixed Weiguang blog model at 320x480 DPR1 30FPS; sampled WDDM GPU counters are separate from RAM. Not a universal avatar/device promise.",
       "modelSha256": "d98a431d84c015787a3239eaf709a7b3b075b4353c10ac59a3023f5ca4c05b8b",

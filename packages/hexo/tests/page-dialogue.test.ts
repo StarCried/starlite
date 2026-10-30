@@ -106,3 +106,10 @@ it("refreshes cached Post and Page markers after config-only disable/re-enable",
   hexo.config.starlite!.enable=true;
   await expect(prepare!()).rejects.toThrow("_posts/example.md: starlite.typo");
 });
+
+it("allows all built-in gestures in page dialogue without external assets",()=>{
+ for(const animation of ["StarLiteCuriousPeek","StarLiteHappyWave","StarLiteSleepyStartle"]){
+  const result=payload(resolvePageDialogueMarkers(markPageDialogue(post({lines:["Hello"],animation}),true).content!,{},widget));
+  expect(result.context.animation).toBe(animation);
+ }
+});

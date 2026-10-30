@@ -3,9 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { VRMLookAt, type VRMHumanoid } from "@pixiv/three-vrm";
 import { mountModelWidget } from "../src/index.js";
+import { BUILTIN_ANIMATIONS } from "../src/builtin-motion-catalog.js";
+const builtinNames = BUILTIN_ANIMATIONS.map(clip => clip.name);
+const builtinMocks = builtinNames.map(name => ({name,durationMs:1000}));
 import { validateVrmWidgetConfig } from "../src/config.js";
 import { mountWithDependencies } from "../../inochi2d/src/controller.js";
 import type { ModelController, DialogueContext } from "@starcried/starlite-core";
+vi.mock("../src/builtin-motions.js",()=>({builtinMotionBytes:async()=>new Uint8Array([1]).buffer}));
 let scene: THREE.Scene;
 let rejectTexture = false;
 let materialDeltas: number[] = [];
@@ -64,7 +68,7 @@ beforeEach(()=>{
  vi.stubGlobal("ResizeObserver",class{observe(){}disconnect(){}});
  vi.stubGlobal("fetch",async(url:string)=>new Response(url.endsWith('.vrma')?new Uint8Array([1]):model()));
 });
-afterEach(()=>{for(const c of resources.splice(0))c.destroy();vi.restoreAllMocks();vi.unstubAllGlobals()});
+afterEach(()=>{for(const c of resources.splice(0))c.destroy();vi.restoreAllMocks();vi.unstubAllGlobals();vi.useRealTimers()});
 async function mount(backend:string,signal?:AbortSignal,dialogue?:any){
  const host=document.createElement("div");document.body.append(host);
  let c:ModelController;
@@ -135,7 +139,7 @@ it('gives a model without motions a bundled Idle and allows text-only click bubb
  relaxedIdle=true;const host=document.createElement('div');document.body.append(host);
  const fetched=vi.spyOn(globalThis,'fetch');
  const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},dialogue:{click:{lines:['Hello without gesture']}},interactions:{pointer:false}});resources.push(c);
- expect(c.status).toBe('running');expect(c.getAnimations().map(a=>a.name)).toEqual(['StarLiteIdle']);
+ expect(c.status).toBe('running');expect(c.getAnimations().map(a=>a.name)).toEqual(builtinNames);
  expect(fetched).toHaveBeenCalledOnce();expect(c.diagnostics().activeAnimation).toBe('StarLiteIdle');
  const canvas=host.querySelector('canvas')!;canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));
  expect(host.querySelector('.model-widget__bubble')!.textContent).toBe('Hello without gesture');
@@ -173,7 +177,7 @@ it('lists and plays a model embedded animation alongside the program-provided Id
  embeddedModel=true;const host=document.createElement('div');document.body.append(host);
  const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},embeddedAnimations:['Jump'],
   animations:[{name:'StarLiteIdle',url:'Idle.vrma'}],ambient:{animations:['StarLiteIdle']},interactions:{pointer:false,click:{animation:'Jump'}}});resources.push(c);
- expect(c.status).toBe('running');expect(c.getAnimations()).toEqual([{name:'Jump',durationMs:1000},{name:'StarLiteIdle',durationMs:1000}]);
+ expect(c.status).toBe('running');expect(c.getAnimations()).toEqual([{name:'Jump',durationMs:1000},...builtinMocks]);
  const action=c.playAnimation('Jump');advance(1500);await expect(action).resolves.toBe('completed');expect(c.diagnostics().activeAnimation).toBe('StarLiteIdle');
 });
 it('rejects an external clip that silently shadows an embedded clip',async()=>{
@@ -219,7 +223,7 @@ for(const backend of ['inochi2d','vrm'])describe(`${backend} public controller c
   else canvas.dispatchEvent(new MouseEvent('click',{bubbles:true}));
   expect(bubble.textContent).toBe('Other second');expect(bubble.dataset.modelAnimation).toBe('Other');
  });
- it('lists real clips and completes a single clip',async()=>{const c=await mount(backend);expect(c.status).toBe('running');expect(c.getAnimations()).toEqual([{name:'Action',durationMs:1000},{name:'Other',durationMs:1000}]);const result=c.playAnimation('Action');advance(1200);await expect(result).resolves.toBe('completed')});
+ it('lists real clips and completes a single clip',async()=>{const c=await mount(backend);expect(c.status).toBe('running');expect(c.getAnimations()).toEqual([{name:'Action',durationMs:1000},{name:'Other',durationMs:1000},...(backend==='vrm'?builtinMocks:[])]);const result=c.playAnimation('Action');advance(1200);await expect(result).resolves.toBe('completed')});
  it('keeps loops pending until interrupted or stopped',async()=>{const c=await mount(backend);const loop=c.playAnimation('Action',{mode:'loop'});const settled=vi.fn();void loop.then(settled);advance(2000);await Promise.resolve();expect(settled).not.toHaveBeenCalled();const next=c.playAnimation('Other',{mode:'loop'});await expect(loop).resolves.toBe('interrupted');c.stopAnimation();await expect(next).resolves.toBe('stopped')});
  it('pauses, resumes and destroys idempotently',async()=>{const c=await mount(backend);const result=c.playAnimation('Action');advance(200);c.pause();expect(c.status).toBe('paused');expect(frames.size).toBe(0);advance(5000);c.resume();expect(c.status).toBe('running');advance(1000);await expect(result).resolves.toBe('completed');const loop=c.playAnimation('Other',{mode:'loop'});c.destroy();c.destroy();await expect(loop).resolves.toBe('stopped');expect(document.querySelectorAll('canvas')).toHaveLength(0);expect(frames.size).toBe(0)});
  it('uses the same accessible bubble for entry, click, expiry and pause',async()=>{
@@ -423,7 +427,7 @@ it('prefetches at most four animations alongside the model and preserves configu
  expect(requested).toEqual(['test.vrm','0.vrma','1.vrma','2.vrma','3.vrma']);
  releaseModel(new Response(model()));const c=await loading;resources.push(c);
  expect(maximum).toBe(4);expect(c.status).toBe('running');
- expect(c.getAnimations().map(clip=>clip.name)).toEqual([...animations.map(clip=>clip.name),'StarLiteIdle']);
+ expect(c.getAnimations().map(clip=>clip.name)).toEqual([...animations.map(clip=>clip.name),...builtinNames]);
 });
 
 it('aborts remaining downloads and does not start queued clips after an asset fails',async()=>{
@@ -444,7 +448,7 @@ it('aborts remaining downloads and does not start queued clips after an asset fa
 it('lets a queued page task run between animation retargeting tasks',async()=>{
  const events:string[]=[];
  onAnimationParse=()=>{events.push('parse');if(events.length===1)setTimeout(()=>events.push('page input'),0)};
- await mount('vrm');expect(events).toEqual(['parse','page input','parse']);
+ await mount('vrm');expect(events.slice(0,3)).toEqual(['parse','page input','parse']);expect(events.filter(event=>event==='parse')).toHaveLength(2+builtinNames.length);
 });
 
 it('waits for shader compilation before its first rendered frame',async()=>{
@@ -603,4 +607,14 @@ it('samples neutral before a zero-delay entry with no ambient animation',async()
  const c=await mount('vrm',undefined,{enter:{animation:'Action',lines:['Immediate'],delayMs:0,durationMs:1000}});
  expect(sampledHeights).toEqual([0]);expect(document.querySelector('.model-widget__bubble')!.textContent).toBe('Immediate');
  const anchor=c.getBubbleAnchor!();advance(500);expect(scene.getObjectByName('body')!.position.y).toBe(3);expect(c.getBubbleAnchor!()).toEqual(anchor);
+});
+
+it('plays each built-in gesture on an action-free import without fetching files and returns to its base',async()=>{
+ const host=document.createElement('div');document.body.append(host);const fetched=vi.spyOn(globalThis,'fetch');
+ const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},interactions:{pointer:false}});resources.push(c);
+ for(const {name} of BUILTIN_ANIMATIONS.slice(1)){
+  const done=c.playAnimation(name);advance(1200);await expect(done).resolves.toBe('completed');
+  expect(c.diagnostics().activeAnimation).toBe('StarLiteIdle');
+ }
+ expect(fetched).toHaveBeenCalledOnce();
 });

@@ -10,3 +10,5 @@ layer originating from Warudo's Human@SM Breathe. Its hash, authorship and the
 user's redistribution confirmation are recorded in DEFAULT_IDLE.md; it is
 not represented as a wholly original or separately MIT-licensed motion.
 Other model and motion rights remain the responsibility of their owner.
+
+Bundled humanoid gestures have separate recorded provenance; see [BUNDLED_MOTIONS.md](BUNDLED_MOTIONS.md) and `BUNDLED_MOTIONS.json`. They include no model artwork.

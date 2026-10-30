@@ -17,7 +17,7 @@ for (const lifecycle of ["preinstall", "install", "postinstall"]) {
 
 const expectations = new Map([
  ["@starcried/starlite-core", ["dist/index.js", "LICENSE", "README.md"]],
- ["@starcried/starlite-vrm", ["dist/index.js", "dist/widget.css", "dist/inspect.cjs", "dist/config.cjs", "LICENSE", "README.md", "THIRD_PARTY_LICENSES.txt"]],
+ ["@starcried/starlite-vrm", ["dist/index.js", "dist/widget.css", "dist/inspect.cjs", "dist/config.cjs", "LICENSE", "README.md", "README.en.md", "BUNDLED_MOTIONS.md", "BUNDLED_MOTIONS.json", "THIRD_PARTY_LICENSES.txt"]],
   [
     "@starcried/starlite-inochi2d",
     [

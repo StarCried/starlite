@@ -1,3 +1,4 @@
+const { BUILTIN_ANIMATIONS } = require("@starcried/starlite-vrm/config") as typeof import("@starcried/starlite-vrm/config", {with:{"resolution-mode":"import"}});
 import type {BrowserWidgetConfig, PageDialogueDefaults, PageDialogueInput, RenderedPage} from "./types";
 
 const fields = ["animation", "triggers", "mode", "order"];
@@ -92,7 +93,7 @@ export function resolvePageDialogueMarkers(html:string,defaults:PageDialogueDefa
     const animation=input.animation??defaults.animation??(inherited?inherited.animation??inherited.animations?.[0]:undefined);
     if(animation!==undefined){
       const names=new Set([...(widget.animations??[]).map(clip=>clip.name),...(widget.backend==="vrm"?widget.embeddedAnimations??[]:[])]);
-      if(widget.backend==="vrm"&&(widget.neutralAnimation==="StarLiteIdle"||widget.ambient?.animations?.includes("StarLiteIdle")||!names.size))names.add("StarLiteIdle");
+      if(widget.backend==="vrm")for(const clip of BUILTIN_ANIMATIONS)names.add(clip.name);
       if(!names.has(animation))throw new Error(`${source}: starlite.animation references unavailable animation ${JSON.stringify(animation)}; choose an existing model animation`);
     }
     const context={lines:input.lines,...(animation!==undefined?{animation}:{}),triggers:input.triggers??defaults.triggers??["click","idle"],mode:input.mode??defaults.mode??"replace",order:input.order??defaults.order??"sequential"};

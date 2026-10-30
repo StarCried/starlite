@@ -1,4 +1,6 @@
-import { resolveDialogueSentences, validatePerformanceConfig } from "@starcried/starlite-core";
+import { resolveDialogueSentences, validatePerformanceConfig, validateLocale } from "@starcried/starlite-core";
+import { BUILTIN_ANIMATIONS, isBuiltinAnimation } from "./builtin-motion-catalog.js";
+export { BUILTIN_ANIMATIONS, isBuiltinAnimation } from "./builtin-motion-catalog.js";
 import type { CharacterProfile, ModelAdjustments, VrmWidgetConfig } from "./types.js";
 
 function finite(value: unknown, min: number, max: number): value is number {
@@ -23,6 +25,7 @@ export function validateModelAdjustments(input: unknown): asserts input is Model
 }
 export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   if (!config || (config.backend !== undefined && config.backend !== "vrm")) throw new Error("invalid VRM backend");
+  validateLocale(config.locale);
   if (config.adjustments !== undefined) validateModelAdjustments(config.adjustments);
   validatePerformanceConfig(config.performance);
   if (config.interactions?.passThrough !== undefined && typeof config.interactions.passThrough !== "boolean") throw new Error("interactions.passThrough must be boolean");
@@ -56,11 +59,11 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
     names.add(name);
   }
   for (const animation of animations) {
-    if (!animation || typeof animation.name !== "string" || !animation.name.trim() || animation.name.length > 128 || names.has(animation.name) || typeof animation.url !== "string" || !animation.url.trim()) throw new Error("invalid or duplicate animation");
+    if (!animation || typeof animation.name !== "string" || !animation.name.trim() || animation.name.length > 128 || names.has(animation.name) || (animation.name !== "StarLiteIdle" && isBuiltinAnimation(animation.name)) || typeof animation.url !== "string" || !animation.url.trim()) throw new Error("invalid or duplicate animation");
     if (animation.durationMs !== undefined && !finite(animation.durationMs, 1, 600000)) throw new Error("invalid animation duration");
     names.add(animation.name);
   }
-  names.add("StarLiteIdle");
+  for (const { name } of BUILTIN_ANIMATIONS) names.add(name);
   for (const name of config.ambient?.animations ?? []) if (!names.has(name)) throw new Error(`unknown ambient animation: ${name}`);
   if ((config.ambient?.animations?.length ?? 0) > 1) throw new Error("VRM supports one explicitly configured ambient clip");
   if (config.neutralAnimation !== undefined && !names.has(config.neutralAnimation)) throw new Error("unknown neutral animation");

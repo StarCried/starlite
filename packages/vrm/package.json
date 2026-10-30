@@ -9,7 +9,10 @@
     "README.md",
     "DEFAULT_IDLE.md",
     "THIRD_PARTY_NOTICES.md",
-    "THIRD_PARTY_LICENSES.txt"
+    "THIRD_PARTY_LICENSES.txt",
+    "README.en.md",
+    "BUNDLED_MOTIONS.md",
+    "BUNDLED_MOTIONS.json"
   ],
   "exports": {
     ".": {

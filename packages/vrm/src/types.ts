@@ -1,4 +1,4 @@
-import type { DialogueSceneConfig, ModelController, PerformanceConfig } from "@starcried/starlite-core";
+import type { StarLiteLocale, DialogueSceneConfig, ModelController, PerformanceConfig } from "@starcried/starlite-core";
 export type { ModelController, AnimationPlaybackResult, AnimationPlaybackOptions } from "@starcried/starlite-core";
 export interface VrmAnimationSource { name: string; url: string; durationMs?: number }
 export interface BonePose { rotation: [number, number, number, number]; position?: [number, number, number] }
@@ -27,6 +27,7 @@ export interface CharacterProfile {
   blink: { period: number; curve: [number, number][] };
 }
 export interface VrmWidgetConfig {
+  locale?: StarLiteLocale;
   backend?: "vrm";
   adjustments?: ModelAdjustments;
   performance?: PerformanceConfig;

@@ -621,7 +621,7 @@ function validateEmbeddedProfile(contents: Buffer, animationNames: readonly stri
    try { validateCharacterProfile(profile); }
    catch (error) { throw new Error(`Invalid extras.starlite.profile: ${error instanceof Error ? error.message : "invalid character profile"}`, {cause:error}); }
    const neutralAnimation = profile.neutralAnimation;
-   if (neutralAnimation !== undefined && neutralAnimation !== "StarLiteIdle" && !animationNames.includes(neutralAnimation)) {
+   if (neutralAnimation !== undefined && !require("@starcried/starlite-vrm/config").isBuiltinAnimation(neutralAnimation) && !animationNames.includes(neutralAnimation)) {
      throw new Error(`extras.starlite.profile.neutralAnimation references unavailable animation ${JSON.stringify(neutralAnimation)}; choose an embedded/configured VRMA animation or StarLiteIdle`);
    }
    return neutralAnimation;

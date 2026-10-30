@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-31",
+  "sourceCandidateSha256": "f9efaedaa9aaaa7f6704001d5760928371fbeb23fd170db33c7b731f258a3cd2",
+  "scope": "Humanoid upper-body rotations and optional standard blink only. No meshes, skins, textures, custom model expressions, markers, eye bones, root translations or leg motions.",
+  "authorship": {
+    "CuriousPeek": "Authored by StarCried for StarLite.",
+    "SleepyStartle": "Authored by StarCried for StarLite.",
+    "HappyWave": "Adapted from user-selected Warudo KA_Idle16_WaveHands via Weiguang HighWave, upper body only; source is not claimed as original. Timing and BlueFish clearance adaptation retained."
+  },
+  "sourceMotionSha256": "f245b4919764433f97edd1355292900fda4fa1cd379b79faaf1e085b16045442",
+  "clips": [
+    {
+      "name": "StarLiteCuriousPeek",
+      "duration": 2.0999999046325684,
+      "bytes": 17380,
+      "sha256": "881238f9c0d6f6d3f0cfabe2d1a02374b60109449f0a0e426242bfd3b2156ee0",
+      "bodyTracks": 43,
+      "expressions": [],
+      "maximumRoundtripError": 3.3306690738754696e-16,
+      "officialLoaderValidated": true
+    },
+    {
+      "name": "StarLiteHappyWave",
+      "duration": 4.5,
+      "bytes": 190468,
+      "sha256": "11981aad8d99561917322d782a693acf870138dc0620775bfdc74a49d09e61ed",
+      "bodyTracks": 43,
+      "expressions": [],
+      "maximumRoundtripError": 5.551115123125783e-16,
+      "officialLoaderValidated": true
+    },
+    {
+      "name": "StarLiteSleepyStartle",
+      "duration": 5.5,
+      "bytes": 35064,
+      "sha256": "d3e9d2583458cc2d63364d44f4b3642bbf7272733c60371933e3a2d2d89910c1",
+      "bodyTracks": 43,
+      "expressions": [
+        "blink"
+      ],
+      "maximumRoundtripError": 4.440892098500626e-16,
+      "officialLoaderValidated": true
+    }
+  ]
+}

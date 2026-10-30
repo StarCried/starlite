@@ -98,3 +98,26 @@ test("model fetch and later context loss recover without reimporting runtime or 
  expect(attempts).toBe(3);expect(runtimes).toHaveLength(1);await expect(page.locator("canvas")).toHaveCount(1);
  await expect(page.locator('.model-widget__bubble')).not.toBeVisible();
 });
+
+for (const version of ["0", "1"]) test(`VRM${version} imports play every bundled gesture without motion downloads`, async ({page}) => {
+ test.setTimeout(45000);
+ const errors:string[]=[]; const motions:string[]=[];
+ page.on("pageerror", error => errors.push(error.message));
+ page.on("request", request => { if(request.url().includes(".vrma")) motions.push(request.url()); });
+ await page.route("**/vrm-model/**/model.vrm", route => route.fulfill({status:200,contentType:"model/gltf-binary",body:model(version)}));
+ await page.goto("http://127.0.0.1:4182/");
+ await expect(page.locator('[data-model-status="running"]')).toHaveCount(1);
+ const results = await page.evaluate(async () => {
+  const controller=(globalThis as any).__hexoStarLiteWidgetState.controller;
+  const output=[];
+  for(const name of ["StarLiteCuriousPeek","StarLiteHappyWave","StarLiteSleepyStartle"]){
+   const entry=controller.getAnimations().find((clip:any)=>clip.name===name);
+   output.push({name,durationMs:entry?.durationMs,result:await controller.playAnimation(name),base:controller.diagnostics().activeAnimation});
+  }
+  return output;
+ });
+ expect(results.map(result=>result.result)).toEqual(["completed","completed","completed"]);
+ expect(results.every(result=>result.durationMs>2000&&result.base==="StarLiteIdle")).toBe(true);
+ expect(motions).toEqual([]);expect(errors).toEqual([]);
+ await expect(page.locator("canvas")).toHaveCount(1);
+});

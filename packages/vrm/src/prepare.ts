@@ -4,6 +4,7 @@ import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { inspectVrm, inspectVrma, MAX_MODEL_BYTES, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { validateCharacterProfile } from "./config.js";
+import { BUILTIN_ANIMATIONS, isBuiltinAnimation } from "./builtin-motion-catalog.js";
 import type { CharacterProfile } from "./types.js";
 export interface AssetRecord { file: string; sha256: string; bytes: number }
 export interface VrmManifest {
@@ -23,7 +24,7 @@ async function bounded(path: string, maximum: number): Promise<Buffer> {
 function animationNames(animations: {name:string}[]): void {
  if (!Array.isArray(animations) || animations.length > 64) throw new Error("invalid animation collection");
  const names = new Set<string>();
- for (const a of animations) { if (!a || typeof a.name !== "string" || !a.name.trim() || a.name.length > 128 || names.has(a.name)) throw new Error("duplicate or invalid animation name"); names.add(a.name); }
+ for (const a of animations) { if (!a || typeof a.name !== "string" || !a.name.trim() || a.name.length > 128 || names.has(a.name) || (a.name !== "StarLiteIdle" && isBuiltinAnimation(a.name))) throw new Error("duplicate or invalid animation name"); names.add(a.name); }
 }
 function profileNames(profile: CharacterProfile, animations: {name:string}[]): void {
  if (profile.neutralAnimation && !animations.some(a => a.name === profile.neutralAnimation)) throw new Error("profile neutral animation is missing");
@@ -43,7 +44,7 @@ export async function prepareModel(request: PrepareRequest): Promise<VrmManifest
   files.set(file,data); manifest.animations.push({...record(file,data),name:source.name,durationMs});
  }
  if (request.profile) {
-  const data = await bounded(request.profile, 1024*1024); const profile:unknown = JSON.parse(data.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,[...animations,...inspected.animations,{name:"StarLiteIdle"}]);
+  const data = await bounded(request.profile, 1024*1024); const profile:unknown = JSON.parse(data.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,[...animations,...inspected.animations,...BUILTIN_ANIMATIONS]);
   files.set("profile.json",data); manifest.profile = record("profile.json",data);
  }
  const output = resolve(request.output); await mkdir(dirname(output),{recursive:true});
@@ -83,6 +84,6 @@ export function readPreparedBundleSync(directory: string): {manifest:VrmManifest
   const inspected = inspectVrma(arrayBuffer(bytes));
   if (!Number.isFinite(item.durationMs) || Math.abs(inspected.durationMs-item.durationMs) > 1) throw new Error("manifest animation duration mismatch");
  }
- if (manifest.profile) { const bytes = load(manifest.profile,1024*1024); const profile:unknown = JSON.parse(bytes.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,[...manifest.animations,...inspected.animations,{name:"StarLiteIdle"}]); }
+ if (manifest.profile) { const bytes = load(manifest.profile,1024*1024); const profile:unknown = JSON.parse(bytes.toString("utf8")); validateCharacterProfile(profile); profileNames(profile,[...manifest.animations,...inspected.animations,...BUILTIN_ANIMATIONS]); }
  return {manifest,files};
 }

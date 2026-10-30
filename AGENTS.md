@@ -38,6 +38,12 @@
 - Third-party puppets are ignored local test inputs only, with license and
   attribution recorded in `docs/validation.md`.
 - Package checks must reject `.inp`, `.inx`, `.vrm`, `.vrma` and `.blend` files.
+  The user-approved Idle plus CuriousPeek, HappyWave and SleepyStartle ship as
+  embedded, artwork-free motion data. Keep `BUNDLED_MOTIONS.json` hashes and
+  provenance with the runtime; HappyWave reuses a selected Warudo upper-body
+  motion and must not be described as wholly original. Use reserved names
+  `StarLiteIdle`, `StarLiteCuriousPeek`, `StarLiteHappyWave`, `StarLiteSleepyStartle`.
+  Existing user mappings remain unchanged when the catalog gains program clips.
 - Default Hexo examples are selected with `starlite.preset`; keep the initial
   Weiguang choice and download only the selected example. Each catalog entry
   has separate pinned assets and model terms, available before download. The

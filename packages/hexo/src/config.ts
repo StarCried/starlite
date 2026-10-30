@@ -1,4 +1,5 @@
 import { readLocale } from "./locale";
+const { isBuiltinAnimation } = require("@starcried/starlite-vrm/config") as typeof import("@starcried/starlite-vrm/config", {with:{"resolution-mode":"import"}});
 import type { WidgetConfig } from "@starcried/starlite-inochi2d" with { "resolution-mode": "import" };
 
 import type { BrowserWidgetConfig, HexoLike, HexoWidgetConfig, ModelAssetBundle } from "./types";
@@ -46,13 +47,13 @@ export function readEnabledConfig(
     const profile = modelBundle?.vrm?.profile ? base + modelBundle.vrm.profile : typeof input.profile === "string" ? resolveUrl(root,input.profile) : input.profile;
     const profileNeutralAnimation = profile && typeof profile !== "string" ? profile.neutralAnimation
       : (modelBundle?.vrm?.profile || profile === undefined) ? modelBundle?.vrm?.neutralAnimation : undefined;
-    if (profileNeutralAnimation !== undefined && profileNeutralAnimation !== "StarLiteIdle" && !animationNames.includes(profileNeutralAnimation)) {
+    if (profileNeutralAnimation !== undefined && !isBuiltinAnimation(profileNeutralAnimation) && !animationNames.includes(profileNeutralAnimation)) {
       throw new Error(`starlite.profile.neutralAnimation references unavailable animation ${JSON.stringify(profileNeutralAnimation)}; choose an embedded/configured VRMA animation or StarLiteIdle`);
     }
     // A fetched profile owns its baseline once loaded. Do not silently replace
     // that unknown choice with the discovered Idle; explicit user settings win.
     const neutralAnimation = input.neutralAnimation ?? profileNeutralAnimation ?? (profile === undefined && animationNames.includes("Idle") ? "Idle" : undefined);
-    if (neutralAnimation !== undefined && neutralAnimation !== "StarLiteIdle" && !animationNames.includes(neutralAnimation)) {
+    if (neutralAnimation !== undefined && !isBuiltinAnimation(neutralAnimation) && !animationNames.includes(neutralAnimation)) {
       throw new Error(`starlite.neutralAnimation references unavailable animation ${JSON.stringify(neutralAnimation)}; choose an embedded/configured VRMA animation or StarLiteIdle`);
     }
     const widget = {

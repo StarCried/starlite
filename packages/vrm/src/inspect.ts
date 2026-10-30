@@ -1,3 +1,4 @@
+import { isBuiltinAnimation } from "./builtin-motion-catalog.js";
 type Json = Record<string, any>;
 export type VrmInspectionErrorCode = "INVALID_GLB" | "UNSUPPORTED_FORMAT" | "UNSUPPORTED_VERSION" | "UNSUPPORTED_EXTENSION" | "EXTERNAL_RESOURCE" | "RESOURCE_LIMIT" | "INVALID_STRUCTURE" | "HUMANOID_BONES" | "INVALID_BLINK" | "INVALID_LOOK_AT" | "INVALID_ANIMATION";
 export interface VrmInspectionErrorDetails {
@@ -99,7 +100,7 @@ export function embeddedAnimationCatalog(json: Json): { name: string; durationMs
   const names = new Set<string>();
   return animations.map((animation: Json, index: number) => {
     const name = animation.name ?? "Animation_" + (index + 1);
-    if (typeof name !== "string" || !name.trim() || new TextEncoder().encode(name).length > 128 || /[\u0000-\u001f\u007f]/.test(name) || name === "StarLiteIdle" || names.has(name)) throw new VrmInspectionError("INVALID_ANIMATION", "invalid or duplicate embedded animation name; use unique names of at most 128 UTF-8 bytes, excluding StarLiteIdle");
+    if (typeof name !== "string" || !name.trim() || new TextEncoder().encode(name).length > 128 || /[\u0000-\u001f\u007f]/.test(name) || isBuiltinAnimation(name) || names.has(name)) throw new VrmInspectionError("INVALID_ANIMATION", "invalid or duplicate embedded animation name; use unique names of at most 128 UTF-8 bytes, excluding reserved StarLite program motion names");
     names.add(name);
     let duration = 0;
     for (const sampler of animation.samplers ?? []) {

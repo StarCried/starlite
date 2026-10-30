@@ -1,5 +1,7 @@
 # @starcried/starlite-vrm
 
+简体中文 · [English](README.en.md)
+
 StarLite 的 WebGL2 VRM 0／1 后端，支持模型内嵌 glTF 动作、外部 VRMA、限角光标跟随、眨眼和公共气泡。浏览器入口已打包 Three.js、three-vrm 和 three-vrm-animation。
 
 在 Node.js 22.12+ 项目中安装 alpha 版本：
@@ -29,9 +31,9 @@ const controller = await mountModelWidget(host, {
 });
 ```
 
-上例不需要另备动作文件。运行时自动使用模型名为 `Idle` 的动作，否则采用程序唯一内置的 `StarLiteIdle`（基础站姿与轻呼吸）。可通过 `animations: [{name: "Wave", url: "/Wave.vrma"}]` 添加自己的外部动作，或用 `ambient` 和 `neutralAnimation` 指定基础循环与站姿。不附带模型或其他动作库。显式 `ambient: {animations: []}` 可停用基础循环。眨眼为可选能力：需要有效的标准 Blink 表达，或完整的左右 Blink 表达；缺少时模型仍可使用，只停用自动眨眼。眼球跟随需要正确的 VRM lookAt 映射。模型必须自包含，不接受外部纹理或 buffer 引用。
+上例不需要另备动作文件。运行时自动使用模型名为 `Idle` 的动作，否则采用程序内置的 `StarLiteIdle`（基础站姿与轻呼吸）。可通过 `animations: [{name: "Wave", url: "/Wave.vrma"}]` 添加自己的外部动作，或用 `ambient` 和 `neutralAnimation` 指定基础循环与站姿。当前源码还提供 `StarLiteCuriousPeek`、`StarLiteHappyWave`、`StarLiteSleepyStartle` 三个通用人形动作，供所有模型按需映射；不附带模型素材，动作来源保留独立说明。显式 `ambient: {animations: []}` 可停用基础循环。眨眼为可选能力：需要有效的标准 Blink 表达，或完整的左右 Blink 表达；缺少时模型仍可使用，只停用自动眨眼。眼球跟随需要正确的 VRM lookAt 映射。模型必须自包含，不接受外部纹理或 buffer 引用。
 
-`inspectVrm(bytes).animations` 返回模型内嵌动作的名称和时长；将名称列表传入 `embeddedAnimations`，即可在 `ambient`、点击与气泡配置中引用。实际加载后 `getAnimations()` 自动列出内嵌动作和外部 VRMA。未命名动作按顺序显示为 `Animation_1` 等；内嵌动作、外部动作名称不得重复，`StarLiteIdle` 为默认 Idle 保留名。角色配置也可放在模型 JSON 的 `extras.starlite.profile`，内容须符合数据型角色配置规范。
+`inspectVrm(bytes).animations` 返回模型内嵌动作的名称和时长；将名称列表传入 `embeddedAnimations`，即可在 `ambient`、点击与气泡配置中引用。实际加载后 `getAnimations()` 自动列出内嵌动作和外部 VRMA。未命名动作按顺序显示为 `Animation_1` 等；内嵌动作、外部动作名称不得重复，上述四个 `StarLite` 动作名均为保留名。角色配置也可放在模型 JSON 的 `extras.starlite.profile`，内容须符合数据型角色配置规范。
 
 `pause()`／`resume()` 控制更新，`getAnimations()` 列出动作，`playAnimation()`／`stopAnimation()` 控制播放；页面组件卸载时调用 `controller.destroy()` 释放资源。`neutralAnimation` 的首帧作为停止后的基础站姿，避免无角色配置的模型回到 T 姿势。动作名区分大小写；循环在停止或被打断后结束等待。隐藏时停止动画和物理，恢复时不补算离线时间。
 

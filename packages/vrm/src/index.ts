@@ -1,3 +1,4 @@
+export { resolveLocale, type StarLiteLocale } from "@starcried/starlite-core";
 import * as THREE from "three";
 import { PerformanceOverlay, FrameSamples } from "@starcried/starlite-core";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -13,7 +14,9 @@ import { HostMotion } from "./host-motion.js";
 import { PointerGaze } from "./gaze.js";
 import { CharacterBehavior } from "./character.js";
 import { prepareEmbeddedAnimations } from "./embedded.js";
-import { defaultIdleBytes } from "./default-idle.js";
+import { builtinMotionBytes } from "./builtin-motions.js";
+import { BUILTIN_ANIMATIONS } from "./builtin-motion-catalog.js";
+export { BUILTIN_ANIMATIONS } from "./builtin-motion-catalog.js";
 import { AdjustableIdle } from "./adjustments.js";
 import type { CharacterProfile, ModelAdjustments, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
@@ -179,19 +182,23 @@ class Controller implements VrmController {
         : this.#config.neutralAnimation ?? this.#profile?.neutralAnimation ?? (this.#clips.has("Idle") ? "Idle" : "StarLiteIdle"));
       const neutralAnimation = this.#config.neutralAnimation ?? this.#profile?.neutralAnimation ?? this.#baseAnimation;
       this.#neutralAnimation = neutralAnimation;
-      const requested = [this.#baseAnimation, neutralAnimation,
-        ...(this.#config.interactions?.click ? this.#config.interactions.click.animations ?? [this.#config.interactions.click.animation] : []),
-        ...Object.values(this.#config.dialogue ?? {}).flatMap(scene => scene ? scene.animations ?? (scene.animation ? [scene.animation] : []) : [])];
-      if (!this.#clips.has("StarLiteIdle") && requested.includes("StarLiteIdle")) {
-        const asset = await animationLoader.parseAsync(defaultIdleBytes(), "");
+      // All program motions are available to hosts and user mappings, including
+      // existing models. They contain no model artwork and trigger no downloads.
+      for (const { name } of BUILTIN_ANIMATIONS) {
+        if (this.#clips.has(name)) continue;
+        this.#abort.signal.throwIfAborted();
+        const asset = await animationLoader.parseAsync(await builtinMotionBytes(name), "");
         this.#abort.signal.throwIfAborted();
         const animation = (asset.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0];
-        if (!animation) throw new Error("bundled Idle is invalid");
+        if (!animation) throw new Error(`bundled motion is invalid: ${name}`);
         const clip = createVRMAnimationClip(animation, vrm);
-        clip.name = "StarLiteIdle";
-        this.#adjustableIdle = new AdjustableIdle(clip, vrm.scene, vrm.humanoid, vrm.meta.metaVersion);
-        this.#adjustableIdle.update(this.#adjustments.idle);
-        this.#clips.set(clip.name, this.#adjustableIdle.clip);
+        if (!clip.tracks.length || clip.tracks.some(track => Array.from(track.values).some(value => !Number.isFinite(value)))) throw new Error(`bundled motion is incompatible: ${name}`);
+        clip.name = name;
+        if (name === "StarLiteIdle") {
+          this.#adjustableIdle = new AdjustableIdle(clip, vrm.scene, vrm.humanoid, vrm.meta.metaVersion);
+          this.#adjustableIdle.update(this.#adjustments.idle);
+          this.#clips.set(name, this.#adjustableIdle.clip);
+        } else this.#clips.set(name, clip);
       }
       if (neutralAnimation) {
         const clip = this.#clips.get(neutralAnimation);

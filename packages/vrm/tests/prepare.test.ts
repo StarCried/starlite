@@ -43,3 +43,10 @@ it("accepts a neutral profile bound to embedded Idle or the bundled baseline",as
  await writeFile(profile,JSON.stringify({...base,neutralAnimation:"Missing"}));
  await expect(prepareModel({...request,profile})).rejects.toThrow("neutral animation is missing");
 });
+
+it("rejects reserved gesture names before reading external motion files", async()=>{
+ for(const name of ["StarLiteCuriousPeek","StarLiteHappyWave","StarLiteSleepyStartle"]){
+  const request=await setup();
+  await expect(prepareModel({...request,animations:[{name,path:join(request.root,"missing.vrma")}]})).rejects.toThrow("invalid animation name");
+ }
+});
