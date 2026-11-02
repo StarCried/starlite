@@ -633,3 +633,29 @@ it("updates environment lighting without replacing lights, resetting gestures or
  expect(document.querySelector("canvas")).toBe(canvas);expect(compileCalls).toBe(1);expect(renderedScene.children.length).toBe(children);
  c.destroy();const stopped=renderCalls;c.setEnvironmentLighting!({color:"#ffffff"});advance(1000);expect(renderCalls).toBe(stopped);
 });
+
+it("rebases generated gestures when the selected program Idle calibration changes without resetting phase",async()=>{
+ calibrationIdle=true;const host=document.createElement("div");document.body.append(host);
+ const c=await mountModelWidget(host,{model:"test.vrm",fallback:"fallback.png",mobile:{show:true},interactions:{pointer:false},adjustments:{idle:{armLiftDegrees:20}}});resources.push(c);
+ const arm=scene.getObjectByName("leftUpperArm")!;
+ const motion=c.playAnimation("StarLiteHappyWave");advance(600);c.pause();
+ const first=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),.1);
+ const beforeNeutral=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),THREE.MathUtils.degToRad(20)).multiply(first);
+ const relative=beforeNeutral.clone().invert().multiply(arm.quaternion.clone().normalize());
+ c.setModelAdjustments({idle:{armLiftDegrees:35}});
+ const afterNeutral=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),THREE.MathUtils.degToRad(35)).multiply(first);
+ expect(arm.quaternion.clone().normalize().angleTo(afterNeutral.multiply(relative))).toBeLessThan(1e-5);
+ expect(c.playAnimation("StarLiteHappyWave")).toBe(motion);expect(c.status).toBe("paused");
+ c.resume();advance(1200);await expect(motion).resolves.toBe("completed");expect(c.diagnostics().activeAnimation).toBe("StarLiteIdle");
+ c.setModelAdjustments({});c.stopAnimation();expect(Math.abs(arm.quaternion.z)).toBeLessThan(1e-6);
+ expect(host.querySelectorAll("canvas")).toHaveLength(1);expect(compileCalls).toBe(1);
+});
+it("uses a selected authored neutral pose for program gestures without changing that authored clip",async()=>{
+ calibrationIdle=true;const host=document.createElement("div");document.body.append(host);
+ const c=await mountModelWidget(host,{model:"test.vrm",fallback:"fallback.png",mobile:{show:true},interactions:{pointer:false},animations:[{name:"UserIdle",url:"user.vrma"}],neutralAnimation:"UserIdle",adjustments:{idle:{armLiftDegrees:40}}});resources.push(c);
+ const arm=scene.getObjectByName("leftUpperArm")!;c.stopAnimation();expect(Math.abs(arm.quaternion.z)).toBeLessThan(1e-6);
+ const pending=c.playAnimation("StarLiteCuriousPeek");advance(500);c.pause();c.setModelAdjustments({idle:{armLiftDegrees:-20}});
+ expect(Math.abs(arm.quaternion.z)).toBeLessThan(1e-6);expect(c.playAnimation("StarLiteCuriousPeek")).toBe(pending);
+ c.resume();advance(1000);await expect(pending).resolves.toBe("completed");expect(c.diagnostics().activeAnimation).toBe("UserIdle");
+ c.stopAnimation();expect(Math.abs(arm.quaternion.z)).toBeLessThan(1e-6);
+});

@@ -18,7 +18,7 @@ import { builtinMotionBytes } from "./builtin-motions.js";
 import { BUILTIN_ANIMATIONS } from "./builtin-motion-catalog.js";
 export { BUILTIN_ANIMATIONS } from "./builtin-motion-catalog.js";
 import { EnvironmentLight } from "./environment-lighting.js";
-import { AdjustableIdle } from "./adjustments.js";
+import { AdjustableIdle, RebasedBuiltinGesture } from "./adjustments.js";
 import type { CharacterProfile, ModelAdjustments, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
 export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem } from "@starcried/starlite-core";
@@ -66,6 +66,7 @@ class Controller implements VrmController {
   #neutral: VRMPose | undefined;
   #neutralAnimation: string | undefined;
   #adjustableIdle: AdjustableIdle | undefined;
+  readonly #builtinGestures: RebasedBuiltinGesture[] = [];
   #adjustments: ModelAdjustments = {};
   #portraitBounds: THREE.Box3 | undefined;
   #bubbleAnchor: THREE.Vector3 | undefined;
@@ -187,6 +188,7 @@ class Controller implements VrmController {
       this.#neutralAnimation = neutralAnimation;
       // All program motions are available to hosts and user mappings, including
       // existing models. They contain no model artwork and trigger no downloads.
+      const generatedGestures: THREE.AnimationClip[] = [];
       for (const { name } of BUILTIN_ANIMATIONS) {
         if (this.#clips.has(name)) continue;
         this.#abort.signal.throwIfAborted();
@@ -201,7 +203,7 @@ class Controller implements VrmController {
           this.#adjustableIdle = new AdjustableIdle(clip, vrm.scene, vrm.humanoid, vrm.meta.metaVersion);
           this.#adjustableIdle.update(this.#adjustments.idle);
           this.#clips.set(name, this.#adjustableIdle.clip);
-        } else this.#clips.set(name, clip);
+        } else { this.#clips.set(name, clip); generatedGestures.push(clip); }
       }
       if (neutralAnimation) {
         const clip = this.#clips.get(neutralAnimation);
@@ -211,6 +213,13 @@ class Controller implements VrmController {
         this.#neutral = vrm.humanoid.getNormalizedPose();
         sampler.stopAllAction(); sampler.uncacheRoot(vrm.scene);
         vrm.humanoid.setNormalizedPose(this.#neutral);
+      }
+      // Gesture assets use their author's rest pose. Rebase only the program
+      // clips generated above after the selected Idle has supplied the actual
+      // model-local neutral pose (including optional StarLiteIdle calibration).
+      for (const clip of generatedGestures) {
+        const gesture = new RebasedBuiltinGesture(clip, vrm.scene, vrm.humanoid, this.#neutral);
+        this.#builtinGestures.push(gesture); this.#clips.set(clip.name, gesture.clip);
       }
       this.#player = new VrmAnimationPlayer(vrm.scene, this.#clips, () => this.#restoreNeutral(), this.#baseAnimation);
       this.#renderer = new THREE.WebGLRenderer({ canvas: this.#canvas, alpha: true, antialias: true, premultipliedAlpha: true });
@@ -327,6 +336,7 @@ class Controller implements VrmController {
       this.#neutral = this.#adjustableIdle.neutralPose(this.#neutral);
       if (!this.#player?.activeName) this.#vrm?.humanoid.setNormalizedPose(this.#neutral);
     }
+    if (this.#neutral) for (const gesture of this.#builtinGestures) gesture.update(this.#neutral);
     // The player shares the derivative's owned sample arrays, so phase,
     // promises and an in-flight captured-pose transition remain intact.
     if (this.#status === "paused") this.#tick(0);
@@ -565,7 +575,7 @@ class Controller implements VrmController {
       });
       VRMUtils.deepDispose(this.#vrm.scene); this.#scene.remove(this.#vrm.scene);
     }
-    this.#clips.clear(); this.#adjustableIdle = undefined; this.#character = undefined; this.#applyEmbeddedMorphs = undefined; this.#embeddedEyeClips = new Set(); this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#bubbleAnchor = undefined; this.#poseBounds = undefined;
+    this.#clips.clear(); this.#builtinGestures.length = 0; this.#adjustableIdle = undefined; this.#character = undefined; this.#applyEmbeddedMorphs = undefined; this.#embeddedEyeClips = new Set(); this.#vrm = undefined; this.#profile = undefined; this.#portraitBounds = undefined; this.#bubbleAnchor = undefined; this.#poseBounds = undefined;
     this.#renderer?.dispose(); this.#renderer?.forceContextLoss(); this.#renderer = undefined;
   }
 }

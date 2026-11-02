@@ -46,7 +46,7 @@ controller.setModelAdjustments({
 });
 ```
 
-This replaces current adjustments; `{}` restores originals without reloading or restarting motion. Pose correction affects only `StarLiteIdle`. Upper-arm lift: −30–45°; palm twist and wrist lift: −45–45°; elbow correction: −20–45°; hand curl: 0–1, omitted to keep authored fingers. Head/eye strength is 0–2; smoothing is 20–1000 ms. Missing mappings cannot be created by sliders.
+This replaces current adjustments; `{}` restores originals without reloading or restarting motion. Pose parameters calibrate `StarLiteIdle`; the three program gestures begin and end in the selected Idle reference pose, including calibrated arms, wrists and hands. An authored Idle can also supply that reference without itself being modified. Body/upper-arm relative motion is retained. Animated forearms and fingers align smoothly only at entry/exit and keep their authored active shapes, avoiding excessive elbow bending or doubled finger curl. Model-authored and external motions remain unchanged. Upper-arm lift: −30–45°; palm twist and wrist lift: −45–45°; elbow correction: −20–45°; hand curl: 0–1, omitted to keep authored fingers. Head/eye strength is 0–2; smoothing is 20–1000 ms. Missing mappings cannot be created by sliders.
 
 `performance: {show: true}` or `setPerformanceVisible(true)` enables local FPS and timing diagnostics. CPU-side frame cost is not measured GPU execution or CPU utilization. Node's `@starcried/starlite-vrm/inspect` returns capabilities and logical metrics; errors expose controlled codes without private paths or external URIs.
 

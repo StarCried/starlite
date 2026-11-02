@@ -102,3 +102,88 @@ export class AdjustableIdle {
     return result;
   }
 }
+
+/** Controller-owned program gestures expressed around the selected neutral pose.
+ * Only generated built-ins enter here; source clips and authored motions stay intact.
+ */
+export class RebasedBuiltinGesture {
+  readonly clip: AnimationClip;
+  readonly #targets: {bone: VRMHumanBoneName; source: QuaternionKeyframeTrack; track: QuaternionKeyframeTrack; boundaryOnly: boolean}[] = [];
+  constructor(source: AnimationClip, root: Object3D, humanoid: Pick<VRMHumanoid, "getNormalizedBoneNode">, pose: VRMPose) {
+    const bones = new Map<Object3D, VRMHumanBoneName>();
+    for (const [name, value] of Object.entries(pose)) {
+      if (!value?.rotation) continue;
+      const bone = name as VRMHumanBoneName, node = humanoid.getNormalizedBoneNode(bone);
+      if (node) bones.set(node, bone);
+    }
+    const tracks = source.tracks.map(track => {
+      const parsed = PropertyBinding.parseTrackName(track.name);
+      const node = PropertyBinding.findNode(root, parsed.nodeName) as Object3D | null;
+      const bone = node ? bones.get(node) : undefined;
+      if (!bone || parsed.propertyName !== "quaternion" || track.getValueSize() !== 4 || track.ValueTypeName !== "quaternion") return track;
+      const first = new Quaternion().fromArray(track.values, 0).normalize(), sample = new Quaternion();
+      let boundaryOnly = false;
+      if (/LowerArm|Thumb|Index|Middle|Ring|Little/.test(bone)) for (let at = 4; at < track.values.length; at += 4) {
+        if (first.angleTo(sample.fromArray(track.values, at).normalize()) > 1e-4) { boundaryOnly = true; break; }
+      }
+      const original = track as QuaternionKeyframeTrack;
+      const base = boundaryOnly ? sampleGestureBoundaries(original, source.duration) : original;
+      const copy = base.clone();
+      this.#targets.push({bone, source:base, track:copy, boundaryOnly});
+      return copy;
+    });
+    this.clip = new AnimationClip(source.name, source.duration, tracks, source.blendMode);
+    this.update(pose);
+  }
+  update(pose: VRMPose): void {
+    const correction = new Quaternion(), first = new Quaternion(), sample = new Quaternion(), boundaryCorrection = new Quaternion();
+    const ramp = Math.min(.4, this.clip.duration / 2);
+    for (const {bone, source, track, boundaryOnly} of this.#targets) {
+      track.values.set(source.values);
+      const target = pose[bone]?.rotation;
+      if (!target) continue;
+      correction.fromArray(target).normalize().multiply(first.fromArray(source.values, 0).normalize().invert());
+      for (let at = 0; at < source.values.length; at += 4) {
+        // q(t) = targetIdle * inverse(originalFirst) * originalSample(t).
+        // Rebuild from immutable source each time, retaining local motion and
+        // mixer-owned sample arrays rather than accumulating calibration.
+        let offset = correction;
+        if (boundaryOnly && ramp > 0) {
+          // Full offsets can overfold an authored elbow or double a fist's
+          // curl. Match rest at the boundaries, retaining active elbow/finger
+          // shapes. Static tracks continue to follow the adjusted rest.
+          const time = source.times[at / 4]!;
+          const t = MathUtils.clamp(Math.min(time, this.clip.duration - time) / ramp, 0, 1);
+          const weight = 1 - t * t * (3 - 2 * t);
+          if (weight === 0) continue;
+          offset = boundaryCorrection.identity().slerp(correction, weight);
+        }
+        sample.fromArray(source.values, at).premultiply(offset).normalize().toArray(track.values, at);
+      }
+    }
+  }
+}
+
+/** Sparse authored first/last keys would otherwise linearize the eased offset.
+ * Add at most 50 samples per affected track, only in the bounded two ramps.
+ */
+function sampleGestureBoundaries(source: QuaternionKeyframeTrack, duration: number): QuaternionKeyframeTrack {
+  const ramp = Math.min(.4, duration / 2);
+  if (ramp <= 0) return source;
+  const times = new Set<number>(source.times);
+  const steps = Math.ceil(ramp * 60);
+  for (let step = 0; step <= steps; step++) {
+    const time = Math.min(ramp, step / 60);
+    times.add(Math.fround(time)); times.add(Math.fround(duration-time));
+  }
+  const base = source.clone(); base.times = new Float32Array([...times].sort((a,b)=>a-b));
+  base.values = new Float32Array(base.times.length*4);
+  const interpolant = (source as QuaternionKeyframeTrack & {createInterpolant(result: Float32Array): {evaluate(time:number): ArrayLike<number>}}).createInterpolant(new Float32Array(4));
+  // Preserve every original timestamp/value exactly, including interior keys.
+  const originals = new Map(Array.from(source.times, (time,index)=>[time,index]));
+  for (let index = 0; index < base.times.length; index++) {
+    const time = base.times[index]!, original = originals.get(time);
+    base.values.set(original === undefined ? interpolant.evaluate(time) : source.values.subarray(original*4,original*4+4),index*4);
+  }
+  return base;
+}
