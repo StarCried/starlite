@@ -21,11 +21,13 @@ export class EnvironmentLight {
     if (value !== null) validateEnvironmentLighting(value);
     this.#sky.copy(this.#baseSky); this.#ground.copy(this.#baseGround);
     this.#ambientIntensity = .65; this.#keyIntensity = 2;
-    const strength = value?.strength ?? .2;
+    const strength = value?.strength ?? 1;
     if (value && strength > 0) {
       // Hex is sRGB; Three converts it to linear working space before arithmetic.
       const color = new Color(value.color), maximum = Math.max(color.r, color.g, color.b);
-      const response = 1 - (1 - strength) ** 3;
+      // Preserve the accepted 0–100% curve exactly; higher values amplify
+      // linearly rather than extrapolating the easing polynomial.
+      const response = strength <= 1 ? 1 - (1 - strength) ** 3 : strength;
       const perceived = Math.min(1, Math.max(0, encodeSrgb(luminance(color))));
       const automatic = perceived <= .5 ? .8 + .4 * perceived : 1 + .2 * (perceived - .5);
       const brightness = 1 + ((value.brightness ?? automatic) - 1) * response;
@@ -36,8 +38,10 @@ export class EnvironmentLight {
         const saturation = (maximum - Math.min(color.r, color.g, color.b)) / maximum;
         if (saturation > 0) {
           const hue = color.clone().multiplyScalar(1 / maximum);
-          // Unit-luminance chroma avoids double darkening; cap its peak at 2.
-          const mix = Math.min(.65 * response * confidence, .5 / (1 - luminance(hue)));
+          // Unit-luminance chroma avoids double darkening. The accepted
+          // peak-2 cap stays exact through 100%, rising to 3 at 200%.
+          const peak = strength <= 1 ? 2 : 1 + strength;
+          const mix = Math.min(.65 * response * confidence, (1 - 1 / peak) / (1 - luminance(hue)), .9);
           const filter = new Color(0xffffff).lerp(hue, mix);
           filter.multiplyScalar(1 / luminance(filter));
           this.#sky.multiply(filter);

@@ -85,8 +85,10 @@
 - Environment lighting is an optional RGB host hint, not the existing `ambient`
   animation setting. Keep colour acquisition in host adapters; the VRM backend
   reuses its hemisphere and white-key lights, normalizes chroma independently of
-  luminance, and bounds the overall brightness target to .8–1.1 before strength
-  blending. Null/zero restores both original light intensities and colours;
+  luminance, and bounds the brightness target to .8–1.1. Strength defaults to 1
+  and accepts 0–2; preserve the accepted 0–1 curve exactly, then amplify linearly
+  above 1 (effective overall light multiplier .6–1.2 at strength 2).
+  Null/zero restores both original light intensities and colours;
   near-black hints must not amplify colour noise. Hexo uses explicit bright/dark
   colours with one lifecycle-owned theme observer, never
   screen capture. Keep mobile, retry and PJAX cleanup paths paired.
