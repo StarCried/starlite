@@ -84,8 +84,11 @@
   changes. DSH consumes this optional core capability without resizing its window.
 - Environment lighting is an optional RGB host hint, not the existing `ambient`
   animation setting. Keep colour acquisition in host adapters; the VRM backend
-  only tints its existing hemisphere light and retains a neutral key. Hexo uses
-  explicit bright/dark colours with one lifecycle-owned theme observer, never
+  reuses its hemisphere and white-key lights, normalizes chroma independently of
+  luminance, and bounds the overall brightness target to .8–1.1 before strength
+  blending. Null/zero restores both original light intensities and colours;
+  near-black hints must not amplify colour noise. Hexo uses explicit bright/dark
+  colours with one lifecycle-owned theme observer, never
   screen capture. Keep mobile, retry and PJAX cleanup paths paired.
 - Keep official SDK source, toolchain, raw WASM, optimized WASM, LLD, and
   Binaryen versions synchronized with `tools/official-sdk/pin.json` and

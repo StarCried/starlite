@@ -627,9 +627,9 @@ it("updates environment lighting without replacing lights, resetting gestures or
  const base=hemi.color.clone(),keyColor=key.color.clone(),children=renderedScene.children.length;
  const motion=c.playAnimation("Action");advance(100);c.setEnvironmentLighting!({color:"#ff0000",strength:1});
  expect(hemi.color).toEqual(base);advance(200);expect(hemi.color.g).toBeLessThan(1);expect(key.color).toEqual(keyColor);
- c.pause();const pendingFrames=frames.size;const renders=renderCalls;c.setEnvironmentLighting!({color:"#0000ff",strength:1});
- expect(hemi.color.b).toBe(1);expect(hemi.color.r).toBeCloseTo(.45);expect(renderCalls).toBe(renders+1);expect(frames.size).toBe(pendingFrames);
- c.setEnvironmentLighting!(null);expect(hemi.color).toEqual(base);c.resume();advance(1100);await expect(motion).resolves.toBe("completed");
+ c.pause();const pendingFrames=frames.size;const renders=renderCalls;c.setEnvironmentLighting!({color:"#0000ff",strength:1,brightness:.8});
+ expect(hemi.color.b).toBeGreaterThan(hemi.color.r);expect(hemi.intensity+key.intensity).toBeCloseTo(2.65*.8);expect(renderCalls).toBe(renders+1);expect(frames.size).toBe(pendingFrames);
+ c.setEnvironmentLighting!(null);expect(hemi.color).toEqual(base);expect(hemi.intensity).toBe(.65);expect(key.intensity).toBe(2);c.resume();advance(1100);await expect(motion).resolves.toBe("completed");
  expect(document.querySelector("canvas")).toBe(canvas);expect(compileCalls).toBe(1);expect(renderedScene.children.length).toBe(children);
  c.destroy();const stopped=renderCalls;c.setEnvironmentLighting!({color:"#ffffff"});advance(1000);expect(renderCalls).toBe(stopped);
 });

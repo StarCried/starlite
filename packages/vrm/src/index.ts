@@ -219,10 +219,9 @@ class Controller implements VrmController {
       const gl = this.#renderer.getContext();
       const debug = gl.getExtension("WEBGL_debug_renderer_info");
       this.#stats.renderer = String(gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
-      this.#scene.add(this.#environmentLight.light);
-      const light = new THREE.DirectionalLight(0xffffff, 2.0);
-      // A side key exposes MToon shade bands instead of washing out both sides.
-      light.position.set(-3, 4, 2); this.#scene.add(light);
+      // Keep the existing side key and hemisphere; environment hints only
+      // adjust their colours/intensities, never the model's materials.
+      this.#scene.add(this.#environmentLight.light, this.#environmentLight.key);
       vrm.humanoid.update(); this.#portraitBounds = visibleModelBounds(vrm.scene);
       this.#poseBounds = new PoseBounds(vrm.scene);
       this.#hostMotion = new HostMotion(vrm.scene, vrm.springBoneManager);
