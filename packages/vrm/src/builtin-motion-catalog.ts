@@ -2,7 +2,7 @@
 export const BUILTIN_ANIMATIONS = [
   { name: "StarLiteIdle", durationMs: 6000 },
   { name: "StarLiteCuriousPeek", durationMs: 2100 },
-  { name: "StarLiteHappyWave", durationMs: 3600 },
+  { name: "StarLiteHappyWave", durationMs: 4600 },
   { name: "StarLiteSleepyStartle", durationMs: 5500 },
 ] as const;
 export type BuiltinAnimationName = (typeof BUILTIN_ANIMATIONS)[number]["name"];

@@ -1,13 +1,13 @@
 {
   "date": "2026-11-03",
   "sourceCandidateSha256": "f9efaedaa9aaaa7f6704001d5760928371fbeb23fd170db33c7b731f258a3cd2",
-  "scope": "Humanoid upper-body rotations and optional standard blink only. No meshes, skins, textures, custom model expressions, markers, eye bones, root translations or leg motions.",
+  "scope": "Humanoid upper-body rotations and optional standard happy/blink only. No meshes, skins, textures, custom model expressions, markers, eye bones, root translations or leg motions.",
   "authorship": {
     "CuriousPeek": "Authored by StarCried for StarLite.",
     "SleepyStartle": "Authored by StarCried for StarLite.",
-    "HappyWave": "Adapted from user-selected Warudo AGIA_Other_wave_arm_01 via Weiguang RaisedHandWave; four seamless right-arm loops with newly staged entry/exit, an outward/forward upper-arm clearance correction, and the program StarLiteIdle reference pose. Source is not claimed as original."
+    "HappyWave": "Adapted from the existing authored Weiguang RaisedHandWave / Desktop_Approval (Warudo AGIA_Other_wave_arm_01); preserves its complete 3.8-second upper-body performance and standard happy expression, with 0.4-second program-Idle entry/exit. Source is not claimed as original."
   },
-  "sourceMotionSha256": "45d4a2a2897a0938bd405456c1502c5ebe02fcb9492ec2a49ebe23bba54e4a63",
+  "sourceMotionSha256": "f0adbaa2ac42aa7c8c82aa523f2fa5faf82a3e36569efccf0ede9da119b7f9a2",
   "clips": [
     {
       "name": "StarLiteCuriousPeek",
@@ -21,17 +21,20 @@
     },
     {
       "name": "StarLiteHappyWave",
-      "duration": 3.6,
-      "bytes": 84832,
-      "sha256": "29882cc049ed5e0dc567190471d66464fdfcc3d98ee72f8b490771c482c1c0e8",
+      "duration": 4.6,
+      "bytes": 109148,
+      "sha256": "b57e8858bcf44f7b869dde7477e69093dc3a5fdb4c4bb1c0031b894dbb3612fa",
       "bodyTracks": 42,
-      "expressions": [],
+      "expressions": [
+        "happy"
+      ],
       "maximumRoundtripError": 0,
       "officialLoaderValidated": true,
       "sourceMotion": {
-        "name": "AGIA_Other_wave_arm_01",
-        "file": "RaisedHandWave.vrma",
-        "sha256": "45d4a2a2897a0938bd405456c1502c5ebe02fcb9492ec2a49ebe23bba54e4a63"
+        "file": "blog/motions/RaisedHandWave.vrma",
+        "name": "RaisedHandWave / authored Desktop_Approval",
+        "sha256": "f0adbaa2ac42aa7c8c82aa523f2fa5faf82a3e36569efccf0ede9da119b7f9a2",
+        "duration": 3.8
       },
       "baseline": {
         "name": "StarLiteIdle",
@@ -39,19 +42,9 @@
         "sampleTime": 0
       },
       "timing": {
-        "enterSeconds": 0.6,
-        "loopSeconds": 0.6,
-        "cycles": 4,
-        "exitSeconds": 0.6
-      },
-      "clearance": {
-        "bone": "rightUpperArm",
-        "normalizedParentAxes": {
-          "zDegrees": 20,
-          "xDegrees": 30
-        },
-        "order": "qZ * qX * source",
-        "envelope": "cubic smoothstep across the 0.6-second entry/exit; full correction during four wave cycles"
+        "enterSeconds": 0.4,
+        "sourceSeconds": 3.8,
+        "exitSeconds": 0.4
       }
     },
     {

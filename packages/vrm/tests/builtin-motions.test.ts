@@ -22,7 +22,7 @@ for (const entry of BUILTIN_ANIMATIONS.slice(1)) {
     for (const key of ["meshes", "skins", "images", "textures", "materials"]) expect(json[key] ?? []).toHaveLength(0);
     const expression = json.extensions.VRMC_vrm_animation.expressions;
     expect(Object.keys(expression?.custom ?? {})).toHaveLength(0);
-    expect(Object.keys(expression?.preset ?? {})).toEqual(entry.name === "StarLiteSleepyStartle" ? ["blink"] : []);
+    expect(Object.keys(expression?.preset ?? {})).toEqual(entry.name === "StarLiteSleepyStartle" ? ["blink"] : entry.name === "StarLiteHappyWave" ? ["happy"] : []);
     const forbidden = new Set(Object.entries(json.extensions.VRMC_vrm_animation.humanoid.humanBones).filter(([bone]) => /hips|leg|foot|toe|eye/i.test(bone)).map(([, binding]) => (binding as {node:number}).node));
     expect(json.animations[0].channels.every((channel: any) => !forbidden.has(channel.target.node))).toBe(true);
     expect(json.animations[0].channels.every((channel: any) => channel.target.path === "rotation" || channel.target.path === "translation")).toBe(true);
@@ -67,7 +67,7 @@ for (const entry of BUILTIN_ANIMATIONS.slice(1)) {
 
 // The packaged wave starts from the program Idle itself, before per-model pose
 // calibration. An unrelated character's rest pose changes the whole hand arc.
-it("RaisedHandWave uses the program Idle reference and retains a quiet non-waving side", async () => {
+it("authored RaisedHandWave preserves its complete gesture and smile between program-Idle boundaries", async () => {
   const loader = new GLTFLoader(); loader.register(parser => new VRMAnimationLoaderPlugin(parser));
   const read = async (name:string) => (await loader.parseAsync(await builtinMotionBytes(name), "")).userData.vrmAnimations[0];
   const idle = await read("StarLiteIdle"), wave = await read("StarLiteHappyWave");
@@ -76,15 +76,31 @@ it("RaisedHandWave uses the program Idle reference and retains a quiet non-wavin
     const neutral = rotation(idle.humanoidTracks.rotation.get(bone).values);
     expect(rotation(track.values).angleTo(neutral),bone).toBeLessThan(1e-5);
     expect(rotation(track.values,track.values.length-4).angleTo(neutral),bone).toBeLessThan(1e-5);
-    if (!bone.startsWith("right")) for(let at=0;at<track.values.length;at+=4) expect(rotation(track.values,at).angleTo(neutral),bone).toBeLessThan(1e-5);
   }
-  const wrist = wave.humanoidTracks.rotation.get("rightHand");
-  const sample = wrist.createInterpolant(new Float32Array(4));
-  let range=0; const first=rotation(sample.evaluate(.6));
-  for(let time=.6;time<=1.2;time+=1/60) {
-    const pose=rotation(sample.evaluate(time)); range=Math.max(range,first.angleTo(pose));
-    // Four seamless cycles preserve the selected source's wrist rhythm.
-    for(const offset of [.6,1.2,1.8]) expect(pose.angleTo(rotation(sample.evaluate(time+offset)))).toBeLessThan(1e-4);
+  // The selected edited clip has secondary motion on its left side too; the
+  // raw 0.6-second loop/right-arm-only reconstruction is not this animation.
+  for(const bone of ["rightHand","leftHand"]) {
+    const sample = wave.humanoidTracks.rotation.get(bone).createInterpolant(new Float32Array(4));
+    let range=0; const first=rotation(sample.evaluate(.4));
+    for(let time=.4;time<=4.2;time+=1/60) range=Math.max(range,first.angleTo(rotation(sample.evaluate(time))));
+    expect(range).toBeGreaterThan(bone==="rightHand"?.3:.05);
   }
-  expect(range).toBeGreaterThan(.3);
+  const smile=wave.expressionTracks.preset.get("happy").createInterpolant(new Float32Array(1));
+  for(const [time,weight]of [[0,0],[.4,0],[.7,.5],[1.2,.82],[2.2,.75],[3,.82],[3.5,.4],[3.9,0],[4.6,0]]) expect(smile.evaluate(time)[0]).toBeCloseTo(weight,5);
+});
+
+for(const version of ["0","1"]) it(`RaisedHandWave drives the model's standard happy expression on VRM${version}`,async()=>{
+  const original=model(version),json=parseGlb(Uint8Array.from(original).buffer,"vrm");
+  if(version==="0") json.extensions.VRM.blendShapeMaster.blendShapeGroups.push({name:"Joy",presetName:"joy",binds:[{mesh:0,index:0,weight:100}]});
+  else json.extensions.VRMC_vrm.expressions.preset.happy={morphTargetBinds:[{node:0,index:0,weight:1}]};
+  const loader=new GLTFLoader().register(parser=>new VRMLoaderPlugin(parser));
+  const {userData:{vrm}}=await loader.parseAsync(Uint8Array.from(glb(json,original.subarray(28+original.readUInt32LE(12)))).buffer,"");
+  const motionLoader=new GLTFLoader().register(parser=>new VRMAnimationLoaderPlugin(parser));
+  const {userData:{vrmAnimations}}=await motionLoader.parseAsync(await builtinMotionBytes("StarLiteHappyWave"),"");
+  const mixer=new AnimationMixer(vrm.scene);mixer.clipAction(createVRMAnimationClip(vrmAnimations[0],vrm)).play();
+  mixer.update(1.2);vrm.expressionManager.update();
+  expect(vrm.expressionManager.getValue("happy")).toBeCloseTo(.82,5);
+  mixer.update(2.7);vrm.expressionManager.update();
+  expect(vrm.expressionManager.getValue("happy")).toBeCloseTo(0,5);
+  mixer.stopAllAction();mixer.uncacheRoot(vrm.scene);VRMUtils.deepDispose(vrm.scene);
 });
