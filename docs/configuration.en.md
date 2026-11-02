@@ -212,7 +212,7 @@ starlite:
     darkBrightness: 0.9   # Optional dark-mode lighting gain, 0.8–1.1
 ```
 
-Only the existing ambient fill is tinted; the key light stays white. Brightness adjusts both existing lights' intensities, blended by `strength`: a gain of `1` keeps their original intensity, lower values dim and higher values brighten; `strength: 0` restores the original lighting. This is a lighting-energy hint, not a guarantee of screen-pixel brightness or exposure. Materials may respond differently across models. Theme changes blend smoothly without reloading the model or restarting animation.
+Only the existing ambient fill is tinted; the key light stays white. Brightness adjusts both existing lights' intensities, blended by `strength`: a gain of `1` applies no additional overall brightness scaling, lower values dim and higher values brighten. Colour adaptation can still rebalance the neutral key and coloured fill. `strength: 0` restores the original lighting. This is a lighting-energy hint, not a guarantee of screen-pixel brightness or exposure. Materials may respond differently across models. Theme changes blend smoothly without reloading the model or restarting animation.
 
 When a mode's brightness is omitted, the runtime derives a bounded automatic gain from that mode's colour. It never inherits the other mode's explicit gain. For example, setting only `darkBrightness` keeps automatic brightness in light mode. Omitting `darkColor` reuses `color` in dark mode while still allowing a separate `darkBrightness`. Remove the corresponding brightness field to restore that mode's automatic calculation.
 
