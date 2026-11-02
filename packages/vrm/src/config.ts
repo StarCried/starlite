@@ -1,4 +1,5 @@
-import { resolveDialogueSentences, validatePerformanceConfig, validateLocale } from "@starcried/starlite-core";
+export { validateEnvironmentLighting } from "@starcried/starlite-core";
+import { validateEnvironmentLighting, resolveDialogueSentences, validatePerformanceConfig, validateLocale } from "@starcried/starlite-core";
 import { BUILTIN_ANIMATIONS, isBuiltinAnimation } from "./builtin-motion-catalog.js";
 export { BUILTIN_ANIMATIONS, isBuiltinAnimation } from "./builtin-motion-catalog.js";
 import type { CharacterProfile, ModelAdjustments, VrmWidgetConfig } from "./types.js";
@@ -28,6 +29,7 @@ export function validateVrmWidgetConfig(config: VrmWidgetConfig): void {
   validateLocale(config.locale);
   if (config.adjustments !== undefined) validateModelAdjustments(config.adjustments);
   validatePerformanceConfig(config.performance);
+  if (config.environmentLighting !== undefined) validateEnvironmentLighting(config.environmentLighting);
   if (config.interactions?.passThrough !== undefined && typeof config.interactions.passThrough !== "boolean") throw new Error("interactions.passThrough must be boolean");
   if (config.interactions?.passThrough && config.interactions.drag) throw new Error("passThrough and drag cannot both be enabled");
   for (const key of ["model", "fallback"] as const) if (typeof config[key] !== "string" || !config[key].trim()) throw new Error(`${key} is required`);

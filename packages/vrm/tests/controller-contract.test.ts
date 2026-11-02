@@ -11,6 +11,7 @@ import { mountWithDependencies } from "../../inochi2d/src/controller.js";
 import type { ModelController, DialogueContext } from "@starcried/starlite-core";
 vi.mock("../src/builtin-motions.js",()=>({builtinMotionBytes:async()=>new Uint8Array([1]).buffer}));
 let scene: THREE.Scene;
+let renderedScene: THREE.Scene;
 let rejectTexture = false;
 let materialDeltas: number[] = [];
 let throwMaterial = false;
@@ -24,7 +25,7 @@ let calibrationIdle = false;
 let elevatedEntry = false;
 vi.mock("three", async (original) => ({...await original<typeof import("three")>(), WebGLRenderer: class {
  info={render:{calls:1,triangles:12},memory:{geometries:1,textures:0}};
- setClearColor(){} setPixelRatio(){} setSize(){} render(){renderCalls++} dispose(){} forceContextLoss(){}
+ setClearColor(){} setPixelRatio(){} setSize(){} render(value:THREE.Scene){renderedScene=value;renderCalls++} dispose(){} forceContextLoss(){}
  async compileAsync(){compileCalls++;await compileGate}
  getContext(){return {getExtension:()=>null,getParameter:()=>"test WebGL2",RENDERER:0}}
 }}));
@@ -617,4 +618,18 @@ it('plays each built-in gesture on an action-free import without fetching files 
   expect(c.diagnostics().activeAnimation).toBe('StarLiteIdle');
  }
  expect(fetched).toHaveBeenCalledOnce();
+});
+
+it("updates environment lighting without replacing lights, resetting gestures or waking paused frames",async()=>{
+ const c=await mount("vrm"),canvas=document.querySelector("canvas");
+ const hemi=renderedScene.children.find(o=>o instanceof THREE.HemisphereLight) as THREE.HemisphereLight;
+ const key=renderedScene.children.find(o=>o instanceof THREE.DirectionalLight) as THREE.DirectionalLight;
+ const base=hemi.color.clone(),keyColor=key.color.clone(),children=renderedScene.children.length;
+ const motion=c.playAnimation("Action");advance(100);c.setEnvironmentLighting!({color:"#ff0000",strength:1});
+ expect(hemi.color).toEqual(base);advance(200);expect(hemi.color.g).toBeLessThan(1);expect(key.color).toEqual(keyColor);
+ c.pause();const pendingFrames=frames.size;const renders=renderCalls;c.setEnvironmentLighting!({color:"#0000ff",strength:1});
+ expect(hemi.color.b).toBe(1);expect(hemi.color.r).toBeCloseTo(.45);expect(renderCalls).toBe(renders+1);expect(frames.size).toBe(pendingFrames);
+ c.setEnvironmentLighting!(null);expect(hemi.color).toEqual(base);c.resume();advance(1100);await expect(motion).resolves.toBe("completed");
+ expect(document.querySelector("canvas")).toBe(canvas);expect(compileCalls).toBe(1);expect(renderedScene.children.length).toBe(children);
+ c.destroy();const stopped=renderCalls;c.setEnvironmentLighting!({color:"#ffffff"});advance(1000);expect(renderCalls).toBe(stopped);
 });

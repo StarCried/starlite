@@ -1,4 +1,4 @@
-import type { StarLiteLocale, DialogueSceneConfig, ModelController, PerformanceConfig } from "@starcried/starlite-core";
+import type { EnvironmentLighting, StarLiteLocale, DialogueSceneConfig, ModelController, PerformanceConfig } from "@starcried/starlite-core";
 export type { ModelController, AnimationPlaybackResult, AnimationPlaybackOptions } from "@starcried/starlite-core";
 export interface VrmAnimationSource { name: string; url: string; durationMs?: number }
 export interface BonePose { rotation: [number, number, number, number]; position?: [number, number, number] }
@@ -31,6 +31,7 @@ export interface VrmWidgetConfig {
   backend?: "vrm";
   adjustments?: ModelAdjustments;
   performance?: PerformanceConfig;
+  environmentLighting?: EnvironmentLighting;
   model: string;
   fallback: string;
   animations?: readonly VrmAnimationSource[];

@@ -1,6 +1,6 @@
 export { resolveLocale, type StarLiteLocale } from "@starcried/starlite-core";
 import * as THREE from "three";
-import { PerformanceOverlay, FrameSamples } from "@starcried/starlite-core";
+import { type EnvironmentLighting, PerformanceOverlay, FrameSamples } from "@starcried/starlite-core";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMPose } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip, type VRMAnimation } from "@pixiv/three-vrm-animation";
@@ -17,6 +17,7 @@ import { prepareEmbeddedAnimations } from "./embedded.js";
 import { builtinMotionBytes } from "./builtin-motions.js";
 import { BUILTIN_ANIMATIONS } from "./builtin-motion-catalog.js";
 export { BUILTIN_ANIMATIONS } from "./builtin-motion-catalog.js";
+import { EnvironmentLight } from "./environment-lighting.js";
 import { AdjustableIdle } from "./adjustments.js";
 import type { CharacterProfile, ModelAdjustments, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
@@ -41,6 +42,7 @@ class Controller implements VrmController {
   readonly #clips = new Map<string, THREE.AnimationClip>();
   readonly #listeners: (() => void)[] = [];
   readonly #scene = new THREE.Scene();
+  readonly #environmentLight = new EnvironmentLight();
   readonly #camera = new THREE.PerspectiveCamera(30, 1, .01, 100);
   readonly #baseCamera = new THREE.PerspectiveCamera(30, 1, .01, 100);
   readonly #gaze: PointerGaze;
@@ -91,6 +93,7 @@ class Controller implements VrmController {
     this.#host = host; this.#config = config; this.#gaze = new PointerGaze(config.gaze);
     this.#adjustments = { ...(config.adjustments?.idle ? { idle: { ...config.adjustments.idle } } : {}), ...(config.adjustments?.gaze ? { gaze: { ...config.adjustments.gaze } } : {}) };
     this.#gaze.setAdjustments(this.#adjustments.gaze);
+    this.#environmentLight.set(config.environmentLighting ?? null, true);
     this.#frameRate = config.render?.fps ?? 30; this.#pointerEnabled = config.interactions?.pointer ?? true;
     this.#viewport = new ExpandedViewport(config.render?.viewportPadding);
     this.#bubble = new DialogueBubble(host, () => this.getBubbleAnchor());
@@ -216,7 +219,7 @@ class Controller implements VrmController {
       const gl = this.#renderer.getContext();
       const debug = gl.getExtension("WEBGL_debug_renderer_info");
       this.#stats.renderer = String(gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
-      this.#scene.add(new THREE.HemisphereLight(0xffffff, 0xb6c6d5, .65));
+      this.#scene.add(this.#environmentLight.light);
       const light = new THREE.DirectionalLight(0xffffff, 2.0);
       // A side key exposes MToon shade bands instead of washing out both sides.
       light.position.set(-3, 4, 2); this.#scene.add(light);
@@ -329,6 +332,11 @@ class Controller implements VrmController {
     // promises and an in-flight captured-pose transition remain intact.
     if (this.#status === "paused") this.#tick(0);
   }
+  setEnvironmentLighting(lighting: EnvironmentLighting | null): void {
+    if (this.#status === "destroyed" || this.#status === "disabled" || this.#status === "fallback") return;
+    this.#environmentLight.set(lighting, this.#status === "loading" || this.#status === "paused");
+    if (this.#status === "paused" && this.#renderer) this.#renderer.render(this.#scene, this.#camera);
+  }
   setBubblesVisible(visible: boolean): void {
     if (typeof visible !== "boolean") throw new Error("bubble visibility must be boolean");
     if (this.#status === "destroyed" || this.#status === "disabled") return;
@@ -431,6 +439,7 @@ class Controller implements VrmController {
     const vrm = this.#vrm, renderer = this.#renderer;
     if (!vrm || !renderer) return;
     const started = performance.now(); this.#elapsed += delta;
+    this.#environmentLight.update(delta);
     this.#gaze.restoreHead();
     // The preceding frame can predate the trigger, especially after shader
     // compilation. Only the time since this clip started belongs to its first sample.

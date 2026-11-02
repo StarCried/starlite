@@ -64,3 +64,7 @@ Node 侧 `@starcried/starlite-vrm/inspect` 返回 `capabilities` 与逻辑 `metr
 配置 CSP 的网站须为模型内嵌贴图允许适用的 `img-src blob:` 和 `connect-src blob:`。独立网页若要在手机上避免加载运行时，须在检查屏宽后动态导入；上例的静态导入会下载 JS。
 
 BSD-2-Clause；模型和动作由使用者按各自许可提供，微光适配为可选配置。
+
+### 环境补光
+
+可选 `environmentLighting: { color: "#b7cfff", strength: 0.2 }` 给现有环境光加入柔和色偏；颜色使用六位 RGB，强度范围为 0–1，默认 0.2。不配置时保持原灯光。白色主光不变，补光有亮度下限。运行中调用 `controller.setEnvironmentLighting(...)` 平滑改变颜色，传 `null` 恢复原灯光；暂停时只重绘静止画面，不推进动作。运行时不读取屏幕，颜色来源由宿主提供。

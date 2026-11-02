@@ -55,3 +55,7 @@ This replaces current adjustments; `{}` restores originals without reloading or 
 Allow appropriate `img-src blob:` and `connect-src blob:` for embedded textures in CSP. To avoid downloading JavaScript on mobile, gate a dynamic import before loading runtime; the static import above does not do that.
 
 Program code: BSD-2-Clause. Models and motion sources retain their own licenses.
+
+### Environment fill light
+
+Optional `environmentLighting: { color: "#b7cfff", strength: 0.2 }` softly tints the existing ambient light. Use six-digit RGB and strength 0–1 (default 0.2). Omit it to retain the original lighting. The white key light is unchanged and ambient brightness has a floor. `controller.setEnvironmentLighting(...)` smoothly updates the hint; `null` restores the original light. While paused, a change redraws the still pose without advancing animation. The runtime never captures the screen; the host supplies the colour.
