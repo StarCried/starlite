@@ -17,8 +17,10 @@ npm run start --workspace @starcried/starlite-vrm-example -- --model /path/to/av
 手部张合需勾选“手动设置”，否则保留原动作。没有眼球或手指映射时显示不可用。
 “掌心朝向”对称调整内外扭转；“手腕抬高”只折动手掌，可与抬臂、掌心朝向组合。
 
-姿态参数仅修改系统默认 `StarLiteIdle`，保留其呼吸。动作下拉框可检查模型自带
-动作，确认这些动作保持原样。切回“系统默认 Idle”后继续调整。
+姿态参数校准系统默认 `StarLiteIdle`，保留其呼吸。三个通用动作
+`StarLiteCuriousPeek`、`StarLiteHappyWave`、`StarLiteSleepyStartle` 也会从调后的
+基础站姿起止。动作下拉框可检查这些衔接，以及保持原样的模型自带／外部动作。
+切回“系统默认 Idle”后继续调整。
 跟随仅在 Idle 生效，其他动作保留作者的头眼方向。
 
 可添加第二个模型对照，或指定本地端口：

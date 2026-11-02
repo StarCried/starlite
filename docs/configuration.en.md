@@ -50,7 +50,7 @@ Every standard humanoid VRM can use these reserved names:
 
 The three gestures are available for optional mappings; importing a model does not automatically assign all events. They contain retargetable humanoid motion, no BlueFish artwork or question/sweat decorations. Preserve their source notices; the wave includes adapted motion with separate provenance. Retargeting cannot guarantee perfect hands or silhouette on every body proportion.
 
-An authored `Idle` takes precedence over the built-in baseline. To force the program baseline, use `neutralAnimation: StarLiteIdle` and `ambient: {animations: [StarLiteIdle]}`. `ambient: {animations: []}` stops the baseline loop. Pose adjustment below changes only `StarLiteIdle`, never other gestures or imported clips.
+An authored `Idle` takes precedence over the built-in baseline. To force the program baseline, use `neutralAnimation: StarLiteIdle` and `ambient: {animations: [StarLiteIdle]}`. `ambient: {animations: []}` stops the baseline loop. Pose parameters calibrate `StarLiteIdle` while preserving its breathing. The three program gestures (`StarLiteCuriousPeek`, `StarLiteHappyWave`, and `StarLiteSleepyStartle`) start and end from the selected Idle reference pose, including an adjusted `StarLiteIdle`. Authored and imported clips keep their original poses.
 
 Embedded glTF motions are discovered automatically. External VRMA can be configured:
 

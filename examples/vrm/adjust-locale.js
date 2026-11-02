@@ -11,7 +11,7 @@ const english = {
   "让站姿更适合你的角色": "Make the stance fit your character",
   "姿态与跟随": "Pose and following",
   "全部还原": "Reset all",
-  "姿态调节只作用于系统默认 Idle，保留呼吸；检查其他动作时不会套用这些修正。": "Pose adjustments affect built-in Idle only and keep its breathing. Other motions play without these corrections.",
+  "姿态调节保留 Idle 呼吸，三个通用动作也会接回调后的站姿。模型自带和外部动作保持原样。": "Pose adjustments keep Idle breathing. The three program gestures return to the adjusted stance. Authored and imported motions keep their original poses.",
   "基础调节": "Basic adjustments",
   "更多调节": "More adjustments",
   "用于 Hexo": "Use in Hexo",

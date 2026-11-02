@@ -146,7 +146,7 @@ starlite:
       smoothingMs: 150
 ```
 
-所有字段均可省略；删除某项即恢复该项原表现，删除 `adjustments` 或设置 `adjustments: {}` 恢复全部原表现。无需重新制作、转换或覆盖 VRM。姿态修正**仅作用于程序内置的 `StarLiteIdle`**，保留原有呼吸；模型自带的 `Idle`、挥手、坐下等动作保持原样。需要明确选用程序 Idle 时，可设置 `neutralAnimation: StarLiteIdle` 和 `ambient: {animations: [StarLiteIdle]}`。
+所有字段均可省略；删除某项即恢复该项原表现，删除 `adjustments` 或设置 `adjustments: {}` 恢复全部原表现。无需重新制作、转换或覆盖 VRM。姿态参数校准程序内置的 `StarLiteIdle`，保留原有呼吸。三个程序通用动作 `StarLiteCuriousPeek`、`StarLiteHappyWave`、`StarLiteSleepyStartle` 从当前选用的基础 Idle 姿态起止；使用调后的 `StarLiteIdle` 时，也会衔接到调后的站姿。模型自带或外部导入的 Idle、挥手、坐下等动作保持原样。需要明确选用程序 Idle 时，可设置 `neutralAnimation: StarLiteIdle` 和 `ambient: {animations: [StarLiteIdle]}`。
 
 | 字段（位于 `adjustments` 下） | 含义与范围 |
 | --- | --- |
