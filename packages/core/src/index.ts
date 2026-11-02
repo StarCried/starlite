@@ -7,6 +7,8 @@ export interface AnimationPlaybackOptions { mode?: "once" | "loop"; restart?: bo
 export interface ModelAnimationInfo { name: string; durationMs: number }
 import type { ModelHitMaskListener } from "./hit-mask.js";
 import type { DialogueContext } from "./dialogue.js";
+import type { EnvironmentLighting } from "./environment-lighting.js";
+export { validateEnvironmentLighting, type EnvironmentLighting } from "./environment-lighting.js";
 import type { ModelBubbleAnchor } from "./bubble.js";
 export { RenderedHitMask, packAlphaMask, type ModelHitMask, type ModelHitMaskListener } from "./hit-mask.js";
 export interface ModelController {
@@ -37,6 +39,8 @@ export interface ModelController {
   setBubblesVisible?(visible: boolean): void;
   /** Replace bounded host dialogue without remounting or replaying entrance. */
   setDialogueContext?(context: DialogueContext | null): void;
+  /** Optional ambient-light hint. Null restores the original lighting. */
+  setEnvironmentLighting?(lighting: EnvironmentLighting | null): void;
   destroy(): void;
 }
 export interface MountOptions { signal?: AbortSignal }
