@@ -82,6 +82,11 @@
   portrait camera, in host-local CSS pixels. Do not use animated bounds, expanded
   canvas padding or device pixels: doing so moves bubbles during gestures or DPI
   changes. DSH consumes this optional core capability without resizing its window.
+- Environment lighting is an optional RGB host hint, not the existing `ambient`
+  animation setting. Keep colour acquisition in host adapters; the VRM backend
+  only tints its existing hemisphere light and retains a neutral key. Hexo uses
+  explicit bright/dark colours with one lifecycle-owned theme observer, never
+  screen capture. Keep mobile, retry and PJAX cleanup paths paired.
 - Keep official SDK source, toolchain, raw WASM, optimized WASM, LLD, and
   Binaryen versions synchronized with `tools/official-sdk/pin.json` and
   `docs/upstream.md`.

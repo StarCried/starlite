@@ -2,7 +2,7 @@ import { readLocale } from "./locale";
 const { isBuiltinAnimation } = require("@starcried/starlite-vrm/config") as typeof import("@starcried/starlite-vrm/config", {with:{"resolution-mode":"import"}});
 import type { WidgetConfig } from "@starcried/starlite-inochi2d" with { "resolution-mode": "import" };
 
-import type { BrowserWidgetConfig, HexoLike, HexoWidgetConfig, ModelAssetBundle } from "./types";
+import type { BrowserWidgetConfig, HexoEnvironmentLighting, HexoLike, HexoWidgetConfig, ModelAssetBundle } from "./types";
 
 const { validateInochi2DWidgetConfig } = require("@starcried/starlite-inochi2d/config") as {
   validateInochi2DWidgetConfig(config: WidgetConfig): void;
@@ -10,6 +10,7 @@ const { validateInochi2DWidgetConfig } = require("@starcried/starlite-inochi2d/c
 
 export interface EnabledConfig {
   widget: BrowserWidgetConfig;
+  environmentLighting?: HexoEnvironmentLighting;
   breakpoint: number;
   showOnMobile: boolean;
   position: { right: number; bottom: number; zIndex: number };
@@ -25,6 +26,8 @@ export function readEnabledConfig(
   }
 
   if (input.backend !== undefined && input.backend !== "inochi2d" && input.backend !== "vrm") throw new Error("unknown model backend");
+  const environmentLighting = readEnvironmentLighting(input.environmentLighting);
+  if (environmentLighting && input.backend !== "vrm") throw new Error("starlite.environmentLighting requires the VRM backend");
   const position = {
     right: input.position?.right ?? 16,
     bottom: input.position?.bottom ?? 0,
@@ -64,6 +67,7 @@ export function readEnabledConfig(
       ...(input.gaze ? {gaze:input.gaze} : {}),
       ...(input.adjustments !== undefined ? {adjustments:input.adjustments} : {}),
       ...(input.camera ? {camera:input.camera} : {}),
+      ...(environmentLighting ? {environmentLighting:{color:environmentLighting.color,...(environmentLighting.strength !== undefined ? {strength:environmentLighting.strength} : {})}} : {}),
       ...(input.performance !== undefined ? {performance:input.performance} : {}),
       render:{fps:30,maxDevicePixelRatio:1.5,autoFit:true,...input.render},
       ...(input.network ? {network:input.network} : {}),
@@ -71,7 +75,7 @@ export function readEnabledConfig(
       interactions:{...input.interactions,passThrough:input.interactions?.passThrough ?? !input.interactions?.drag,click:input.interactions?.click ?? false},
     };
     (require("@starcried/starlite-vrm/config") as typeof import("@starcried/starlite-vrm/config", {with:{"resolution-mode":"import"}})).validateVrmWidgetConfig(widget);
-    return {widget,breakpoint,showOnMobile,position};
+    return {widget,breakpoint,showOnMobile,position,...(environmentLighting ? {environmentLighting} : {})};
   }
   const widget = toWidgetConfig(
     input as Extract<HexoWidgetConfig, {backend?: "inochi2d"}>,
@@ -217,4 +221,16 @@ export function normalizeRoot(root: string | undefined): string {
 
 function nonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function readEnvironmentLighting(input: unknown): HexoEnvironmentLighting | undefined {
+  if (input === undefined) return undefined;
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("starlite.environmentLighting must be an object");
+  const value = input as Record<string, unknown>;
+  if (Object.keys(value).some(key => !["color", "darkColor", "strength"].includes(key))) throw new Error("unknown starlite.environmentLighting option");
+  const validateEnvironmentLighting: (input: unknown) => asserts input is {color: string; strength?: number} = require("@starcried/starlite-vrm/config").validateEnvironmentLighting;
+  const lighting = {color:value.color, ...(value.strength !== undefined ? {strength:value.strength} : {})};
+  validateEnvironmentLighting(lighting);
+  if (value.darkColor !== undefined) validateEnvironmentLighting({color:value.darkColor});
+  return {color:lighting.color, ...(value.darkColor !== undefined ? {darkColor:value.darkColor as string} : {}), ...(lighting.strength !== undefined ? {strength:lighting.strength} : {})};
 }

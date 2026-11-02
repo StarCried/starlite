@@ -197,3 +197,19 @@ Omit a field to preserve its original behavior. `{}` resets adjustments. Missing
 Loading or failure hides the character and preserves blog interaction. Browser retries are bounded to 2/5/15 seconds; successful loading restores it. Mobile, offline, and visibility guards remain active. See [network and recovery details](release-guide.en.md#downloads-cache-and-recovery).
 
 Right-click menus store visitor display preferences locally, independently of site configuration. Menu position remains fixed while resizing. **Reset position** restores configured blog offsets; **Show bubbles** changes text visibility only. Shift + right-click preserves the browser menu.
+
+## Environment fill colours
+
+VRM supports explicit light/dark theme fill colours in `_config.yml`. Omit the option to keep the original lighting. No page or screen pixels are captured.
+
+```yaml
+starlite:
+  environmentLighting:
+    color: "#ffe6cc"      # Light mode; quote six-digit RGB in YAML
+    darkColor: "#adc6ff"  # Optional; omit to use color in both modes
+    strength: 0.2         # 0–1; default 0.2; 0 retains original lighting
+```
+
+Only the existing ambient fill is tinted; the white key light remains unchanged and saturation/darkening are bounded. Theme changes blend smoothly without reloading the model or restarting animation. Materials may respond differently across models.
+
+Theme detection checks `html`, then `body`, for `data-theme`, `data-color-mode`, `data-user-color-scheme` (`dark` / `light`), and the classes `dark` / `light` or `dark-mode` / `light-mode`. With no explicit theme, it follows the system `prefers-color-scheme`. For other theme conventions, have the theme switch also set `document.documentElement.dataset.theme = "dark"` or `"light"`. A single `color` does not install theme listeners. This option is VRM-only.

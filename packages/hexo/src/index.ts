@@ -162,6 +162,7 @@ export function registerHexoWidget(instance: HexoLike): void {
       showOnMobile: currentConfig.showOnMobile,
       position: currentConfig.position,
       pageRoot: root,
+      ...(currentConfig.environmentLighting ? {environmentLighting:currentConfig.environmentLighting} : {}),
     });
 
     return [

@@ -623,3 +623,19 @@ controller.setParameter("Head:: Yaw-Pitch", [0.2, -0.1]);
 controller.resetCamera();
 controller.destroy();
 ```
+
+## 环境补光颜色
+
+VRM 可在 `_config.yml` 配置亮色与暗色模式的补光。省略整个选项时保持原灯光，不读取页面或屏幕像素。
+
+```yaml
+starlite:
+  environmentLighting:
+    color: "#ffe6cc"      # 亮色模式；六位 RGB，YAML 中必须加引号
+    darkColor: "#adc6ff"  # 可选；省略时两种模式都用 color
+    strength: 0.2         # 0–1，默认 0.2；0 保留原灯光
+```
+
+颜色只影响现有环境补光，保留白色主光，并限制过饱和与过暗效果。切换主题时平滑变化，不重新加载模型，也不改变当前动作。不同模型材质的响应可能不同。
+
+主题识别依次检查 `html`、`body` 的 `data-theme`、`data-color-mode`、`data-user-color-scheme`（值为 `dark` / `light`），以及 `dark` / `light`、`dark-mode` / `light-mode` 类；未明确指定时跟随系统 `prefers-color-scheme`。使用其他主题约定时，可让主题切换器同时设置 `document.documentElement.dataset.theme = "dark"` 或 `"light"`。仅配置 `color` 不监听主题变化。此选项仅适用于 VRM。

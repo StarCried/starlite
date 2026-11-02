@@ -1,9 +1,11 @@
-import type { BrowserWidgetConfig } from "./types";
+import { createEnvironmentLighting } from "./environment-lighting-browser";
+import type { HexoEnvironmentLighting, BrowserWidgetConfig } from "./types";
 import { installVisitorMenu } from "./visitor-menu";
 import { readPageDialogue } from "./page-dialogue-browser";
 
 interface BootstrapOptions {
   entryUrl: string;
+  environmentLighting?: HexoEnvironmentLighting;
   config: BrowserWidgetConfig;
   breakpoint: number;
   showOnMobile: boolean;
@@ -16,6 +18,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   const serialized = safeJson(options);
   return `
 (async (options) => {
+  const createEnvironmentLighting = ${createEnvironmentLighting.toString()};
   const installQuickSettings = ${installVisitorMenu.toString()};
   const readPageDialogue = ${readPageDialogue.toString()};
   const mobileQuery = \`(max-width: \${Math.max(0, options.breakpoint - 1)}px)\`;
@@ -96,6 +99,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       state.observer?.disconnect();
       state.observer = undefined;
       state.abort?.abort();
+      state.environmentLighting?.destroy(); state.environmentLighting = undefined;
       state.controller?.destroy();
       state.quickSettings?.destroy();
       state.quickSettings = undefined;
@@ -135,6 +139,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     state.abort?.abort();
     const abort = new AbortController();
     state.abort = abort;
+    state.environmentLighting?.destroy(); state.environmentLighting = undefined;
     state.controller?.destroy();
     state.quickSettings?.destroy();
     state.quickSettings = undefined;
@@ -148,6 +153,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       state.observer = undefined;
       unavailable(host);
       abort.abort();
+      state.environmentLighting?.destroy(); state.environmentLighting = undefined;
       state.controller?.destroy();
       state.quickSettings?.destroy();
       state.quickSettings = undefined;
@@ -174,10 +180,11 @@ export function createBootstrapSource(options: BootstrapOptions): string {
       .then(async (runtime) => {
         abort.signal.throwIfAborted();
         state.runtime = runtime;
+        const environmentLighting = options.environmentLighting ? createEnvironmentLighting(options.environmentLighting, globalThis) : undefined;
         const config = hasEntered()
           ? {...options.config, dialogue:{...options.config.dialogue, enter:false}}
           : options.config;
-        const controller = await runtime.mountModelWidget(host, config, {signal:abort.signal});
+        const controller = await runtime.mountModelWidget(host, environmentLighting ? {...config, environmentLighting:environmentLighting.current()} : config, {signal:abort.signal});
         // A load can finish between fragment replacement and pjax:complete.
         if (state.generation === generation && state.host === host &&
             (options.showOnMobile || !media.matches) && !host.isConnected) document.body.append(host);
@@ -196,6 +203,8 @@ export function createBootstrapSource(options: BootstrapOptions): string {
           host.style.removeProperty("visibility");
           host.style.removeProperty("pointer-events");
           if (options.config.interactions?.passThrough) host.style.pointerEvents = "none";
+          state.environmentLighting = environmentLighting;
+          environmentLighting?.attach(controller);
           syncPageDialogue();
           installQuickSettings(runtime, state, options);
           rememberEntry();

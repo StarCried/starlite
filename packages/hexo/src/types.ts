@@ -7,9 +7,12 @@ import type { VrmWidgetConfig, VrmAnimationSource } from "@starcried/starlite-vr
 export type BrowserWidgetConfig = WidgetConfig | VrmWidgetConfig;
 export type HexoWidgetConfig = HexoWidgetOptions & (
   Omit<WidgetConfig, "fallback" | "model"> |
-  (Omit<VrmWidgetConfig, "fallback" | "model" | "backend"> & {backend?:"vrm"})
+  (Omit<VrmWidgetConfig, "fallback" | "model" | "backend" | "environmentLighting"> & {backend?:"vrm"})
 );
+export interface HexoEnvironmentLighting { color: string; darkColor?: string; strength?: number }
 export interface HexoWidgetOptions {
+  /** Explicit VRM fill colours; no page or screen pixels are captured. */
+  environmentLighting?: HexoEnvironmentLighting;
   enable?: boolean;
   /** Select an independently licensed example when no custom model is set. */
   preset?: "weiguang" | "bluefish";

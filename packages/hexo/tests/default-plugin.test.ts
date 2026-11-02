@@ -308,3 +308,13 @@ it("uses Hexo language for default UI, dialogue and pre-download terms without c
   expect(vi.mocked(site.hexo.log.info!).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(ensureDefaultAssets).mock.invocationCallOrder[0]!);
   expect(config).toEqual({language:"en-US",starlite:{dialogue:{click:{lines:["原文 stays unchanged"]}}}});
 });
+
+it("uses explicit bright/dark fill colours with the default example and preserves author settings",async()=>{
+ const environmentLighting={color:"#ffe6cc",darkColor:"#adc6ff",strength:.25};
+ const config={starlite:{environmentLighting}},site=blog(config);
+ await site.registrations.prepare!();site.registrations.generate!();const html=site.registrations.inject!()!;
+ expect(html).toContain('"environmentLighting":{"color":"#ffe6cc","darkColor":"#adc6ff","strength":0.25}');
+ expect(html).toContain('"environmentLighting":{"color":"#ffe6cc","strength":0.25}');
+ expect(config).toEqual({starlite:{environmentLighting}});
+ expect(site.hexo.log.warn).not.toHaveBeenCalled();
+});
