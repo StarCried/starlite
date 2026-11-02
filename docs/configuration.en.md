@@ -207,7 +207,7 @@ starlite:
   environmentLighting:
     color: "#ffe6cc"      # Light mode; quote six-digit RGB in YAML
     darkColor: "#adc6ff"  # Optional; omit to use color in both modes
-    strength: 0.2         # 0–1; default 0.2; 0 retains original lighting
+    strength: 1           # 0–2 (0%–200%); default 1 (100%); 0 retains original lighting
     brightness: 1.0       # Optional light-mode lighting gain, 0.8–1.1
     darkBrightness: 0.9   # Optional dark-mode lighting gain, 0.8–1.1
 ```
@@ -215,5 +215,7 @@ starlite:
 Only the existing ambient fill is tinted; the key light stays white. Brightness adjusts both existing lights' intensities, blended by `strength`: a gain of `1` applies no additional overall brightness scaling, lower values dim and higher values brighten. Colour adaptation can still rebalance the neutral key and coloured fill. `strength: 0` restores the original lighting. This is a lighting-energy hint, not a guarantee of screen-pixel brightness or exposure. Materials may respond differently across models. Theme changes blend smoothly without reloading the model or restarting animation.
 
 When a mode's brightness is omitted, the runtime derives a bounded automatic gain from that mode's colour. It never inherits the other mode's explicit gain. For example, setting only `darkBrightness` keeps automatic brightness in light mode. Omitting `darkColor` reuses `color` in dark mode while still allowing a separate `darkBrightness`. Remove the corresponding brightness field to restore that mode's automatic calculation.
+
+`strength: 1` is the standard effect; values from `1` to `2` amplify adaptation linearly. Brightness inputs remain within `0.8–1.1`: at 100% strength the overall lighting gain spans `0.8–1.1`, and at 200% it can reach `0.6–1.2` for an exaggerated effect. Explicit existing values such as `strength: 0.2` are preserved; only omitted strength defaults to 100%. Omitting the entire `environmentLighting` option still disables the feature.
 
 Theme detection checks `html`, then `body`, for `data-theme`, `data-color-mode`, `data-user-color-scheme` (`dark` / `light`), and the classes `dark` / `light` or `dark-mode` / `light-mode`. With no explicit theme, it follows the system `prefers-color-scheme`. For other theme conventions, have the theme switch also set `document.documentElement.dataset.theme = "dark"` or `"light"`. A single `color` plus optional `strength` does not install theme listeners; a separate theme colour or either mode's brightness does. This option is VRM-only.

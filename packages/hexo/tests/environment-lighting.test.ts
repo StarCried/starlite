@@ -3,6 +3,7 @@ import {Window} from "happy-dom";
 import {createBootstrapSource} from "../src/bootstrap";
 import {createEnvironmentLighting} from "../src/environment-lighting-browser";
 import {readEnabledConfig} from "../src/config";
+import {resolveDefaultPreset} from "../src/default-preset";
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 const author={color:"#ffe6cc",darkColor:"#adc6ff",strength:.4};
 function harness(lighting: typeof author | {color:string; darkColor?:string; strength?:number; brightness?:number; darkBrightness?:number} = author) {
@@ -103,6 +104,32 @@ it("forwards separate theme colours but only the selected hint to the VRM runtim
  expect(config(undefined)).not.toHaveProperty("environmentLighting");
  expect(config({color:"#000000",strength:0})!.widget).toHaveProperty("environmentLighting",{color:"#000000",strength:0});
 });
+it("accepts 0–200% strength without changing explicit values or adding a lighting default to an unconfigured model",()=>{
+ for(const strength of [0,.2,1,2]) {
+  const value={color:author.color,strength};
+  expect(config(value)).toMatchObject({environmentLighting:value,widget:{environmentLighting:value}});
+ }
+ expect(()=>config({color:author.color,strength:2.01})).toThrow("environmentLighting");
+ const light={color:author.color};
+ expect(config(light)).toMatchObject({environmentLighting:light,widget:{environmentLighting:light}});
+ expect((config(light)!.widget as any).environmentLighting).not.toHaveProperty("strength");
+ const defaults=resolveDefaultPreset(undefined,"/avatar.vrm");
+ expect(defaults).not.toHaveProperty("environmentLighting");
+ const selected=resolveDefaultPreset({environmentLighting:light},"/avatar.vrm");
+ expect(selected).toHaveProperty("environmentLighting",light);
+ expect(light).toEqual({color:author.color});
+});
+it("leaves omitted strength for the runtime's 100% default and preserves authored 20% across themes",async()=>{
+ const h=harness({color:author.color,darkColor:author.darkColor});await h.run();
+ expect(h.mount.mock.calls[0]![1].environmentLighting).toEqual({color:author.color});
+ h.win.document.documentElement.dataset.theme="dark";await tick();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.darkColor});
+ (h.win as any).__hexoStarLiteWidgetState.environmentLighting.destroy();await h.win.happyDOM.close();
+ const explicit=harness({color:author.color,darkColor:author.darkColor,strength:.2});await explicit.run();
+ explicit.win.document.documentElement.dataset.theme="dark";await tick();
+ expect(explicit.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.darkColor,strength:.2});
+ (explicit.win as any).__hexoStarLiteWidgetState.environmentLighting.destroy();await explicit.win.happyDOM.close();
+});
 it("forwards only light-mode brightness in base runtime config, retaining both modes for bootstrap",()=>{
  const input={...author,brightness:1.1,darkBrightness:.8};
  expect(config(input)).toMatchObject({environmentLighting:input,widget:{environmentLighting:{color:author.color,strength:.4,brightness:1.1}}});
@@ -115,5 +142,5 @@ it.each(["brightness","darkBrightness"] as const)("rejects invalid %s and accept
  for(const value of [null,"1",NaN,Infinity,-Infinity,.7999,1.1001,false]) expect(()=>config({color:author.color,[key]:value})).toThrow("environmentLighting");
  for(const value of [.8,1,1.1]) expect(config({color:author.color,[key]:value})!.environmentLighting).toHaveProperty(key,value);
 });
-it.each([false,null,[],{},"#ffffff",{color:"red"},{color:"#ffffff",darkColor:"#000"},{color:"#ffffff",darkColor:null},{color:"#ffffff",strength:NaN},{color:"#ffffff",strength:2},{color:"#ffffff",source:"screen"}])("rejects malformed author config %j",value=>expect(()=>config(value)).toThrow("environmentLighting"));
+it.each([false,null,[],{},"#ffffff",{color:"red"},{color:"#ffffff",darkColor:"#000"},{color:"#ffffff",darkColor:null},{color:"#ffffff",strength:NaN},{color:"#ffffff",strength:2.01},{color:"#ffffff",source:"screen"}])("rejects malformed author config %j",value=>expect(()=>config(value)).toThrow("environmentLighting"));
 it("rejects the unsupported Inochi2D lighting option explicitly",()=>expect(()=>config(author,"inochi2d")).toThrow("VRM backend"));

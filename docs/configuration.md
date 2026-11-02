@@ -633,7 +633,7 @@ starlite:
   environmentLighting:
     color: "#ffe6cc"      # 亮色模式；六位 RGB，YAML 中必须加引号
     darkColor: "#adc6ff"  # 可选；省略时两种模式都用 color
-    strength: 0.2         # 0–1，默认 0.2；0 保留原灯光
+    strength: 1           # 0–2（0%–200%），默认 1（100%）；0 保留原灯光
     brightness: 1.0       # 可选；亮色模式亮度系数，0.8–1.1
     darkBrightness: 0.9   # 可选；暗色模式亮度系数，0.8–1.1
 ```
@@ -641,5 +641,7 @@ starlite:
 颜色只影响现有环境补光；主光保持白色。亮度系数调整这两盏现有灯的强度，并由 `strength` 混合：系数 `1` 不附加整体明暗调整，低于 `1` 变暗、高于 `1` 变亮；颜色适配仍可能重新平衡白色主光与彩色补光的强度。`strength: 0` 恢复原灯光。它不是屏幕像素亮度或曝光的保证，不同模型材质的响应可能不同。切换主题时平滑变化，不重新加载模型，也不改变当前动作。
 
 每种模式省略自己的亮度系数时，运行时根据该模式的颜色自动计算有限的明暗变化，不继承另一模式的亮度系数。例如只设置 `darkBrightness` 时，亮色模式仍自动计算；未设置 `darkColor` 时，暗色模式沿用 `color`，但仍可有独立的 `darkBrightness`。删除对应亮度字段即可恢复该模式的自动计算。
+
+`strength: 1` 为标准效果；`1–2` 继续线性放大适配幅度。亮度输入范围仍为 `0.8–1.1`：100% 强度时对应整体灯光亮度系数 `0.8–1.1`，200% 时可扩展至 `0.6–1.2`，效果更夸张。已有明确配置（例如 `strength: 0.2`）保持原值；只有省略强度时采用 100%。省略整个 `environmentLighting` 仍关闭此功能。
 
 主题识别依次检查 `html`、`body` 的 `data-theme`、`data-color-mode`、`data-user-color-scheme`（值为 `dark` / `light`），以及 `dark` / `light`、`dark-mode` / `light-mode` 类；未明确指定时跟随系统 `prefers-color-scheme`。使用其他主题约定时，可让主题切换器同时设置 `document.documentElement.dataset.theme = "dark"` 或 `"light"`。仅配置 `color` 和可选 `strength` 时不监听主题变化；配置独立颜色或任一模式的亮度系数时才监听。此选项仅适用于 VRM。
