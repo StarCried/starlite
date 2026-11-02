@@ -6,17 +6,18 @@ const release = `https://github.com/StarCried/starlite/releases/download/${BLUEF
 // Local candidate pins. The separately licensed assets must be published before
 // shipping this selection; local QA seeds this exact verified cache instead.
 export const BLUEFISH_ASSETS: readonly DefaultAsset[] = [
-  {file:"BlueFish-StarLite.vrm",url:`${release}/BlueFish-StarLite.vrm`,bytes:10427488,sha256:"ef2bc20cb6203b2dd99b3ed8ca8d81c01b81d8e2727af7275d95b079f91c63d2"},
+  {file:"BlueFish-StarLite.vrm",url:`${release}/BlueFish-StarLite.vrm`,bytes:10427464,sha256:"da1696afb88e7d61f3b306cbb60e5bcba6780dc1b003f757e04a2612f423d3c3"},
   {file:"LICENSE-BlueFish.md",url:`${release}/LICENSE-BlueFish.md`,bytes:2490,sha256:"c6b6bfcd77cfa5caec91378226526e797da610d43e8723b186a8049be573f70d"},
-  {file:"ASSET-SOURCES.md",url:`${release}/ASSET-SOURCES.md`,bytes:4336,sha256:"d40729a1bcebeeefc376055f13f90a8b3eb28ed603f8d37eca779757dd276b9f"},
+  {file:"ASSET-SOURCES.md",url:`${release}/ASSET-SOURCES.md`,bytes:5075,sha256:"b1bfb419af5382e728b0876e22aa9a8c4610bc15261e39a2f524a3796c99fe7e"},
 ];
 
 /** Accepted BlueFish motions and its own dialogue; standard gaze and blink. */
 export const BLUEFISH_PRESET = {
   backend: "vrm",
-  neutralAnimation: "Idle",
+  neutralAnimation: "StarLiteIdle",
   embeddedAnimations: ["Idle", "CuriousPeek", "HappyWave", "SleepyStartle"],
-  ambient: { animations: ["Idle"] },
+  ambient: { animations: ["StarLiteIdle"] },
+  adjustments: { idle: { wristLiftDegrees: 30 }, gaze: { headStrength: 2 } },
   mobile: { show: false, breakpoint: 900 },
   render: { fps: 60, maxDevicePixelRatio: 1, fitPadding: 0.92 },
   camera: { yawDegrees: 0, pitchDegrees: 5, fovDegrees: 20, targetHeight: 0.54 },

@@ -27,7 +27,9 @@ npm run start --workspace @starcried/starlite-vrm-example -- --model /path/to/av
 npm run start --workspace @starcried/starlite-vrm-example -- --model /path/to/avatar.vrm --compare-model /path/to/another.vrm --port 4196
 ```
 
-页面按模型分别保留本次调节，刷新后还原；不上传、不改写模型，也不保存到生产配置。
+若 VRM 的 `extras.starlite.adjustments` 带有合法的默认参数，页面从这些值开始；否则使用通用默认值。
+页面按模型分别保留本次调节，刷新后恢复模型默认；不上传、不改写模型，也不保存到生产配置。
+使用 Hexo 示例预设时，显式的 `adjustments` 完整替换示例的姿态与跟随调整，`adjustments: {}` 清除这些调整。
 该工具是仓库内的开发预览，不是博客访客界面。
 
 现有微光动作验收仍使用 `--assets <private companion output directory>`。

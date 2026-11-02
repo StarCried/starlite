@@ -23,8 +23,9 @@ it("selects independent examples without changing the initial Weiguang default",
   }
   const fish = resolveDefaultPreset({preset:"bluefish"}, "/cache/BlueFish-StarLite.vrm");
   expect(fish).toMatchObject({backend:"vrm",render:{fps:60,maxDevicePixelRatio:1},interactions:{passThrough:true}});
-  expect(fish).toMatchObject({embeddedAnimations:["Idle","CuriousPeek","HappyWave","SleepyStartle"], neutralAnimation:"Idle"});
-  expect(fish.ambient?.animations).toEqual(["Idle"]);
+  expect(fish).toMatchObject({embeddedAnimations:["Idle","CuriousPeek","HappyWave","SleepyStartle"], neutralAnimation:"StarLiteIdle",
+    adjustments:{idle:{wristLiftDegrees:30},gaze:{headStrength:2}}});
+  expect(fish.ambient?.animations).toEqual(["StarLiteIdle"]);
   expect(JSON.stringify(fish)).not.toMatch(/微光|GentleWave|RaisedHandWave|Thinking/);
   expect(fish.dialogue?.enter).toMatchObject({animation:"HappyWave"});
   expect(fish.dialogue?.click).toMatchObject({animations:["HappyWave","CuriousPeek"],linesByAnimation:{HappyWave:expect.any(Array),CuriousPeek:expect.any(Array)}});
@@ -34,6 +35,20 @@ it("selects independent examples without changing the initial Weiguang default",
   expect(overrides.dialogue?.click).not.toHaveProperty("linesByAnimation");
   const custom = {preset:"bluefish" as const,model:"other.vrm"};
   expect(resolveDefaultPreset(custom,"ignored.vrm")).toEqual(custom);
+});
+
+it("keeps BlueFish calibration per model and lets explicit user values override it", () => {
+  const input={preset:"bluefish" as const,adjustments:{idle:{wristLiftDegrees:0},gaze:{headStrength:.5}}};
+  const fish=resolveDefaultPreset(input,"/cache/BlueFish-StarLite.vrm");
+  expect(fish).toHaveProperty("adjustments",input.adjustments);
+  for (const adjustments of [{}, {gaze:{headStrength:.5}}, {idle:{wristLiftDegrees:0}}]) {
+    expect(resolveDefaultPreset({preset:"bluefish",adjustments},"/cache/BlueFish-StarLite.vrm"))
+      .toHaveProperty("adjustments",adjustments);
+  }
+  expect(resolveDefaultPreset({preset:"bluefish"},"/cache/BlueFish-StarLite.vrm"))
+    .toHaveProperty("adjustments",{idle:{wristLiftDegrees:30},gaze:{headStrength:2}});
+  expect(resolveDefaultPreset(undefined,model)).not.toHaveProperty("adjustments");
+  expect(resolveDefaultPreset({model:"custom.vrm"},"ignored.vrm")).not.toHaveProperty("adjustments");
 });
 
 it("keeps full pre-download model terms synchronized with their own licenses", () => {

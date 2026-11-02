@@ -56,7 +56,7 @@ function refreshControls(){
 }
 async function mount(id){
   const serial=++generation;abort?.abort();controller?.destroy();controller=undefined;abort=new AbortController();
-  currentModel=models.find(model=>model.id===id);adjustments=structuredClone(saved.get(id)??{});refreshControls();$('#status').textContent=t("正在载入…", "Loading\u2026");
+  currentModel=models.find(model=>model.id===id);adjustments=structuredClone(saved.get(id)??currentModel.adjustments??{});refreshControls();$('#status').textContent=t("正在载入…", "Loading\u2026");
   const rect=$('#stage').getBoundingClientRect(),height=Math.min(650,rect.height-10),width=Math.min(430,rect.width-12);
   try{
     const next=await mountModelWidget($('#model'),{backend:'vrm',locale,model:currentModel.url,fallback:'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',embeddedAnimations:currentModel.animations.map(a=>a.name),neutralAnimation:'StarLiteIdle',ambient:{animations:['StarLiteIdle']},adjustments,display:{width,height},render:{fps:60,maxDevicePixelRatio:1,fitPadding:.88},camera:{yawDegrees:0,pitchDegrees:3,fovDegrees:24,targetHeight:.52},mobile:{show:true},interactions:{pointer:$('#pointer').checked,click:false,drag:false}},{signal:abort.signal});

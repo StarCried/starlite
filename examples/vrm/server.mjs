@@ -12,13 +12,19 @@ const original=args.includes("--original")?resolve(option("--original")):undefin
 const adjustmentModels=[];
 if(args.includes("--model")) {
   const {inspectVrm,MAX_MODEL_BYTES}=createRequire(import.meta.url)(resolve(runtime,"inspect.cjs"));
+  const {validateModelAdjustments}=createRequire(import.meta.url)(resolve(runtime,"config.cjs"));
   for(const [flag,id] of [["--model","primary"],["--compare-model","comparison"]]) {
     if(!args.includes(flag))continue;
     const path=resolve(option(flag)),info=await stat(path);
     if(!info.isFile()||info.size<20||info.size>MAX_MODEL_BYTES)throw new Error("Preview requires a VRM file no larger than 64 MiB.");
     const bytes=await readFile(path);
     const report=inspectVrm(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
-    adjustmentModels.push({id,path,title:report.name||id,capabilities:report.capabilities,animations:report.animations});
+    // The inspector has already checked the GLB container. Seed the local
+    // controls from model defaults; user changes remain confined to this page.
+    const metadata=JSON.parse(bytes.subarray(20,20+bytes.readUInt32LE(12))).extras?.starlite;
+    const adjustments=metadata?.adjustments;
+    if(adjustments!==undefined)validateModelAdjustments(adjustments);
+    adjustmentModels.push({id,path,title:report.name||id,capabilities:report.capabilities,animations:report.animations,adjustments});
   }
 }
 const inside=(root,path)=>{const part=relative(root,path);return !part.startsWith("..")&&!isAbsolute(part)};

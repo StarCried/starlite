@@ -5,6 +5,30 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-11-02 BlueFish default calibration (local candidate)
+
+The user selected wrist lift 30 degrees and head-follow strength 2 in the local
+adjustment preview, leaving other controls unchanged. BlueFish now selects
+`StarLiteIdle` as its default baseline with those model-specific adjustments.
+
+- The derived VRM is 10,427,464 bytes, SHA-256
+  `da1696afb88e7d61f3b306cbb60e5bcba6780dc1b003f757e04a2612f423d3c3`.
+  Only adjustment metadata and the default Idle mapping changed. Non-JSON chunks,
+  original Idle and gesture data, and the embedded license remain unchanged.
+- The Hexo preset and its local asset pins match this candidate. All 248 Hexo
+  tests, package build/type checking, example syntax checks and diff checks
+  passed. Explicit user calibration replaces preset calibration, including `{}`
+  and gaze-only overrides; other models retain their previous defaults.
+- In the actual local browser, refreshing the adjustment page restored 30/2,
+  HappyWave completed and returned to built-in Idle, and Reset exported `{}`.
+  The independent real Hexo preset generated and rendered the exact pinned model.
+- DSH source commit `b13344a` initializes embedded adjustments only on new import;
+  its 84 Rust tests and 569 + 14 JavaScript checks passed. The installed daily
+  companion was not rebuilt/replaced for this change.
+
+This records local source/assets and short functional checks, not a new release,
+blog deployment, or performance benchmark. Private files remain outside Git.
+
 ## 2026-10-31 bundled gestures and English source validation
 
 The source changes through `99cce47` add three optional, artwork-free humanoid

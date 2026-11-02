@@ -54,6 +54,11 @@
   has separate pinned assets and model terms, available before download. The
   code's BSD license never applies to example artwork. Verify exported VRM0
   orientation in the actual runtime (which rotates VRM0), not only Blender.
+- A Hexo preset's explicit `adjustments` override replaces the entire calibration;
+  do not deep-merge it, because the adjustment preview exports `{}` to clear
+  corrections. The preview reads validated `extras.starlite.adjustments` defaults;
+  the runtime still takes its calibration from host config, without a fallback
+  that would silently restore model defaults after a user clears them.
 
 ## Compatibility contract
 

@@ -12,6 +12,8 @@ Open the printed local URL, or `/adjust?lang=en` for English and `/adjust?lang=z
 
 The adjustment page changes built-in Idle arm lift, palm direction, wrist lift, hand curl, elbow bend, and pointer response. Updates are live and do not rewrite the model. Missing eye/finger bindings disable the corresponding control. Other motions keep their authored poses. Copy exported YAML into your Hexo `_config.yml`; pose changes explicitly select `StarLiteIdle`, while gaze-only changes preserve your current baseline. Refreshing resets unsaved preview settings.
 
+If the VRM contains valid defaults in `extras.starlite.adjustments`, the preview starts with those values and restores them on refresh. Otherwise it uses the general defaults. With a Hexo example preset, an explicit `adjustments` object fully replaces its pose and following calibration; `adjustments: {}` clears it.
+
 For a prepared private companion output directory containing `desktop/manifest.json` and `blog/manifest.json`, developer motion review uses:
 
 ```sh

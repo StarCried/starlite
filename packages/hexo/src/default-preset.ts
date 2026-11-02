@@ -250,6 +250,11 @@ export function resolveDefaultPreset(
     },
   };
   const output = merge(defaults, input ?? {}) as HexoWidgetConfig;
+  // Calibration is a complete per-model selection. In particular, an empty
+  // object exported by Reset must not revive the example's authored defaults.
+  if (input && "adjustments" in input && input.adjustments !== undefined) {
+    Object.assign(output, {adjustments: clone(input.adjustments)});
+  }
   const overrides = input?.dialogue;
   if (overrides) {
     for (const scene of ["enter", "click", "idle"] as const) {

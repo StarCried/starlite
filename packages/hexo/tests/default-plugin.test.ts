@@ -121,7 +121,8 @@ it("prepares only BlueFish and its independent terms when selected", async () =>
   expect(routes.some(route => route.path.endsWith("LICENSE-Weiguang.md"))).toBe(false);
   expect(html).not.toMatch(/微光|GentleWave|StumbleAndRecover/);
   expect(html).toContain('"embeddedAnimations":' + JSON.stringify(fishNames));
-  expect(html).toContain('"neutralAnimation":"Idle"');
+  expect(html).toContain('"neutralAnimation":"StarLiteIdle"');
+  expect(html).toContain('"adjustments":{"idle":{"wristLiftDegrees":30},"gaze":{"headStrength":2}}');
   expect(site.hexo.log.info).toHaveBeenCalledWith(expect.stringContaining("水原镜"));
   expect(site.hexo.log.warn).not.toHaveBeenCalled();
 });
