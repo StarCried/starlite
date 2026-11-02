@@ -3,7 +3,8 @@ import type { HexoEnvironmentLighting } from "./types";
 /** Self-contained: serialized into the bootstrap without another runtime import. */
 export function createEnvironmentLighting(input: HexoEnvironmentLighting, scope: typeof globalThis = globalThis) {
   const doc = scope.document;
-  const media = input.darkColor === undefined ? undefined : scope.matchMedia("(prefers-color-scheme: dark)");
+  const media = input.darkColor === undefined && input.brightness === undefined && input.darkBrightness === undefined
+    ? undefined : scope.matchMedia("(prefers-color-scheme: dark)");
   const attributes = ["data-theme", "data-color-mode", "data-user-color-scheme", "class"];
   const dark = () => {
     for (const element of [doc.documentElement, doc.body]) {
@@ -17,12 +18,18 @@ export function createEnvironmentLighting(input: HexoEnvironmentLighting, scope:
     }
     return media?.matches ?? false;
   };
-  const current = () => ({color:input.darkColor !== undefined && dark() ? input.darkColor : input.color,
-    ...(input.strength !== undefined ? {strength:input.strength} : {})});
+  const current = () => {
+    const isDark = dark(), brightness = isDark ? input.darkBrightness : input.brightness;
+    // Each mode owns its brightness. Omitting it restores automatic luminance
+    // from that mode's colour, rather than inheriting the previous mode's gain.
+    return {color:isDark ? input.darkColor ?? input.color : input.color,
+      ...(input.strength !== undefined ? {strength:input.strength} : {}),
+      ...(brightness !== undefined ? {brightness} : {})};
+  };
   let observer: MutationObserver | undefined;
   let listener: (() => void) | undefined;
   const destroy = () => { observer?.disconnect(); observer = undefined; if (listener) media?.removeEventListener("change", listener); listener = undefined; };
-  return {current, destroy, attach(controller: {setEnvironmentLighting?: (value: {color: string; strength?: number}) => void}) {
+  return {current, destroy, attach(controller: {setEnvironmentLighting?: (value: {color: string; strength?: number; brightness?: number}) => void}) {
     destroy();
     if (!controller.setEnvironmentLighting) return;
     let previous = "";

@@ -9,7 +9,7 @@ export type HexoWidgetConfig = HexoWidgetOptions & (
   Omit<WidgetConfig, "fallback" | "model"> |
   (Omit<VrmWidgetConfig, "fallback" | "model" | "backend" | "environmentLighting"> & {backend?:"vrm"})
 );
-export interface HexoEnvironmentLighting { color: string; darkColor?: string; strength?: number }
+export interface HexoEnvironmentLighting { color: string; darkColor?: string; strength?: number; brightness?: number; darkBrightness?: number }
 export interface HexoWidgetOptions {
   /** Explicit VRM fill colours; no page or screen pixels are captured. */
   environmentLighting?: HexoEnvironmentLighting;

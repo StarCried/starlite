@@ -5,7 +5,7 @@ import {createEnvironmentLighting} from "../src/environment-lighting-browser";
 import {readEnabledConfig} from "../src/config";
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 const author={color:"#ffe6cc",darkColor:"#adc6ff",strength:.4};
-function harness() {
+function harness(lighting: typeof author | {color:string; darkColor?:string; strength?:number; brightness?:number; darkBrightness?:number} = author) {
  const win=new Window({url:"https://example.test/"});
  Object.defineProperty(win.document,"readyState",{value:"complete"});
  Object.defineProperty(win.document,"visibilityState",{value:"visible"});
@@ -15,7 +15,7 @@ function harness() {
  const idle:(()=>void)[]=[];(win as any).requestIdleCallback=(fn:()=>void)=>idle.push(fn);
  const controller={status:"running",destroy:vi.fn(),setEnvironmentLighting:vi.fn()};
  const mount=vi.fn(async(..._args:any[])=>controller),load=vi.fn(async()=>({mountModelWidget:mount}));
- const options={entryUrl:"/runtime.js",config:{backend:"vrm" as const,model:"/avatar.vrm",fallback:"/fallback.svg"},environmentLighting:author,breakpoint:768,showOnMobile:false};
+ const options={entryUrl:"/runtime.js",config:{backend:"vrm" as const,model:"/avatar.vrm",fallback:"/fallback.svg"},environmentLighting:lighting,breakpoint:768,showOnMobile:false};
  const source=createBootstrapSource(options).replace("import(entryUrl.href)","load(entryUrl.href)");
  const evaluate=()=>new Function("globalThis","document","load",source)(win,win.document,load);
  evaluate();
@@ -42,6 +42,36 @@ it("keeps one observer through PJAX/re-evaluation, and removes it when mobile hi
  h.mobile.matches=true;h.mobile.addEventListener.mock.calls[0]![1]();await h.run();
  expect(h.theme.removeEventListener).toHaveBeenCalledOnce();expect(h.controller.destroy).toHaveBeenCalledOnce();
  const calls=h.controller.setEnvironmentLighting.mock.calls.length;replacement.dataset.userColorScheme="light";await tick();expect(h.controller.setEnvironmentLighting).toHaveBeenCalledTimes(calls);
+ await h.win.happyDOM.close();
+});
+it("switches explicit per-theme brightness without remounting and preserves the author input",async()=>{
+ const lighting={...author,brightness:1.05,darkBrightness:.85},h=harness(lighting);await h.run();
+ expect(h.mount.mock.calls[0]![1].environmentLighting).toEqual({color:author.color,strength:.4,brightness:1.05});
+ h.win.document.documentElement.dataset.theme="dark";await tick();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.darkColor,strength:.4,brightness:.85});
+ h.evaluate();h.win.document.dispatchEvent(new h.win.Event("pjax:complete"));await h.run();
+ expect(h.mount).toHaveBeenCalledOnce();expect(h.theme.addEventListener).toHaveBeenCalledOnce();
+ h.win.document.documentElement.dataset.theme="light";await tick();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.color,strength:.4,brightness:1.05});
+ expect(lighting).toEqual({...author,brightness:1.05,darkBrightness:.85});
+ (h.win as any).__hexoStarLiteWidgetState.environmentLighting.destroy();await h.win.happyDOM.close();
+});
+it.each(["light","dark"] as const)("keeps omitted %s-mode brightness automatic rather than inheriting the other mode",async automatic=>{
+ const h=harness({...author,...(automatic==="light"?{darkBrightness:.8}:{brightness:1.1})});await h.run();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.color,strength:.4,...(automatic==="light"?{}:{brightness:1.1})});
+ h.win.document.body.className="dark";await tick();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.darkColor,strength:.4,...(automatic==="dark"?{}:{brightness:.8})});
+ h.win.document.body.className="light";await tick();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.color,strength:.4,...(automatic==="light"?{}:{brightness:1.1})});
+ (h.win as any).__hexoStarLiteWidgetState.environmentLighting.destroy();await h.win.happyDOM.close();
+});
+it.each(["brightness","darkBrightness"] as const)("tracks %s without a separate dark colour and releases the listener",async key=>{
+ const h=harness({color:author.color,[key]:.9});await h.run();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.color,...(key==="brightness"?{brightness:.9}:{})});
+ h.theme.matches=true;h.theme.addEventListener.mock.calls[0]![1]();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.color,...(key==="darkBrightness"?{brightness:.9}:{})});
+ h.mobile.matches=true;h.mobile.addEventListener.mock.calls[0]![1]();await h.run();
+ expect(h.theme.removeEventListener).toHaveBeenCalledOnce();expect(h.controller.destroy).toHaveBeenCalledOnce();
  await h.win.happyDOM.close();
 });
 it("does not install theme tracking before a pending mount settles or when that mount is cancelled",async()=>{
@@ -73,5 +103,17 @@ it("forwards separate theme colours but only the selected hint to the VRM runtim
  expect(config(undefined)).not.toHaveProperty("environmentLighting");
  expect(config({color:"#000000",strength:0})!.widget).toHaveProperty("environmentLighting",{color:"#000000",strength:0});
 });
-it.each([false,null,[],{},"#ffffff",{color:"red"},{color:"#ffffff",darkColor:"#000"},{color:"#ffffff",strength:NaN},{color:"#ffffff",strength:2},{color:"#ffffff",source:"screen"}])("rejects malformed author config %j",value=>expect(()=>config(value)).toThrow("environmentLighting"));
+it("forwards only light-mode brightness in base runtime config, retaining both modes for bootstrap",()=>{
+ const input={...author,brightness:1.1,darkBrightness:.8};
+ expect(config(input)).toMatchObject({environmentLighting:input,widget:{environmentLighting:{color:author.color,strength:.4,brightness:1.1}}});
+ expect((config(input)!.widget as any).environmentLighting).not.toHaveProperty("darkBrightness");
+ const darkOnly={color:author.color,darkBrightness:.9};
+ expect(config(darkOnly)).toMatchObject({environmentLighting:darkOnly,widget:{environmentLighting:{color:author.color}}});
+ expect((config(darkOnly)!.widget as any).environmentLighting).not.toHaveProperty("brightness");
+});
+it.each(["brightness","darkBrightness"] as const)("rejects invalid %s and accepts closed bounds",key=>{
+ for(const value of [null,"1",NaN,Infinity,-Infinity,.7999,1.1001,false]) expect(()=>config({color:author.color,[key]:value})).toThrow("environmentLighting");
+ for(const value of [.8,1,1.1]) expect(config({color:author.color,[key]:value})!.environmentLighting).toHaveProperty(key,value);
+});
+it.each([false,null,[],{},"#ffffff",{color:"red"},{color:"#ffffff",darkColor:"#000"},{color:"#ffffff",darkColor:null},{color:"#ffffff",strength:NaN},{color:"#ffffff",strength:2},{color:"#ffffff",source:"screen"}])("rejects malformed author config %j",value=>expect(()=>config(value)).toThrow("environmentLighting"));
 it("rejects the unsupported Inochi2D lighting option explicitly",()=>expect(()=>config(author,"inochi2d")).toThrow("VRM backend"));

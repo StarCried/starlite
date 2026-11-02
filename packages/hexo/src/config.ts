@@ -67,7 +67,7 @@ export function readEnabledConfig(
       ...(input.gaze ? {gaze:input.gaze} : {}),
       ...(input.adjustments !== undefined ? {adjustments:input.adjustments} : {}),
       ...(input.camera ? {camera:input.camera} : {}),
-      ...(environmentLighting ? {environmentLighting:{color:environmentLighting.color,...(environmentLighting.strength !== undefined ? {strength:environmentLighting.strength} : {})}} : {}),
+      ...(environmentLighting ? {environmentLighting:{color:environmentLighting.color,...(environmentLighting.strength !== undefined ? {strength:environmentLighting.strength} : {}),...(environmentLighting.brightness !== undefined ? {brightness:environmentLighting.brightness} : {})}} : {}),
       ...(input.performance !== undefined ? {performance:input.performance} : {}),
       render:{fps:30,maxDevicePixelRatio:1.5,autoFit:true,...input.render},
       ...(input.network ? {network:input.network} : {}),
@@ -227,10 +227,10 @@ function readEnvironmentLighting(input: unknown): HexoEnvironmentLighting | unde
   if (input === undefined) return undefined;
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("starlite.environmentLighting must be an object");
   const value = input as Record<string, unknown>;
-  if (Object.keys(value).some(key => !["color", "darkColor", "strength"].includes(key))) throw new Error("unknown starlite.environmentLighting option");
-  const validateEnvironmentLighting: (input: unknown) => asserts input is {color: string; strength?: number} = require("@starcried/starlite-vrm/config").validateEnvironmentLighting;
-  const lighting = {color:value.color, ...(value.strength !== undefined ? {strength:value.strength} : {})};
+  if (Object.keys(value).some(key => !["color", "darkColor", "strength", "brightness", "darkBrightness"].includes(key))) throw new Error("unknown starlite.environmentLighting option");
+  const validateEnvironmentLighting: (input: unknown) => asserts input is {color: string; strength?: number; brightness?: number} = require("@starcried/starlite-vrm/config").validateEnvironmentLighting;
+  const lighting = {color:value.color, ...(value.strength !== undefined ? {strength:value.strength} : {}), ...(value.brightness !== undefined ? {brightness:value.brightness} : {})};
   validateEnvironmentLighting(lighting);
-  if (value.darkColor !== undefined) validateEnvironmentLighting({color:value.darkColor});
-  return {color:lighting.color, ...(value.darkColor !== undefined ? {darkColor:value.darkColor as string} : {}), ...(lighting.strength !== undefined ? {strength:lighting.strength} : {})};
+  if (value.darkColor !== undefined || value.darkBrightness !== undefined) validateEnvironmentLighting({color:value.darkColor !== undefined ? value.darkColor : lighting.color, ...(value.darkBrightness !== undefined ? {brightness:value.darkBrightness} : {})});
+  return {color:lighting.color, ...(value.darkColor !== undefined ? {darkColor:value.darkColor as string} : {}), ...(lighting.strength !== undefined ? {strength:lighting.strength} : {}), ...(lighting.brightness !== undefined ? {brightness:lighting.brightness} : {}), ...(value.darkBrightness !== undefined ? {darkBrightness:value.darkBrightness as number} : {})};
 }

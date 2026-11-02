@@ -626,7 +626,7 @@ controller.destroy();
 
 ## 环境补光颜色
 
-VRM 可在 `_config.yml` 配置亮色与暗色模式的补光。省略整个选项时保持原灯光，不读取页面或屏幕像素。
+VRM 可在 `_config.yml` 配置亮色与暗色模式的补光颜色与亮度。省略整个选项时保持原灯光，不读取页面或屏幕像素。
 
 ```yaml
 starlite:
@@ -634,8 +634,12 @@ starlite:
     color: "#ffe6cc"      # 亮色模式；六位 RGB，YAML 中必须加引号
     darkColor: "#adc6ff"  # 可选；省略时两种模式都用 color
     strength: 0.2         # 0–1，默认 0.2；0 保留原灯光
+    brightness: 1.0       # 可选；亮色模式亮度系数，0.8–1.1
+    darkBrightness: 0.9   # 可选；暗色模式亮度系数，0.8–1.1
 ```
 
-颜色只影响现有环境补光，保留白色主光，并限制过饱和与过暗效果。切换主题时平滑变化，不重新加载模型，也不改变当前动作。不同模型材质的响应可能不同。
+颜色只影响现有环境补光；主光保持白色。亮度系数调整这两盏现有灯的强度，并由 `strength` 混合：系数 `1` 保持原强度，低于 `1` 变暗、高于 `1` 变亮，`strength: 0` 恢复原灯光。它不是屏幕像素亮度或曝光的保证，不同模型材质的响应可能不同。切换主题时平滑变化，不重新加载模型，也不改变当前动作。
 
-主题识别依次检查 `html`、`body` 的 `data-theme`、`data-color-mode`、`data-user-color-scheme`（值为 `dark` / `light`），以及 `dark` / `light`、`dark-mode` / `light-mode` 类；未明确指定时跟随系统 `prefers-color-scheme`。使用其他主题约定时，可让主题切换器同时设置 `document.documentElement.dataset.theme = "dark"` 或 `"light"`。仅配置 `color` 不监听主题变化。此选项仅适用于 VRM。
+每种模式省略自己的亮度系数时，运行时根据该模式的颜色自动计算有限的明暗变化，不继承另一模式的亮度系数。例如只设置 `darkBrightness` 时，亮色模式仍自动计算；未设置 `darkColor` 时，暗色模式沿用 `color`，但仍可有独立的 `darkBrightness`。删除对应亮度字段即可恢复该模式的自动计算。
+
+主题识别依次检查 `html`、`body` 的 `data-theme`、`data-color-mode`、`data-user-color-scheme`（值为 `dark` / `light`），以及 `dark` / `light`、`dark-mode` / `light-mode` 类；未明确指定时跟随系统 `prefers-color-scheme`。使用其他主题约定时，可让主题切换器同时设置 `document.documentElement.dataset.theme = "dark"` 或 `"light"`。仅配置 `color` 和可选 `strength` 时不监听主题变化；配置独立颜色或任一模式的亮度系数时才监听。此选项仅适用于 VRM。
