@@ -84,6 +84,9 @@
   within bounded entry/exit ramps (with local resampling); preserve their active
   authored shape to avoid overfolded elbows or doubled fist curl. Static tracks
   follow the reference throughout. Never add unmapped bones or hip motion.
+  A replacement generic gesture must begin/end at the program Idle reference,
+  not a sample character's rest pose; a constant arm offset rotates the entire
+  active hand arc. Preserve unrelated clip hashes when replacing one motion.
 - VRM bubble anchors sample the initial neutral alpha silhouette once and project
   the cached reference point (falling back to visible bounds) through the base
   portrait camera, in host-local CSS pixels. Do not use animated bounds, expanded

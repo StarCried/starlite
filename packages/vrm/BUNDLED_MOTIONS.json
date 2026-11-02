@@ -1,13 +1,13 @@
 {
-  "date": "2026-10-31",
+  "date": "2026-11-03",
   "sourceCandidateSha256": "f9efaedaa9aaaa7f6704001d5760928371fbeb23fd170db33c7b731f258a3cd2",
   "scope": "Humanoid upper-body rotations and optional standard blink only. No meshes, skins, textures, custom model expressions, markers, eye bones, root translations or leg motions.",
   "authorship": {
     "CuriousPeek": "Authored by StarCried for StarLite.",
     "SleepyStartle": "Authored by StarCried for StarLite.",
-    "HappyWave": "Adapted from user-selected Warudo KA_Idle16_WaveHands via Weiguang HighWave, upper body only; source is not claimed as original. Timing and BlueFish clearance adaptation retained."
+    "HappyWave": "Adapted from user-selected Warudo AGIA_Other_wave_arm_01 via Weiguang RaisedHandWave; four seamless right-arm loops with newly staged entry/exit, an outward/forward upper-arm clearance correction, and the program StarLiteIdle reference pose. Source is not claimed as original."
   },
-  "sourceMotionSha256": "f245b4919764433f97edd1355292900fda4fa1cd379b79faaf1e085b16045442",
+  "sourceMotionSha256": "45d4a2a2897a0938bd405456c1502c5ebe02fcb9492ec2a49ebe23bba54e4a63",
   "clips": [
     {
       "name": "StarLiteCuriousPeek",
@@ -21,13 +21,38 @@
     },
     {
       "name": "StarLiteHappyWave",
-      "duration": 4.5,
-      "bytes": 190468,
-      "sha256": "11981aad8d99561917322d782a693acf870138dc0620775bfdc74a49d09e61ed",
-      "bodyTracks": 43,
+      "duration": 3.6,
+      "bytes": 84832,
+      "sha256": "29882cc049ed5e0dc567190471d66464fdfcc3d98ee72f8b490771c482c1c0e8",
+      "bodyTracks": 42,
       "expressions": [],
-      "maximumRoundtripError": 5.551115123125783e-16,
-      "officialLoaderValidated": true
+      "maximumRoundtripError": 0,
+      "officialLoaderValidated": true,
+      "sourceMotion": {
+        "name": "AGIA_Other_wave_arm_01",
+        "file": "RaisedHandWave.vrma",
+        "sha256": "45d4a2a2897a0938bd405456c1502c5ebe02fcb9492ec2a49ebe23bba54e4a63"
+      },
+      "baseline": {
+        "name": "StarLiteIdle",
+        "sha256": "7bd5ce630f5f624c274ad2de026ad5365297c353d7f265654ed97656a738d248",
+        "sampleTime": 0
+      },
+      "timing": {
+        "enterSeconds": 0.6,
+        "loopSeconds": 0.6,
+        "cycles": 4,
+        "exitSeconds": 0.6
+      },
+      "clearance": {
+        "bone": "rightUpperArm",
+        "normalizedParentAxes": {
+          "zDegrees": 20,
+          "xDegrees": 30
+        },
+        "order": "qZ * qX * source",
+        "envelope": "cubic smoothstep across the 0.6-second entry/exit; full correction during four wave cycles"
+      }
     },
     {
       "name": "StarLiteSleepyStartle",

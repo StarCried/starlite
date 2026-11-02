@@ -64,3 +64,27 @@ for (const entry of BUILTIN_ANIMATIONS.slice(1)) {
     mixer.stopAllAction(); mixer.uncacheRoot(vrm.scene); VRMUtils.deepDispose(vrm.scene);
   });
 }
+
+// The packaged wave starts from the program Idle itself, before per-model pose
+// calibration. An unrelated character's rest pose changes the whole hand arc.
+it("RaisedHandWave uses the program Idle reference and retains a quiet non-waving side", async () => {
+  const loader = new GLTFLoader(); loader.register(parser => new VRMAnimationLoaderPlugin(parser));
+  const read = async (name:string) => (await loader.parseAsync(await builtinMotionBytes(name), "")).userData.vrmAnimations[0];
+  const idle = await read("StarLiteIdle"), wave = await read("StarLiteHappyWave");
+  const rotation = (values:ArrayLike<number>, offset=0) => new Quaternion().fromArray(values,offset).normalize();
+  for (const [bone, track] of wave.humanoidTracks.rotation) {
+    const neutral = rotation(idle.humanoidTracks.rotation.get(bone).values);
+    expect(rotation(track.values).angleTo(neutral),bone).toBeLessThan(1e-5);
+    expect(rotation(track.values,track.values.length-4).angleTo(neutral),bone).toBeLessThan(1e-5);
+    if (!bone.startsWith("right")) for(let at=0;at<track.values.length;at+=4) expect(rotation(track.values,at).angleTo(neutral),bone).toBeLessThan(1e-5);
+  }
+  const wrist = wave.humanoidTracks.rotation.get("rightHand");
+  const sample = wrist.createInterpolant(new Float32Array(4));
+  let range=0; const first=rotation(sample.evaluate(.6));
+  for(let time=.6;time<=1.2;time+=1/60) {
+    const pose=rotation(sample.evaluate(time)); range=Math.max(range,first.angleTo(pose));
+    // Four seamless cycles preserve the selected source's wrist rhythm.
+    for(const offset of [.6,1.2,1.8]) expect(pose.angleTo(rotation(sample.evaluate(time+offset)))).toBeLessThan(1e-4);
+  }
+  expect(range).toBeGreaterThan(.3);
+});
