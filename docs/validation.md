@@ -5,6 +5,72 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-11-03 public 0.1.0 verification
+
+[Release `v0.1.0`](https://github.com/StarCried/starlite/releases/tag/v0.1.0)
+is a non-draft, non-prerelease release. Its tag and public `SOURCE_REVISION`
+resolve to `cb6f88261f5b9ab8cfe156978b834df5b709f8a6`. The five package
+archives came from the exact-source [Release dry run](https://github.com/StarCried/starlite/actions/runs/41595651605),
+including both native pipeline targets. The [CI](https://github.com/StarCried/starlite/actions/runs/41595630958)
+and [dependency audit](https://github.com/StarCried/starlite/actions/runs/41595630773)
+passed. Later documentation commits do not move the tag or replace its artifacts.
+
+- The complete local validation passed Rust's 26 tests, builds, lint, type
+  checking, license/package gates and runtime budgets. Package tests passed
+  353 VRM, 280 Hexo, 85 core and 73 Inochi2D checks; seven optional external
+  Inochi2D fixture cases remained skipped. The browser suite passed 21 cases
+  with two optional external-model skips, then the public Aka pipeline/WASM
+  case passed separately. The unavailable Mannequin case was not rerun.
+- All five npm packages were downloaded anonymously from the public registry.
+  Their bytes, SHA-256 and SHA-512/SRI matched the reviewed archives. Each
+  `latest` tag is `0.1.0`; existing `alpha` tags remain `0.1.0-alpha.3`.
+- All seven public GitHub program assets were independently downloaded without
+  Authorization or cookies. Lengths, SHA-256, the flat `SHA256SUMS` and the
+  source tag matched. Program packages contain no character-model artwork.
+
+| npm package at 0.1.0 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `@starcried/starlite-core` | 23,291 | `d00cb28640351267d42ef6e85e0a52703066e2f20550ff0d83a6a7be7adccc33` |
+| `@starcried/starlite-inochi2d` | 245,579 | `294f39f25440560382798ddfb59444a24269307cceb6b9e1e74752a8c8eec47b` |
+| `@starcried/starlite-vrm` | 635,395 | `8465cfdb8043432910e517c0a9681af6a89ca0dd8a4510f6f6aea1046030fbfa` |
+| `hexo-starlite` | 78,137 | `d184630c2c6e470d204205338d3df1479884f0f539714ce04831bacede97194a` |
+| `inochi2d-blog` | 1,328,672 | `00b7f5ff9bb63aac4666b03294577bac3af0fb3db93879bad4bd03439ed4aede` |
+
+A fresh consumer with empty npm authentication files and a fresh cache installed
+`hexo-starlite@0.1.0` and Hexo 7.3.0 from the registry. No workspace links or
+local package archives were used. Ordinary Hexo generation acquired Weiguang
+with no `starlite` configuration, and acquired BlueFish with only
+`starlite.preset: bluefish`. Both outputs retained their model hashes when
+regenerated with an unavailable network proxy. Desktop Chrome and Edge rendered
+both generated sites without page errors, retained the controller on the PJAX
+lifecycle event, and passed click-through checks. At 390 px width neither model
+nor renderer JavaScript was requested; the lightweight widget stylesheet may
+still be loaded by the page.
+
+[BlueFish's independent release](https://github.com/StarCried/starlite/releases/tag/bluefish-v1.0.0-starlite.1)
+was also downloaded and checked, including all five model/notices/checksum
+assets. The VRM is 10,427,496 bytes, SHA-256
+`896b9013642af427b475c4cd559ff9eb570a4cd543cc92e5418778560603e20b`.
+It retains wrist lift 30 degrees and head-follow strength 2, and selects the
+accepted program gestures. This public version supersedes the earlier local
+candidate pins below; its independent model terms still apply.
+
+The author's blog was upgraded through npm and deployed as
+`7fa6b08a23dd21dabbcbf40b696c1cdf7b1ca933`; its
+[Pages deployment](https://github.com/StarCried/StarCried.github.io/actions/runs/41602360285)
+passed. Public HTML, runtime, model and profile bytes matched the deployed Git
+blobs. Chrome/Edge checks covered the home, about, gallery, friends and StarLite
+article pages, actual PJAX navigation retaining the controller, and mobile
+requests. These were headless functional checks, not a new user acceptance or
+CPU/GPU, memory, FPS or long-running benchmark.
+
+The online dependency gate retains six low-severity affected Hexo-host entries
+tracing to one reviewed upstream advisory, not a zero-vulnerability claim;
+see [dependency maintenance](dependency-audit.md). Raw publication, registry
+consumer and browser proofs are kept in the ignored sibling DSH workspace's
+`release-output/stable-20261103/`. Historical performance and manual reports
+below keep their original versions and scope.
+
 ## 2026-11-02 BlueFish default calibration (local candidate)
 
 The user selected wrist lift 30 degrees and head-follow strength 2 in the local

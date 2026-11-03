@@ -21,8 +21,9 @@ First non-prerelease release for desktop Chrome/Edge, Hexo 7 and standard humano
 - Keep installation, page dialogue, retry, passthrough and optional performance
   controls documented in both languages. Program packages contain no model artwork.
 
-Public installation and exact artifact verification are recorded after publication;
-prior alpha evidence keeps its original scope and identity.
+The [public verification record](docs/validation.md#2026-11-03-public-010-verification)
+links the exact source, CI, registry/GitHub downloads and fresh Hexo installation
+checks. Prior alpha evidence keeps its original scope and identity.
 
 ## 0.1.0-alpha.3 - 2026-10-22
 

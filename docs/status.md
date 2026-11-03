@@ -1,6 +1,6 @@
 # StarLite 当前状态
 
-## 0.1.0 发行范围
+## 0.1.0 正式发行（2026-11-03）
 
 - 在基础 `StarLiteIdle` 外，为所有标准人形 VRM 增加可选的
   `StarLiteCuriousPeek`、`StarLiteHappyWave`、`StarLiteSleepyStartle`。
@@ -12,7 +12,7 @@
 - 蓝鱼与微光挥手的半眯眼、蓝鱼动作里的问号／汗滴触发已在本地派生资产
   中修正。资源发行仍独立于源码推送；旧公开模型链接不会因此自动换成新文件。
 
-0.1.0 使用正式 npm latest 渠道；蓝鱼按独立模型许可发行，默认微光保持不变。发布后的精确来源、CI 和下载验证记于 validation.md。以下 alpha 记录保留原版本身份。
+[0.1.0 正式版](https://github.com/StarCried/starlite/releases/tag/v0.1.0)已公开，五个 npm 包的 `latest` 均为 `0.1.0`；`alpha` 保留历史预发行版本。蓝鱼按[独立模型许可发行](https://github.com/StarCried/starlite/releases/tag/bluefish-v1.0.0-starlite.1)，默认微光保持不变。精确来源、CI、匿名下载、全新 npm 安装及 Chrome／Edge 功能检查见[公开验证记录](validation.md#2026-11-03-public-010-verification)。以下 alpha 记录保留原版本身份。
 
 ## 历史 alpha 发行
 
@@ -23,13 +23,13 @@
 ## 功能
 
 - Hexo 安装后无需配置，生成时自动获取独立授权的固定微光资源，沿用演示博客的动作、句库与显示效果。自定义或停用通过 `_config.yml`；用户已通过本地人工验收。
-- 标准人形 VRM 0／1、唯一内置 `StarLiteIdle`、轻呼吸和限角头部跟随。Blink 与 lookAt 为可选能力；已声明的损坏绑定仍拒绝。
+- 标准人形 VRM 0／1、基础 `StarLiteIdle` 与三个可选通用动作、轻呼吸和限角头部跟随。Blink 与 lookAt 为可选能力；已声明的损坏绑定仍拒绝。
 - 本版支持按模型调节内置 Idle 的双臂、掌心、手腕抬高、手部张合和肘部，以及独立头眼跟随强度与平滑时间。掌心扭转已修复左右镜像方向；调校页可实时预览并导出 Hexo 配置，自带动作保持原样。已完成自动回归及此前基础面板的原生回归，用户于 2026-10-22 通过浏览器调校页的功能与外观验收；新增手腕项的原生 GUI 操作未另行人工验收。
 - 自动识别模型内嵌动作，支持外部 VRMA、随机动作池和逐动作句库。内嵌／外部动作使用统一骨骼绑定，避免切换时身体延迟和姿态跳变；保留 400 ms 过渡。该修复已通过本机 DSH 点击动作人工验收。
 - 公共播放契约、可取消加载、动作完成／中断结果、共享气泡和语句调度。气泡可不带动作；core 不依赖渲染后端。
 - 两个后端共用可选性能浮层，默认关闭，无遥测或新增请求；区分实际 FPS、帧间隔与 CPU 提交耗时。模型检查报告骨骼、表达、视线、动作与逻辑资源统计，不把静态数据当作实测评级。
 - Hexo 正文优先、移动端零模型请求、PJAX 单实例、首次入场去重和点击穿透。加载／渲染失败时隐藏并有限重试，成功后恢复，不展示静态替代图片。
-- 模型、动作和角色工程独立于程序包；默认微光从[独立发行](https://github.com/StarCried/starlite/releases/tag/weiguang-v3.0.0-starlite.1)取得。许可仍由各自资产决定，技术检查不授予托管权。
+- 角色模型、专属动作和工程独立于程序包；基础待机与三个通用动作内嵌于运行时并保留各自来源说明。默认微光从[独立发行](https://github.com/StarCried/starlite/releases/tag/weiguang-v3.0.0-starlite.1)取得。许可仍由各自资产决定，技术检查不授予托管权。
 
 StarLite for DSH 的 Windows 桌宠、模型库及 DSH 事件由独立的 [starlite-dsh](https://github.com/StarCried/starlite-dsh) 仓库维护，当前 DSH 禁用 Inochi2D。
 
@@ -39,7 +39,7 @@ StarLite for DSH 的 Windows 桌宠、模型库及 DSH 事件由独立的 [starl
 
 默认 Hexo 的四包本地安装、无配置下载校验、有效缓存离线生成、停用、自定义句子／位置、合成 VRM 替换及 Chrome 交互已在隔离站点检查。用户验收了默认外观、动作、气泡、跟随、点击穿透和说明；其他设备与网络情况仍以实际反馈为准。原始证据保留在忽略的 `target/hexo-default-qualification/` 和 `target/maturity-validation/`。
 
-依赖维护保留两项暂无兼容上游补丁的 Hexo 公告，明确范围与到 2026-11-18 的复核期限；不能声称零漏洞。详见[依赖说明](dependency-audit.md)。
+本次依赖审计保留 6 个 low 级别的 Hexo 宿主受影响条目，均追溯到 1 项已说明的上游公告；不能声称零漏洞。适用范围与复核期限见[依赖说明](dependency-audit.md)。
 
 ## 历史发行
 
@@ -52,4 +52,4 @@ StarLite for DSH 的 Windows 桌宠、模型库及 DSH 事件由独立的 [starl
 - Hexo 7，桌面 Chrome／Edge、WebGL2；Hexo 8、Firefox／Safari 尚未单独验收。
 - 公开本地模型上限 10 MiB；隔离本机 demo 可预览最多 64 MiB，其输出不作为部署产物。
 - 外部动作在 ready 前准备好，尚未按需加载。安装依赖包含两个后端，浏览器只加载选中的后端。
-- `inochi2d-blog` 原生 CLI 是未签名的实验性 alpha；原生构建、完整性和许可失败均停止，不自动部署。
+- `inochi2d-blog` 原生 CLI 仍是未签名的实验性工具，发行版本随工作区同步为 `0.1.0`；原生构建、完整性和许可失败均停止，不自动部署。
