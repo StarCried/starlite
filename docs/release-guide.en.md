@@ -4,18 +4,18 @@
 
 Requires Node.js 22.12+, an existing Hexo 7 blog, and a desktop Chrome/Edge browser with WebGL2. Hexo 8 has not been accepted yet. You do not need Rust, Blender, or an API key.
 
-This page documents the current source. Default Weiguang onboarding is available from `0.1.0-alpha.3`; newer locale and shared-gesture changes require a subsequent release or a local source build. Check the release notes before expecting them in npm.
+This guide targets StarLite 0.1.0, including English UI, shared gestures and the optional BlueFish example.
 
 ## Install and start
 
 ```sh
-npm install hexo-starlite@alpha
+npm install hexo-starlite
 npx hexo server
 ```
 
 Run these in the blog directory. Generation automatically fetches the pinned Weiguang example with its 13 authored motions and dialogue. Open the printed URL. The plugin does not deploy your site.
 
-Use `@alpha` or an exact version intentionally; an alpha is not a stable release. Weiguang's [separate model terms](weiguang-license.en.md) require visible attribution. If you disagree or do not want the companion:
+The default npm tag is `latest`; use `hexo-starlite@0.1.0` to pin this release. Weiguang's [separate model terms](weiguang-license.en.md) require visible attribution. If you disagree or do not want the companion:
 
 ```yaml
 starlite:
@@ -81,7 +81,7 @@ Check article readability, materials, pose, gaze, clicks and dialogue, idle inte
 
 ## Update or remove
 
-Update with `npm install hexo-starlite@alpha`, regenerate, and preview. Existing configuration is not rewritten. To use the default example instead of a custom model, remove the `model`/`bundle` fields and obsolete model-specific mappings. Recheck rights and any pinned hash when replacing a model.
+Update with `npm install hexo-starlite`, regenerate, and preview. Existing configuration is not rewritten. To use the default example instead of a custom model, remove the `model`/`bundle` fields and obsolete model-specific mappings. Recheck rights and any pinned hash when replacing a model.
 
 Disable with `starlite.enable: false`, or uninstall:
 

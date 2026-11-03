@@ -7,7 +7,7 @@ StarLite 的公共播放契约、生命周期和气泡组件。该包不导入 T
 在 Node.js 22.12+ 项目中安装 alpha 版本：
 
 ```sh
-npm install @starcried/starlite-core@alpha
+npm install @starcried/starlite-core
 ```
 
 通常直接安装所需后端，它会自动安装本包。

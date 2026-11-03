@@ -1,5 +1,12 @@
 {
-  "name": "@starcried/starlite-vrm-example", "version": "0.1.0-alpha.3", "private": true, "type": "module",
-  "scripts": { "start": "node server.mjs" },
-  "dependencies": { "@starcried/starlite-vrm": "0.1.0-alpha.3" }
+  "name": "@starcried/starlite-vrm-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@starcried/starlite-vrm": "0.1.0"
+  }
 }

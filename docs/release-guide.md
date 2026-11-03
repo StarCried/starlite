@@ -2,20 +2,20 @@
 
 简体中文 · [English](release-guide.en.md)
 
-本页适用于 `0.1.0-alpha.3`；普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
+本页适用于 `0.1.0`；普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
 
 ## 安装与启动
 
 在博客目录运行：
 
 ```sh
-npm install hexo-starlite@alpha
+npm install hexo-starlite
 npx hexo server
 ```
 
 无需填写配置，第一次生成自动获取独立授权的固定微光版本，带有演示博客的 13 个动作、点击／偶发句库、首次入场、镜头和显示预设。打开终端中的网址即可体验。日常沿用原 Hexo 命令；插件不会自动部署博客。
 
-需要固定版本时，使用 `npm install --save-exact hexo-starlite@0.1.0-alpha.3`。安装和更新均显式写 `@alpha` 或完整版本号；alpha 不是稳定版本，不以 `latest` 标签作为稳定性证明。
+需要固定版本时，使用 `npm install --save-exact hexo-starlite@0.1.0`。不指定版本时安装正式 `latest`；旧的 `alpha` 标签保留为历史预发行渠道。
 
 微光采用[独立模型许可](weiguang-license.md)，使用即同意，并需在关于页等可见位置保留署名。不接受许可或不需要看板娘时，在 `_config.yml` 停用：
 
@@ -59,7 +59,7 @@ starlite:
 
 两项 `publication` 确认涵盖模型、贴图和内嵌动作的博客托管权；模型许可仍须遵守。来源 SHA-256 由实际文件计算，也可设置 `publication.sourceSha256` 固定已审阅版本，文件变化时拒绝生成。必要博客托管会把模型文件交给访客；许可可以约束再利用，不能保证文件无法下载。
 
-标准人形骨骼为必需；Blink 和 lookAt 为可选能力。无动作模型使用内置的 `StarLiteIdle` 基础站姿和轻呼吸，有自己的 `Idle` 时优先采用；其他内嵌动作自动识别；当前源码另提供通用好奇探头、开心招手和困倦惊醒，均按需映射到点击或偶发互动。名称见配置说明，新源码功能需对应后续发行版。气泡也可独立使用。模型约定、外部动作和两个后端的配置见[配置说明](configuration.md)。
+标准人形骨骼为必需；Blink 和 lookAt 为可选能力。无动作模型使用内置的 `StarLiteIdle` 基础站姿和轻呼吸，有自己的 `Idle` 时优先采用；其他内嵌动作自动识别；本版另提供通用好奇探头、开心招手和困倦惊醒，均按需映射到点击或偶发互动。名称见配置说明，气泡也可独立使用。模型约定、外部动作和两个后端的配置见[配置说明](configuration.md)。
 
 自定义 VRM 通用默认值为 30 FPS、DPR 上限 1.5、手机断点 768 px。默认保留下层页面点击；显式开启拖动时默认拥有点击区域。无需同时安装旧的 `hexo-model-companion`；旧配置键 `inochi2d_widget:` 应改为 `starlite:`。
 
@@ -87,7 +87,7 @@ npx hexo server -p 4000
 
 ## 更新与卸载
 
-更新：执行 `npm install hexo-starlite@alpha`，再生成并本地检查。早期 `0.1.0-alpha.2` 需要显式配置模型；升级后仍保留已有显式配置，不会重写 `_config.yml`。希望改用默认微光时，移除自己的 `model`／`bundle` 及不再需要的专属映射，只保留必要覆盖。旧版本的实际发行证据见 [validation](validation.md)。
+更新：执行 `npm install hexo-starlite`，再生成并本地检查。早期 `0.1.0-alpha.2` 需要显式配置模型；升级后仍保留已有显式配置，不会重写 `_config.yml`。希望改用默认微光时，移除自己的 `model`／`bundle` 及不再需要的专属映射，只保留必要覆盖。旧版本的实际发行证据见 [validation](validation.md)。
 
 替换自定义模型时，复核许可、动作名和固定的 `sourceSha256` 后重新生成。停用使用 `starlite.enable: false`。卸载：
 
@@ -99,4 +99,4 @@ npm uninstall hexo-starlite
 
 ## 维护者：发布状态与标签
 
-版本元数据和本地检查不等于已经公开发行。每版的托管 CI、精确产物、npm registry 与公开安装验收另记于 [validation](validation.md)。发布使用独立 `alpha` 标签；首次发布曾使 `latest` 指向 alpha.1，这不代表已有稳定版。不要覆盖旧版本或移动旧 tag；稳定发行时再明确管理 `latest`。
+版本元数据和本地检查不等于已经公开发行。每版的托管 CI、精确产物、npm registry 与公开安装验收另记于 [validation](validation.md)。`0.1.0` 使用正式 `latest` 标签；历史 alpha 版本与 tag 保持不变。不要覆盖旧版本或移动旧 tag。

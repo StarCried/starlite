@@ -20,7 +20,7 @@ immutable Hexo bundle and optional deployment.
 Install it in the Hexo blog together with the adapter and browser validator:
 
 ```sh
-npm install inochi2d-blog@alpha hexo-starlite@alpha playwright
+npm install inochi2d-blog hexo-starlite playwright
 ```
 
 On Linux, also run `npx playwright install chromium`. Windows browser checks

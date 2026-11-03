@@ -7,7 +7,7 @@ StarLite 的 Inochi2D WebGL2 后端，使用可复现构建的官方 D SDK，支
 在 Node.js 22.12+ 项目中安装 alpha 版本：
 
 ```sh
-npm install @starcried/starlite-inochi2d@alpha
+npm install @starcried/starlite-inochi2d
 ```
 
 ## 挂载

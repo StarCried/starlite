@@ -5,7 +5,7 @@
 Format-neutral playback, lifecycle, dialogue, and host controls for StarLite. This package imports neither Three.js nor Inochi2D WASM. Usually install a backend; it installs core automatically.
 
 ```sh
-npm install @starcried/starlite-core@alpha
+npm install @starcried/starlite-core
 ```
 
 ## Shared contracts

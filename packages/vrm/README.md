@@ -7,7 +7,7 @@ StarLite 的 WebGL2 VRM 0／1 后端，支持模型内嵌 glTF 动作、外部 V
 在 Node.js 22.12+ 项目中安装 alpha 版本：
 
 ```sh
-npm install @starcried/starlite-vrm@alpha
+npm install @starcried/starlite-vrm
 ```
 
 ## 挂载

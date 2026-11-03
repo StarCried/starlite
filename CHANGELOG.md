@@ -3,6 +3,27 @@
 All notable changes will be recorded here. The project follows semantic
 versioning; prereleases use the explicit npm `alpha` channel.
 
+## 0.1.0 - 2026-11-03
+
+First non-prerelease release for desktop Chrome/Edge, Hexo 7 and standard humanoid VRM 0/1.
+
+- Add Chinese/English controls, documentation and example dialogue.
+- Add independently licensed BlueFish as an optional pinned example, with accepted
+  wrist/head calibration and Idle-relative program gestures. Weiguang remains the default.
+- Provide optional CuriousPeek, HappyWave and SleepyStartle program motions alongside
+  the baseline Idle; retain motion provenance and existing user mappings.
+- Rebase generated gestures onto calibrated Idle, with bounded entry/exit ramps;
+  preserve authored clips and the accepted complete waving performance.
+- Add environment colour/brightness hints with a 0–200% strength control. Hexo
+  supports configured light/dark theme colours without sampling the screen.
+- Place bubbles from a cached model-specific reference silhouette so short models
+  do not inherit a taller character's bubble gap.
+- Keep installation, page dialogue, retry, passthrough and optional performance
+  controls documented in both languages. Program packages contain no model artwork.
+
+Public installation and exact artifact verification are recorded after publication;
+prior alpha evidence keeps its original scope and identity.
+
 ## 0.1.0-alpha.3 - 2026-10-22
 
 - Add a shared right-click menu with model size, gaze, animation, bubble and

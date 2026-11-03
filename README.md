@@ -10,10 +10,10 @@
 
 ## Hexo：安装即体验
 
-从 `0.1.0-alpha.3` 起，在已有的 Hexo 7 博客目录运行（Node.js 22.12+）：
+在已有的 Hexo 7 博客目录运行（Node.js 22.12+）：
 
 ```sh
-npm install hexo-starlite@alpha
+npm install hexo-starlite
 npx hexo server
 ```
 
@@ -42,7 +42,7 @@ starlite:
 
 ```text
 请阅读 https://github.com/StarCried/starlite/blob/main/docs/release-guide.md
-在我的 Hexo 博客中安装 hexo-starlite@alpha，先核对已发布版本和环境，保留现有配置。
+在我的 Hexo 博客中安装 hexo-starlite，先核对已发布版本和环境，保留现有配置。
 没有自定义配置时使用默认微光；完成生成和本地预览，告诉我预览地址及配置位置，不要部署博客。
 ```
 
@@ -60,7 +60,7 @@ starlite:
 ## 其他入口
 
 - **Hexo 博客**：[安装与启动](packages/hexo/README.md)。
-- **DSH 桌宠**：[StarLite for DSH](https://github.com/StarCried/starlite-dsh)。安装 `dsh-starlite@alpha` 后随 DSH 启动，在设置中直接添加 VRM。
+- **DSH 桌宠**：[StarLite for DSH](https://github.com/StarCried/starlite-dsh)。安装 `dsh-starlite` 后随 DSH 启动，在设置中直接添加 VRM。
 - **独立本机体验**：[源码示例](docs/quick-start.md)。
 
 ## 进阶

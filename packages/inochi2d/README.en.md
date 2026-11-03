@@ -5,7 +5,7 @@
 StarLite's optional Inochi2D WebGL2 backend, using a reproducible official D SDK build. Supports embedded motions, parameters, physics, and shared dialogue. This project is not affiliated with the official Inochi2D project.
 
 ```sh
-npm install @starcried/starlite-inochi2d@alpha
+npm install @starcried/starlite-inochi2d
 ```
 
 ## Mount

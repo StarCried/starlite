@@ -11,11 +11,11 @@ A VRM character for your blog: pointer tracking, motions, and dialogue, with you
 Requires Node.js 22.12+ and Hexo 7. In your blog directory:
 
 ```sh
-npm install hexo-starlite@alpha
+npm install hexo-starlite
 npx hexo server
 ```
 
-Since `0.1.0-alpha.3`, no StarLite configuration is required: generation downloads the Weiguang example and prepares its motions, dialogue, and display settings. Open the URL shown in the terminal. Continue using your normal Hexo commands; the plugin does not deploy your blog.
+No StarLite configuration is required: generation downloads the Weiguang example and prepares its motions, dialogue, and display settings. Open the URL shown in the terminal. Continue using your normal Hexo commands; the plugin does not deploy your blog.
 
 Weiguang has [separate model terms](https://github.com/StarCried/starlite/blob/main/docs/weiguang-license.en.md). Use means acceptance. To disable it, add to `_config.yml`:
 
@@ -34,7 +34,7 @@ Open a local coding Agent in your blog directory and paste:
 
 ```text
 Read https://github.com/StarCried/starlite/blob/main/docs/release-guide.en.md
-Install hexo-starlite@alpha in my Hexo blog. Verify the published version and environment, preserve my configuration, and use the default example only if no custom model is configured.
+Install hexo-starlite in my Hexo blog. Verify the published version and environment, preserve my configuration, and use the default example only if no custom model is configured.
 Generate and preview locally, then give me the URL and configuration path. Do not deploy.
 ```
 

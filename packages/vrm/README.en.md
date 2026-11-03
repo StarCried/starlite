@@ -5,7 +5,7 @@
 StarLite's WebGL2 backend for VRM 0/1, embedded glTF animations, external VRMA, limited pointer following, blink, and shared dialogue. The browser entry bundles Three.js, three-vrm, and three-vrm-animation.
 
 ```sh
-npm install @starcried/starlite-vrm@alpha
+npm install @starcried/starlite-vrm
 ```
 
 ## Mount
@@ -29,7 +29,7 @@ const controller = await mountModelWidget(host, {
 });
 ```
 
-No motion file is required. The runtime uses an authored `Idle` when available, otherwise `StarLiteIdle` supplies a relaxed stance and breathing. Current source also provides optional `StarLiteCuriousPeek`, `StarLiteHappyWave`, and `StarLiteSleepyStartle` gestures for humanoid models. These are reserved names, not character artwork. Assign gestures explicitly; preserve motion provenance in the package notices. New source features may require a release newer than the current npm alpha.
+No motion file is required. The runtime uses an authored `Idle` when available, otherwise `StarLiteIdle` supplies a relaxed stance and breathing. Version 0.1.0 also provides optional `StarLiteCuriousPeek`, `StarLiteHappyWave`, and `StarLiteSleepyStartle` gestures for humanoid models. These are reserved names, not character artwork. Assign gestures explicitly; preserve motion provenance in the package notices.
 
 Use `animations: [{name: "Wave", url: "/Wave.vrma"}]` for your own VRMA. `ambient` chooses a baseline loop; `neutralAnimation` chooses the stopped pose. An empty ambient list stops baseline playback. Blink needs effective standard Blink bindings or a full left/right pair; absence disables blink only. Eye following needs valid VRM lookAt. Models must be self-contained.
 
