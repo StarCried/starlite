@@ -28,7 +28,7 @@ starlite:
 # 若已显式配置 dialogue.click，也将其设为 false。
 # 停用所有看板娘功能：只保留 starlite: {enable: false}。
 
-# 页面专属句子（本地候选，尚未发布到 npm）：写在文章 Markdown 的 front matter。
+# 页面专属句子：写在文章 Markdown 的 front matter。
 # starlite:
 #   - "欢迎来到这一页。"
 #   - "慢慢看，我在这里。"
@@ -64,7 +64,7 @@ starlite:
 #       lines: ["你好。"]
 #       durationMs: 7200
 
-# 内置 StarLiteIdle 姿态与跟随校准（本地候选，尚未发布到 npm）。
+# 内置 StarLiteIdle 姿态与跟随校准。
 # 将需要的字段加入上方自定义模型配置；不修改模型自带的 Idle 或其他动作。
 # 不填保留原表现，adjustments: {} 还原；完整说明见 docs/configuration.md。
 # adjustments:

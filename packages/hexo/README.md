@@ -65,14 +65,14 @@ starlite:
 
 ## 进阶
 
-除初始默认的微光，本地候选版本也可在 `_config.yml` 选择蓝色大肥鱼（尚未发布到 npm）：
+除初始默认的微光，`0.1.0` 起也可在 `_config.yml` 选择蓝色大肥鱼：
 
 ```yaml
 starlite:
   preset: bluefish
 ```
 
-模型作者水原镜（Mzkagami），遵守[独立模型条款](https://github.com/StarCried/starlite/blob/main/docs/bluefish-license.md)。本地候选包含蓝鱼适配的好奇探头、开心招手和困倦惊醒；招手按用户要求改编高挥手上半身，来源另记于模型声明。指定 `model` 后使用自定义模型，不再获取示例。
+模型作者水原镜（Mzkagami），遵守[独立模型条款](https://github.com/StarCried/starlite/blob/main/docs/bluefish-license.md)。预设包含适配的好奇探头、开心招手和困倦惊醒；开心招手采用经过适配的举手挥动动作，来源随运行时记录。指定 `model` 后使用自定义模型，不再获取示例。
 
 默认站姿不适合模型时，可[调整内置 Idle 的臂、手姿态和头眼跟随](https://github.com/StarCried/starlite/blob/main/docs/configuration.md#模型姿态与跟随调节)，不会修改模型自带动作。
 
