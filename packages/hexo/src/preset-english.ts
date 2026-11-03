@@ -15,9 +15,9 @@ const weiguang: Record<string, string[]> = {
   AbsentmindedWait: ["Reading a journal entry, a technical post, or a solution? I'm guessing not the solution...", "What do you enjoy doing? I'm a big fan of naps.", "You watch the scenery from a bridge; someone upstairs is watching you."],
 };
 const bluefish: Record<string, string[]> = {
-  HappyWave: ["I'm right here.", "Hello! Take your time and enjoy reading."],
-  CuriousPeek: ["Found anything interesting today?", "Let me have a look too."],
-  SleepyStartle: ["Mm... I'm awake!", "Focus for a while, then remember to take a break."],
+  StarLiteHappyWave: ["I'm right here.", "Hello! Take your time and enjoy reading."],
+  StarLiteCuriousPeek: ["Found anything interesting today?", "Let me have a look too."],
+  StarLiteSleepyStartle: ["Mm... I'm awake!", "Focus for a while, then remember to take a break."],
 };
 
 /** Translate shipped example text only, before applying the owner's overrides. */

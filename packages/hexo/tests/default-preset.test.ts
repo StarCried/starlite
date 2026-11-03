@@ -27,9 +27,9 @@ it("selects independent examples without changing the initial Weiguang default",
     adjustments:{idle:{wristLiftDegrees:30},gaze:{headStrength:2}}});
   expect(fish.ambient?.animations).toEqual(["StarLiteIdle"]);
   expect(JSON.stringify(fish)).not.toMatch(/微光|GentleWave|RaisedHandWave|Thinking/);
-  expect(fish.dialogue?.enter).toMatchObject({animation:"HappyWave"});
-  expect(fish.dialogue?.click).toMatchObject({animations:["HappyWave","CuriousPeek"],linesByAnimation:{HappyWave:expect.any(Array),CuriousPeek:expect.any(Array)}});
-  expect(fish.dialogue?.idle).toMatchObject({animations:["CuriousPeek","SleepyStartle"]});
+  expect(fish.dialogue?.enter).toMatchObject({animation:"StarLiteHappyWave"});
+  expect(fish.dialogue?.click).toMatchObject({animations:["StarLiteHappyWave","StarLiteCuriousPeek"],linesByAnimation:{StarLiteHappyWave:expect.any(Array),StarLiteCuriousPeek:expect.any(Array)}});
+  expect(fish.dialogue?.idle).toMatchObject({animations:["StarLiteCuriousPeek","StarLiteSleepyStartle"]});
   const overrides=resolveDefaultPreset({preset:"bluefish",dialogue:{click:{animation:"CuriousPeek",lines:["我的句子"]}}},"/cache/BlueFish-StarLite.vrm");
   expect(overrides.dialogue?.click).toMatchObject({animation:"CuriousPeek",lines:["我的句子"]});
   expect(overrides.dialogue?.click).not.toHaveProperty("linesByAnimation");
