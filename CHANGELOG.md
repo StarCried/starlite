@@ -3,6 +3,21 @@
 All notable changes will be recorded here. The project follows semantic
 versioning; prereleases use the explicit npm `alpha` channel.
 
+## 0.1.1 - 2026-11-06
+
+- Add shared hover controls for size, bubbles and temporary hiding, while retaining
+  the detailed right-click menu. Resizing keeps the foot anchor and buttons fixed.
+- Let Hexo visitors drag the character without activating the underlying link;
+  ordinary clicks retain native passthrough. Persist visitor placement with a reset.
+- Adapt portrait size to the visible viewport and reserve room for controls;
+  temporarily hide VRM companions when even the minimum layout cannot fit.
+- Keep active drags continuous across embedded comment frames and restore their
+  native interaction on release. Starting a new drag above a cross-origin frame
+  still requires a body area outside that frame.
+- Rebase host movement after layout changes to avoid injecting resize offsets into
+  spring physics. Publish the four runtime/Hexo packages; the unchanged
+  `inochi2d-blog` CLI stays at 0.1.0. Model assets and licenses are unchanged.
+
 ## 0.1.0 - 2026-11-03
 
 First non-prerelease release for desktop Chrome/Edge, Hexo 7 and standard humanoid VRM 0/1.
