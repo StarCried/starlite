@@ -182,7 +182,7 @@ it("the README's minimal VRM configuration leaves the ready host transparent to 
 
 it.each([
  [{},true],
- [{drag:true},false],
+ [{drag:true},true],
  [{drag:false},true],
  [{passThrough:false},false],
  [{passThrough:false,drag:true},false],
@@ -190,12 +190,17 @@ it.each([
 ] as const)("keeps explicit VRM interaction choices while choosing a safe blog default: %j",(interactions,expected)=>{
  const root=mkdtempSync(join(tmpdir(),"hexo-vrm-interactions-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),model());
  const assets=collectVrmFileAssets("./avatar.vrm",root),blog=simpleHexo(root,{interactions});
- expect(readEnabledConfig(blog.hexo,assets)?.widget.interactions).toMatchObject({...interactions,passThrough:expected});
+ const current=readEnabledConfig(blog.hexo,assets)!;
+ expect(current.widget.interactions).toMatchObject({...interactions,drag:false,passThrough:expected});
+ expect(current.visitorDrag).toBe(!("drag" in interactions) || interactions.drag !== false);
 });
 
-it("still rejects explicit drag and pass-through together",()=>{
+it("lets the Hexo host arbitrate body dragging while renderer clicks remain pass-through",()=>{
  const root=mkdtempSync(join(tmpdir(),"hexo-vrm-drag-"));roots.push(root);writeFileSync(join(root,"avatar.vrm"),model());
- expect(()=>simpleHexo(root,{interactions:{drag:true,passThrough:true}}).generate()).toThrow("passThrough and drag");
+ const blog=simpleHexo(root,{interactions:{drag:true,passThrough:true}});blog.generate();const html=blog.inject();
+ expect(html).toContain('"visitorDrag":true');
+ expect(html).toContain('"drag":false');
+ expect(html).toContain('"passThrough":true');
 });
 
 it("rejects a missing embedded profile neutral animation during generation with the field and name",()=>{

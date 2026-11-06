@@ -14,6 +14,7 @@ export interface EnabledConfig {
   breakpoint: number;
   showOnMobile: boolean;
   position: { right: number; bottom: number; zIndex: number };
+  visitorDrag?: boolean;
 }
 
 export function readEnabledConfig(
@@ -42,6 +43,7 @@ export function readEnabledConfig(
   const breakpoint = input.mobile?.breakpoint ?? 768;
   const showOnMobile = input.mobile?.show ?? false;
   if (input.backend === "vrm") {
+    if (input.interactions?.drag !== undefined && typeof input.interactions.drag !== "boolean") throw new Error("interactions.drag must be boolean");
     const base = modelBundle ? `${root}${modelBundle.routePrefix}/` : root;
     const preparedAnimations = modelBundle?.vrm?.animations.map(a => ({...a,url:base+a.url}));
     const animations = nonEmpty(input.bundle) ? preparedAnimations : input.animations?.map(a => ({...a,url:resolveUrl(root,a.url)})) ?? preparedAnimations;
@@ -72,10 +74,11 @@ export function readEnabledConfig(
       render:{fps:30,maxDevicePixelRatio:1.5,autoFit:true,...input.render},
       ...(input.network ? {network:input.network} : {}),
       ...(input.ambient ? {ambient:input.ambient} : {}), ...(input.dialogue ? {dialogue:input.dialogue} : {}),
-      interactions:{...input.interactions,passThrough:input.interactions?.passThrough ?? !input.interactions?.drag,click:input.interactions?.click ?? false},
+      // Hexo owns opaque-body dragging so a short click can remain native to the page.
+      interactions:{...input.interactions,drag:false,passThrough:input.interactions?.passThrough ?? true,click:input.interactions?.click ?? false},
     };
     (require("@starcried/starlite-vrm/config") as typeof import("@starcried/starlite-vrm/config", {with:{"resolution-mode":"import"}})).validateVrmWidgetConfig(widget);
-    return {widget,breakpoint,showOnMobile,position,...(environmentLighting ? {environmentLighting} : {})};
+    return {widget,breakpoint,showOnMobile,position,visitorDrag:input.interactions?.drag !== false,...(environmentLighting ? {environmentLighting} : {})};
   }
   const widget = toWidgetConfig(
     input as Extract<HexoWidgetConfig, {backend?: "inochi2d"}>,

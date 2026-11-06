@@ -94,7 +94,7 @@ const PRESET = {
   "interactions": {
     "pointer": true,
     "passThrough": true,
-    "drag": false,
+    "drag": true,
     "click": {
       "animations": [
         "GentleWave",

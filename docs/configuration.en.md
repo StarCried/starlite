@@ -146,8 +146,8 @@ Generic custom-model defaults (example presets can differ):
 | `gaze` | max yaw 25°, max pitch 15°, smoothing 100 ms |
 | `mobile` | `{show: false, breakpoint: 768}`; guard runs before runtime/model requests |
 | `interactions.pointer` | true |
-| `interactions.passThrough` | true for the blog unless dragging was explicitly enabled |
-| `interactions.drag` | cannot be true alongside pass-through |
+| `interactions.passThrough` | true in VRM Hexo; transparent areas and ordinary short clicks preserve native page clicks, including when body dragging is enabled |
+| `interactions.drag` | true in VRM Hexo; the host handles body dragging. Set false to disable it. Renderer drag always remains false |
 | `position` | `{right: 16, bottom: 0, zIndex: 20}`; fixed CSS pixel offsets, Hexo only |
 | `neutralAnimation` | sample for stopped neutral pose; overrides profile and auto-detected Idle |
 
@@ -196,7 +196,20 @@ Omit a field to preserve its original behavior. `{}` resets adjustments. Missing
 
 Loading or failure hides the character and preserves blog interaction. Browser retries are bounded to 2/5/15 seconds; successful loading restores it. Mobile, offline, and visibility guards remain active. See [network and recovery details](release-guide.en.md#downloads-cache-and-recovery).
 
-Right-click menus store visitor display preferences locally, independently of site configuration. Menu position remains fixed while resizing. **Reset position** restores configured blog offsets; **Show bubbles** changes text visibility only. Shift + right-click preserves the browser menu.
+Move the pointer near a VRM character to reveal **− / + / bubbles / hide** beneath it; the toolbar disappears after leaving and also supports keyboard focus. Resizing keeps the foot anchor and buttons fixed, independent of animation. The full right-click menu still provides frame rate, pointer tracking, pause, **Reset size**, and **Reset position**. Shift + right-click preserves the browser menu.
+
+With the default `passThrough: true`, transparent areas and ordinary short clicks preserve native page events; no synthetic click is sent. A primary mouse press on an opaque body pixel becomes a drag only after moving more than 6 CSS pixels. Releasing a drag triggers neither a page click nor the character's click response. Form controls, toolbar controls, and modifier-key gestures keep their usual behavior. A page's custom `pointerdown` action cannot be undone after dragging starts.
+
+Position, size, and bubble preferences are saved locally in that browser. **Reset position** clears the visitor's dragged position and reapplies blog placement; **Reset size** targets 100%, subject to the current viewport limits. Narrow or short viewports reduce the base size automatically, and enlargement is limited by visible space around the anchor to keep the portrait and toolbar on screen. Hiding bubbles leaves motions active; **Show character** at the bottom right restores a temporarily hidden character.
+
+VRM Hexo allows body dragging and page click-through together. It handles dragging in the host while always passing `drag: false` to the renderer. To disable only body dragging:
+
+```yaml
+starlite:
+  interactions:
+    passThrough: true
+    drag: false
+```
 
 ## Environment fill colours
 

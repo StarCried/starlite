@@ -65,6 +65,17 @@
 - Version 0.1 targets current desktop Chrome and Edge with WebGL2.
 - Mobile defaults to hidden and must return before runtime import or model/WASM
   fetch.
+- Core owns the shared visitor toolbar and `isModelDrag` classifier (>6 CSS px).
+  Hexo owns alpha-hit body dragging and foot-anchored viewport placement; its
+  public VRM `interactions.drag` defaults to true while renderer drag remains
+  false, preserving native pass-through short clicks. Keep serialized helpers
+  self-contained with explicit dependencies, capture drag completion on window,
+  and never synthesize page clicks or claim to undo page pointerdown handlers.
+  Keep controls fixed during resizing, clamp portrait/control bounds to the
+  viewport, and pair persisted visitor position with reset and PJAX cleanup.
+  Rebase host motion with `setHostPosition(..., {resetMotion:true})` after layout
+  changes and before dragging; resize/reset offsets must not become spring impulses.
+  DSH shares the controls/classifier but retains its native window-drag adapter.
 - Model-authored, non-additive `Forced` animation lanes may be normalized by the
   pipeline and played by exact name. Creator `leadIn`/`leadOut` regions may be
   used for explicitly configured ambient loops. MeshGroup, Camera,

@@ -24,7 +24,9 @@ starlite:
   enable: false
 ```
 
-Right-click the character for size, frame rate, pointer tracking, bubbles, pause, and position controls. Hiding bubbles does not stop motions. Visitor settings stay in that visitor's browser. Use **Show character** to restore a hidden character; Shift + right-click opens the browser menu.
+Move the pointer near the character to reveal a toolbar beneath it: **− / + / bubbles / hide**. Its buttons stay in place while resizing. The right-click menu still offers size, frame rate, tracking, bubbles, pause, and size/position resets. Position, size, and bubble preferences stay in the visitor's browser. Hiding bubbles does not stop motions. Use **Show character** at the bottom right to restore a temporarily hidden character; Shift + right-click opens the browser menu.
+
+By default, transparent areas and ordinary short clicks let the underlying page receive native clicks. Pressing the character's body and moving more than 6 CSS pixels drags it; release triggers neither a page click nor the character's click response. Narrow or short viewports reduce its size automatically, and enlargement stays within the visible area. Set `drag: false` under `starlite.interactions` to disable body dragging while retaining page click-through.
 
 The source version supports English menus and example dialogue: it follows Hexo's `language`, or an explicit `starlite.locale: en`. Custom sentences are kept exactly as written.
 

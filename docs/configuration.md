@@ -98,21 +98,30 @@ starlite:
 | `adjustments` | 按模型校准内置 Idle 的臂、手姿态，以及头眼跟随；省略时保持原表现，见下方说明。 |
 | `mobile` | 默认 `show: false`、`breakpoint: 768`，在运行时导入前判断。 |
 | `interactions.pointer` | 光标跟随，默认开启。 |
-| `interactions.passThrough` | VRM 博客默认 true，让下层页面同时处理点击；显式开启拖动时默认 false，可手动指定。 |
-| `interactions.drag` | 穿透时必须 false。 |
+| `interactions.passThrough` | VRM Hexo 默认 true，透明区域和普通短点保留下层页面的原生点击；不会因开启身体拖动而改成 false。 |
+| `interactions.drag` | VRM Hexo 默认 true，由 Hexo 处理身体拖动；设为 false 可禁用。传给底层渲染器的 drag 始终为 false。 |
 | `ambient.animations` | 最多一个基础循环；省略时使用模型 Idle 或程序默认 Idle，显式空数组停用循环。 |
 | `neutralAnimation` | 停止动作后采用该动作首帧的基础站姿；显式配置优先于角色 profile，随后才自动选择 Idle。 |
 | `profile` | 可选数据型微光适配；标准 VRM 无需配置。也可嵌入 `extras.starlite.profile`；其中的 `neutralAnimation` 必须存在于模型或已配置 VRMA 中，也可用内置 `StarLiteIdle`。 |
 | `position` | 仅 Hexo 定位：`right / bottom` 为 0–10000 的 CSS px，通用默认 16／0；`zIndex` 为非负整数，默认 20。默认微光改用 112／160。 |
 
-大幅动作可用 `render.viewportPadding: {left, top, right, bottom}`（CSS px）保留固定余量，四项均须填写；不随动作动态改变画布大小。优先使用 `starlite.position` 调整位置，也可放入站点原有 CSS：
+大幅动作可用 `render.viewportPadding: {left, top, right, bottom}`（CSS px）保留固定余量，四项均须填写；不随动作动态改变画布大小。用 `starlite.position` 设置初始位置；保存的访客拖动位置优先，点「恢复默认位置」重新应用博客定位。Hexo 负责换算实际位置并为脚下快捷栏保留空间。
 
-```css
-[data-starlite-widget-host],
-[data-starlite-widget-host].model-vrm-widget {
-  right: 48px;
-  bottom: 32px;
-}
+## 访客快捷操作与身体拖动
+
+光标靠近 VRM 角色时，脚下显示「−／＋／气泡／暂时隐藏」快捷栏，移开后自动收起；也可用键盘聚焦按钮。缩放以脚下位置为锚点，快捷栏不会随模型大小或动作移动，便于连续点击。右键菜单保留帧率、跟随、暂停及「恢复默认大小／位置」等完整设置；Shift + 右键保留浏览器菜单。
+
+默认 `passThrough: true` 时，透明区域和普通短点让页面接收原生事件，不补发合成点击。从身体的不透明像素按住鼠标左键，移动超过 6 CSS px 后才开始拖动；拖动结束不会触发角色点击响应或下层页面点击。表单控件、快捷栏和带修饰键的操作保持原用途。页面自己在 `pointerdown` 中执行的行为无法由后续拖动撤回。
+
+位置、大小、气泡等偏好只存于当前浏览器，不改博客配置；「恢复默认位置」清除访客拖动位置并按博客定位重新放置，「恢复默认大小」以 100% 为目标，仍受当前可视范围限制。较窄或较矮的窗口会先收小基础尺寸，放大上限也受当前锚点到可视边界的距离限制，保持角色和快捷栏可见。关闭气泡仍保留动作；「暂时隐藏」后点右下角「显示角色」恢复。
+
+VRM Hexo 的身体拖动与页面穿透可同时开启；Hexo 始终关闭底层渲染器的拖动，由宿主区分短点和拖动。只关闭身体拖动可写：
+
+```yaml
+starlite:
+  interactions:
+    passThrough: true
+    drag: false
 ```
 
 ## 模型姿态与跟随调节
@@ -601,16 +610,18 @@ strictly non-breathing idle pose.
 To disable the widget, set `starlite.enable: false` and regenerate. No
 theme or `node_modules` file is patched.
 
-## Click-through blog interaction
+## Direct runtime click-through interaction
 
-Set `interactions.passThrough: true` to let the page beneath the model receive
+When using the rendering packages directly, set `interactions.passThrough: true` to let the page beneath the model receive
 its original pointer and click events while an in-bounds click still triggers
 the model's configured response. The host, canvas and fallback opt out of CSS
 hit testing; no replacement page click is synthesized or canceled. Pointer
-travel over 5 CSS pixels, scrolling and canceled gestures do not trigger a
+travel over 6 CSS pixels, scrolling and canceled gestures do not trigger a
 response. Modifier keys keep the underlying link's normal behavior.
 Inochi2D disables its implicit drag default in this mode; explicitly enabling
 both `passThrough` and `drag` rejects configuration. The default remains false.
+VRM Hexo instead uses the host-managed body dragging described above: its
+`interactions.drag` option can be true while the renderer's drag stays false.
 
 ## Inochi2D runtime API
 

@@ -1,15 +1,19 @@
 import { expect, it, vi } from "vitest";
 import { Window, type HTMLElement } from "happy-dom";
 import { installVisitorMenu } from "../src/visitor-menu";
+import { createVisitorToolbar } from "../../core/src/visitor-toolbar";
+import { isModelDrag } from "../../core/src/drag-gesture";
+import { createVisitorPlacement } from "../src/visitor-placement";
+import { observeVisitorDrag } from "../src/visitor-drag";
 
-function harness(config: any = {}, storage?: string) {
-  const win = new Window({ url: "https://blog.example/" });
+function harness(config: any = {}, storage?: string, controls=false) {
+  const win = new Window({ url: "https://blog.example/",width:1360,height:900 });
   if (storage) win.localStorage.setItem("starlite:visitor-settings:v1", storage);
   const host = win.document.createElement("div"); win.document.body.append(host);
   let maskListener: ((value: any) => void) | undefined;
   const controller = {
     status: "running",
-    setDisplaySize: vi.fn(), setFrameRate: vi.fn(), setPointerEnabled: vi.fn(),
+    setDisplaySize: vi.fn((w:number,h:number) => {host.style.width=`${w}px`;host.style.height=`${h}px`;}), setFrameRate: vi.fn(), setPointerEnabled: vi.fn(),
     setBubblesVisible: vi.fn(), setPerformanceVisible: vi.fn(), pause: vi.fn(), resume: vi.fn(),
     refreshInteractionMask: vi.fn(),
     observeInteractionMask: vi.fn((listener?: (value: any) => void) => { maskListener = listener; }),
@@ -22,7 +26,11 @@ function harness(config: any = {}, storage?: string) {
   }
   const state: any = { host, controller };
   const options = { config: { backend: "vrm", model: "/m.vrm", display: { width: 260, height: 390 }, render: { fps: 60 }, dialogue: { click: { animation: "Wave", lines: ["Hello"] } }, ...config }, position: { right: 112, bottom: 160, zIndex: 20 } };
-  new Function("globalThis", "document", "runtime", "state", "options", `(${installVisitorMenu.toString()})(runtime,state,options)`)(win, win.document, { QuickSettingsMenu: Menu }, state, options);
+  const toolbarFactory = (options:any) => new Function("globalThis","document","options",`return (${createVisitorToolbar.toString()})(options)`)(win,win.document,options);
+  const createPlacement = (options:any) => new Function("globalThis","options",`return (${createVisitorPlacement.toString()})(options)`)(win,options);
+  const observeDrag = (options:any,threshold:any) => new Function("globalThis","document","options","threshold",`return (${observeVisitorDrag.toString()})(options,threshold)`)(win,win.document,options,threshold);
+  new Function("globalThis", "document", "runtime", "state", "options","helpers", `(${installVisitorMenu.toString()})(runtime,state,options,helpers)`)(win, win.document,
+    { QuickSettingsMenu: Menu,...(controls ? {createVisitorToolbar:toolbarFactory,isModelDrag} : {}) }, state, options, controls ? {createPlacement,observeDrag} : undefined);
   const menu = state.quickSettings.menu as Menu;
   const item = (id: string) => menu.options.tabs.flatMap((tab: any) => tab.items).find((entry: any) => entry.id === id);
   const context = (x: number, y: number, shiftKey = false, target: HTMLElement = win.document.body) => {
@@ -40,6 +48,42 @@ it("opens only over alpha-covered model pixels, preserving transparent and Shift
   expect(h.context(110, 110, true).defaultPrevented).toBe(false);
   expect(h.context(110, 110, false, h.menu.element).defaultPrevented).toBe(false);
   expect(h.menu.open).toHaveBeenCalledOnce(); await h.win.happyDOM.close();
+});
+
+it("shares hover-toolbar controls with the detailed menu without moving its anchor or restarting animations",async()=>{
+  const h=harness({},undefined,true),toolbar=h.state.quickSettings.toolbar;
+  const button=(name:string)=>toolbar.element.querySelector(`[data-toolbar-action=${name}]`);
+  const point=toolbar.element.style.cssText;
+  button("smaller").click();expect(h.item("size").value).toBe(90);
+  button("larger").click();expect(h.item("size").value).toBe(100);
+  expect(toolbar.element.style.cssText).toBe(point);
+  button("bubbles").click();expect(h.item("bubbles").value).toBe(false);
+  expect(h.controller.setBubblesVisible).toHaveBeenLastCalledWith(false);expect(h.controller.pause).not.toHaveBeenCalled();
+  h.item("bubbles").onChange(true);expect(button("bubbles").getAttribute("aria-pressed")).toBe("true");
+  button("hide").click();expect(toolbar.element.hidden).toBe(true);expect(h.state.quickSettings.recovery.hidden).toBe(false);
+  h.state.quickSettings.recovery.click();expect(toolbar.element.hidden).toBe(false);expect(h.controller.resume).toHaveBeenCalledOnce();
+  h.state.quickSettings.destroy();await h.win.happyDOM.close();
+});
+
+it("reveals controls around the portrait, retains them through the gap, and hides them after leaving",async()=>{
+  const h=harness({},undefined,true),controls=h.state.quickSettings,point=controls.placement.toolbar;
+  const move=(x:number,y:number)=>h.win.dispatchEvent(new h.win.PointerEvent("pointermove",{clientX:x,clientY:y,pointerType:"mouse",isPrimary:true}));
+  move(point.x,point.y-20);expect(controls.toolbar.element.dataset.visible).toBe("true");
+  move(point.x,point.y-4);expect(controls.toolbar.element.dataset.visible).toBe("true");
+  move(0,0);await new Promise(resolve=>setTimeout(resolve,220));
+  expect(controls.toolbar.element.dataset.visible).toBe("false");
+  controls.toolbar.element.remove();controls.reattach();expect(controls.toolbar.element.isConnected).toBe(true);
+  controls.destroy();move(point.x,point.y);expect(controls.toolbar.element.isConnected).toBe(false);
+  await h.win.happyDOM.close();
+});
+
+it("loads bounded visitor placement and keeps both controls and model inside a resized viewport",async()=>{
+  const h=harness({},JSON.stringify({position:{x:.9,y:.9},scale:1}),true),controls=h.state.quickSettings;
+  h.win.happyDOM.setWindowSize({width:911,height:512});h.win.dispatchEvent(new h.win.Event("resize"));
+  const r=controls.placement.portrait,p=controls.placement.toolbar;
+  expect(r.left).toBeGreaterThanOrEqual(12);expect(r.top).toBeGreaterThanOrEqual(12);expect(p.y+42).toBeLessThanOrEqual(500);
+  h.item("reset-position").onAction();expect(JSON.parse(h.win.localStorage.getItem("starlite:visitor-settings:v1")!).position).toBeUndefined();
+  controls.destroy();await h.win.happyDOM.close();
 });
 
 it("maps paused pixels to the current canvas position before a resize event arrives", async () => {

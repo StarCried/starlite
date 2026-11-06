@@ -161,6 +161,7 @@ export function registerHexoWidget(instance: HexoLike): void {
       breakpoint: currentConfig.breakpoint,
       showOnMobile: currentConfig.showOnMobile,
       position: currentConfig.position,
+      ...(currentConfig.visitorDrag !== undefined ? {visitorDrag:currentConfig.visitorDrag} : {}),
       pageRoot: root,
       ...(currentConfig.environmentLighting ? {environmentLighting:currentConfig.environmentLighting} : {}),
     });

@@ -95,7 +95,7 @@ it("reproduces the accepted blog's display, motion pools, dialogue and timing wi
     mobile:{show:false,breakpoint:900},position:WEIGUANG_POSITION,
     camera:{yawDegrees:0,pitchDegrees:5,fovDegrees:20,targetHeight:.54},
     gaze:{maxYawDegrees:25,maxPitchDegrees:15,smoothingMs:100},ambient:{animations:["Idle"]},
-    interactions:{pointer:true,passThrough:true,drag:false},
+    interactions:{pointer:true,passThrough:true,drag:true},
     publication:{confirm:true,allowRedistribution:true,sourceSha256:WEIGUANG_ASSETS[0].sha256},
   });
   expect(result).toHaveProperty("embeddedAnimations.length",13);

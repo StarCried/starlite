@@ -2,6 +2,8 @@ import { createEnvironmentLighting } from "./environment-lighting-browser";
 import type { HexoEnvironmentLighting, BrowserWidgetConfig } from "./types";
 import { installVisitorMenu } from "./visitor-menu";
 import { readPageDialogue } from "./page-dialogue-browser";
+import { createVisitorPlacement } from "./visitor-placement";
+import { observeVisitorDrag } from "./visitor-drag";
 
 interface BootstrapOptions {
   entryUrl: string;
@@ -11,6 +13,7 @@ interface BootstrapOptions {
   showOnMobile: boolean;
   position?: { right: number; bottom: number; zIndex: number };
   pageRoot?: string;
+  visitorDrag?: boolean;
 }
 
 /** Build a self-contained browser module with a mobile guard before import(). */
@@ -20,6 +23,8 @@ export function createBootstrapSource(options: BootstrapOptions): string {
 (async (options) => {
   const createEnvironmentLighting = ${createEnvironmentLighting.toString()};
   const installQuickSettings = ${installVisitorMenu.toString()};
+  const createPlacement = ${createVisitorPlacement.toString()};
+  const observeDrag = ${observeVisitorDrag.toString()};
   const readPageDialogue = ${readPageDialogue.toString()};
   const mobileQuery = \`(max-width: \${Math.max(0, options.breakpoint - 1)}px)\`;
   const stateKey = "__hexoStarLiteWidgetState";
@@ -206,7 +211,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
           state.environmentLighting = environmentLighting;
           environmentLighting?.attach(controller);
           syncPageDialogue();
-          installQuickSettings(runtime, state, options);
+          installQuickSettings(runtime, state, options, {createPlacement,observeDrag});
           rememberEntry();
         }
       })

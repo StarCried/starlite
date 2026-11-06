@@ -22,7 +22,7 @@ export const BLUEFISH_PRESET = {
   camera: { yawDegrees: 0, pitchDegrees: 5, fovDegrees: 20, targetHeight: 0.54 },
   display: { width: 260, height: 390 },
   gaze: { maxYawDegrees: 25, maxPitchDegrees: 15, smoothingMs: 100 },
-  interactions: { pointer: true, passThrough: true, drag: false,
+  interactions: { pointer: true, passThrough: true, drag: true,
     click: { animations: ["StarLiteHappyWave", "StarLiteCuriousPeek"] } },
   dialogue: {
     enter: { animation: "StarLiteHappyWave", delayMs: 500, durationMs: 6300, lines: ["你好呀，欢迎来这里。"] },
