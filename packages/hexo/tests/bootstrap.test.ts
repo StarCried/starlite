@@ -2,8 +2,10 @@ import {expect,it,vi} from "vitest";
 import {Window,type HTMLElement} from "happy-dom";
 import {createBootstrapSource} from "../src/bootstrap";
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
-function harness(mobile=false,ready="complete",entered=false,passThrough=false,viewport:{width?:number;height?:number;showOnMobile?:boolean;backend?:"vrm"|"inochi2d"}={}) {
+function harness(mobile=false,ready="complete",entered=false,passThrough=false,viewport:{width?:number;height?:number;clientWidth?:number;clientHeight?:number;showOnMobile?:boolean;backend?:"vrm"|"inochi2d"}={}) {
  const win=new Window({url:"https://blog.example/",width:viewport.width??1024,height:viewport.height??768}), idle: (()=>void)[]=[];
+ if(viewport.clientWidth!==undefined)Object.defineProperty(win.document.documentElement,"clientWidth",{value:viewport.clientWidth,configurable:true});
+ if(viewport.clientHeight!==undefined)Object.defineProperty(win.document.documentElement,"clientHeight",{value:viewport.clientHeight,configurable:true});
  Object.defineProperty(win.document,"readyState",{value:ready,configurable:true});
  Object.defineProperty(win.document,"visibilityState",{value:"visible",writable:true,configurable:true});
  Object.defineProperty(win.navigator,"onLine",{value:true,writable:true,configurable:true});
@@ -50,6 +52,25 @@ it("accepts the exact VRM physical boundary with mobile opt-in and leaves Inochi
  expect(vrm.mount).toHaveBeenCalledOnce();await vrm.win.happyDOM.close();
  const inochi=harness(true,"complete",false,false,{width:1,height:1,showOnMobile:true,backend:"inochi2d"});await inochi.run();
  expect(inochi.mount).toHaveBeenCalledOnce();await inochi.win.happyDOM.close();
+});
+it.each([
+ {clientWidth:175,clientHeight:75,allowed:false},
+ {clientWidth:176,clientHeight:74,allowed:false},
+ {clientWidth:176,clientHeight:75,allowed:true},
+ {clientWidth:0,clientHeight:0,allowed:true},
+])("checks usable dimensions independently of the outer viewport: %j",async({allowed,...client})=>{
+ const h=harness(true,"complete",false,false,{width:193,height:92,showOnMobile:true,...client});await h.run();
+ expect(h.load).toHaveBeenCalledTimes(Number(allowed));expect(h.mount).toHaveBeenCalledTimes(Number(allowed));
+ expect(h.win.document.querySelectorAll("[data-starlite-widget-host]")).toHaveLength(Number(allowed));await h.win.happyDOM.close();
+});
+it("unmounts and restores as scrollbar-reduced dimensions cross the physical minimum",async()=>{
+ const h=harness(true,"complete",false,false,{width:193,height:92,clientWidth:176,clientHeight:75,showOnMobile:true});await h.run();
+ Object.defineProperty(h.win.document.documentElement,"clientHeight",{value:74,configurable:true});
+ h.win.dispatchEvent(new h.win.Event("resize"));await h.run();expect(h.controller.destroy).toHaveBeenCalledOnce();
+ expect(h.win.document.querySelectorAll("[data-starlite-widget-host]")).toHaveLength(0);
+ Object.defineProperty(h.win.document.documentElement,"clientHeight",{value:75});
+ h.win.dispatchEvent(new h.win.Event("resize"));await h.run();expect(h.mount).toHaveBeenCalledTimes(2);
+ expect(h.load).toHaveBeenCalledOnce();expect(h.win.document.querySelectorAll("[data-starlite-widget-host]")).toHaveLength(1);await h.win.happyDOM.close();
 });
 it("destroys a ready VRM and its controls below the height minimum, then remounts exactly once",async()=>{
  const h=harness();await h.run();const state=(h.win as any).__hexoStarLiteWidgetState;

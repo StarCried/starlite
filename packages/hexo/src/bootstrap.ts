@@ -33,8 +33,11 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   const retryDelays = [2000, 5000, 15000];
   state.retryCount ??= 0;
   // VRM needs a 152x42 toolbar, an 8px gap, 12px margins and a 1px portrait.
-  const fitsViewport = () => (options.showOnMobile || !media.matches) &&
-    (options.config.backend !== "vrm" || (globalThis.innerWidth >= 176 && globalThis.innerHeight >= 75));
+  const fitsViewport = () => {
+    const viewport = document.documentElement;
+    return (options.showOnMobile || !media.matches) && (options.config.backend !== "vrm" ||
+      ((viewport.clientWidth || globalThis.innerWidth) >= 176 && (viewport.clientHeight || globalThis.innerHeight) >= 75));
+  };
   const canLoad = () => document.visibilityState !== "hidden" && globalThis.navigator.onLine !== false &&
     fitsViewport();
   const clearRetry = () => {

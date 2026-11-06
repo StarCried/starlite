@@ -31,8 +31,10 @@ export function createVisitorPlacement(options: {
     if (controller.status === "paused") controller.refreshInteractionMask?.();
   };
   const reflow = () => {
-    viewportWidth = Math.max(1, globalThis.innerWidth);
-    viewportHeight = Math.max(1, globalThis.innerHeight);
+    // Root client dimensions exclude scrollbars; zero means layout is unavailable.
+    const viewport = globalThis.document.documentElement;
+    viewportWidth = Math.max(1, viewport.clientWidth || globalThis.innerWidth);
+    viewportHeight = Math.max(1, viewport.clientHeight || globalThis.innerHeight);
     // 100% is the authored size on roomy screens, reduced on short/narrow ones.
     factor = Math.min(1, viewportWidth * .30 / width, viewportHeight * .55 / height,
       Math.max(1, viewportHeight - 2 * margin - gap - toolbarHeight) / height);

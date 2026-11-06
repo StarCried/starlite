@@ -2,8 +2,9 @@ import {expect,it,vi} from "vitest";
 import {Window} from "happy-dom";
 import {createVisitorPlacement} from "../src/visitor-placement";
 
-function harness(width=1360,height=900,saved?:{x:number;y:number},display={width:260,height:390}) {
+function harness(width=1360,height=900,saved?:{x:number;y:number},display={width:260,height:390},client?:{width:number;height:number}) {
   const win=new Window({width,height});
+  if(client)Object.defineProperties(win.document.documentElement,{clientWidth:{value:client.width,configurable:true},clientHeight:{value:client.height,configurable:true}});
   const host=win.document.createElement("div");win.document.body.append(host);
   const controller={status:"running",setDisplaySize:vi.fn((w:number,h:number)=>{host.style.width=`${w}px`;host.style.height=`${h}px`;}),setHostPosition:vi.fn(),refreshInteractionMask:vi.fn()};
   const layout=new Function("globalThis","options",`return (${createVisitorPlacement.toString()})(options)`)(win,
@@ -32,6 +33,30 @@ it("adapts the initial portrait to a short laptop viewport while preserving room
   expect(r.height).toBeLessThanOrEqual(512*.55);
   expect(r.top).toBeGreaterThanOrEqual(12);
   expect(h.layout.toolbar.y+42).toBeLessThanOrEqual(500);
+  await h.win.happyDOM.close();
+});
+it.each([6,17])("excludes %ipx scrollbars from drag, resize and saved-position bounds",async scrollbar=>{
+  const client={width:1360-scrollbar,height:900-scrollbar};
+  const h=harness(1360,900,{x:1,y:1},undefined,client);
+  for(const scale of [.5,1.5,1]) {
+    h.layout.setScale(scale);h.layout.moveTo(1e6,1e6);
+    const r=h.layout.portrait,bar=h.layout.toolbar;
+    expect(r.left+r.width).toBeLessThanOrEqual(client.width-12);
+    expect(bar.x+76).toBeLessThanOrEqual(client.width-12);
+    expect(bar.y+42).toBeCloseTo(client.height-12);
+  }
+  const saved=h.layout.snapshot()!;
+  expect(saved).toEqual({x:h.layout.anchor.x/client.width,y:h.layout.anchor.y/client.height});
+  const restored=harness(1360,900,saved,undefined,client);
+  expect(restored.layout.anchor).toEqual(h.layout.anchor);
+  await h.win.happyDOM.close();await restored.win.happyDOM.close();
+});
+it("uses the scrollbar-reduced minimum height when reflowing",async()=>{
+  const h=harness(193,92,{x:1,y:1},undefined,{width:176,height:75});
+  expect(h.layout.portrait.top).toBeCloseTo(12);expect(h.layout.portrait.height).toBeCloseTo(1);
+  expect(h.layout.toolbar).toEqual({x:88,y:21});
+  Object.defineProperties(h.win.document.documentElement,{clientWidth:{value:177},clientHeight:{value:76}});h.layout.reflow();
+  expect(h.layout.toolbar.x+76).toBeLessThanOrEqual(165);expect(h.layout.toolbar.y+42).toBeLessThanOrEqual(64);
   await h.win.happyDOM.close();
 });
 it.each([{width:176,height:75},{width:176,height:76},{width:1360,height:75},{width:176,height:900}])("fits the portrait and full toolbar at physical viewport boundaries, including saved corners: %j",async viewport=>{

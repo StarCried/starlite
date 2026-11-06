@@ -77,6 +77,12 @@
   starting inside a foreign iframe cannot be observed without breaking passthrough.
   Keep controls fixed during resizing, clamp portrait/control bounds to the
   viewport, and pair persisted visitor position with reset and PJAX cleanup.
+  Use root `clientWidth`/`clientHeight` for placement and the VRM viewport guard
+  so scrollbars are excluded; fall back to inner dimensions only before layout
+  reports a nonzero size. The 176x75 CSS px minimum reserves a 152x42 toolbar,
+  an 8px gap, 12px margins and a 1px portrait, even with `mobile.show` enabled.
+  Keep those limits synchronized when toolbar geometry changes. Browser checks
+  must remove Playwright's default `--hide-scrollbars` argument to exercise this.
   Rebase host motion with `setHostPosition(..., {resetMotion:true})` after layout
   changes and before dragging; resize/reset offsets must not become spring impulses.
   DSH shares the controls/classifier but retains its native window-drag adapter.
