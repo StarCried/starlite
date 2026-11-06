@@ -11,6 +11,7 @@ export function observeVisitorDrag(options: {
   type Gesture = {
     id: number; x: number; y: number; lastX: number; lastY: number; active: boolean;
     selection: Range[];
+    capture?: HTMLElement;
   };
   let gesture: Gesture | undefined;
   let completed: { id: number; x: number; y: number; until: number } | undefined;
@@ -35,6 +36,10 @@ export function observeVisitorDrag(options: {
   const finish = (cancelled: boolean) => {
     const current = gesture;
     gesture = undefined;
+    if (current?.capture) {
+      try { if (current.capture.hasPointerCapture(current.id)) current.capture.releasePointerCapture(current.id); }
+      catch { /* Browser ownership can already have ended; still restore page interaction. */ }
+    }
     restoreStyle?.(); restoreStyle = undefined;
     if (current?.active) {
       restoreSelection(current);
@@ -49,16 +54,30 @@ export function observeVisitorDrag(options: {
     const dx = event.clientX - current.x, dy = event.clientY - current.y;
     if (!current.active && isDrag(dx, dy)) {
       current.active = true;
+      // Only a confirmed drag owns the pointer. Ordinary short clicks still
+      // reach the original page unchanged, including its native pointer target.
+      const capture = document.documentElement;
+      if (typeof capture.setPointerCapture === "function") {
+        try { capture.setPointerCapture(current.id); current.capture = capture; }
+        catch { /* The pointer may already have ended before a late native event. */ }
+      }
       const style = document.documentElement.style;
       const properties = ["user-select", "-webkit-user-select"];
-      const previous = properties.map(property => ({ property, value: style.getPropertyValue(property), priority: style.getPropertyPriority(property) }));
+      const previous = properties.map(property => ({ style, property, value: style.getPropertyValue(property), priority: style.getPropertyPriority(property) }));
+      // Chromium can route movement into a cross-origin iframe even while the
+      // parent has pointer capture. Suspend frame hit-testing only during this
+      // drag; never block a short click or inspect the embedded document.
+      for (const frame of document.querySelectorAll("iframe")) {
+        const property = "pointer-events", style = frame.style;
+        previous.push({ style, property, value: style.getPropertyValue(property), priority: style.getPropertyPriority(property) });
+      }
       restoreStyle = () => {
-        for (const { property, value, priority } of previous) {
+        for (const { style, property, value, priority } of previous) {
           if (value) style.setProperty(property, value, priority);
           else style.removeProperty(property);
         }
       };
-      for (const property of properties) style.setProperty(property, "none", "important");
+      for (const { style, property } of previous) style.setProperty(property, "none", "important");
       restoreSelection(current);
       options.start();
     }
@@ -101,6 +120,9 @@ export function observeVisitorDrag(options: {
       options.hover?.(pointer);
     }],
     ["pointercancel", event => { if (gesture?.id === (event as PointerEvent).pointerId) cancel(); }],
+    ["lostpointercapture", event => {
+      if (gesture?.capture === event.target && gesture.id === (event as PointerEvent).pointerId) cancel();
+    }],
     ["blur", event => { if (event.target === event.currentTarget) cancel(); }],
     ["keydown", event => { if ((event as KeyboardEvent).key === "Escape") cancel(); }],
     ["dragstart", event => {

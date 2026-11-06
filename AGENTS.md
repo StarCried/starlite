@@ -71,6 +71,10 @@
   false, preserving native pass-through short clicks. Keep serialized helpers
   self-contained with explicit dependencies, capture drag completion on window,
   and never synthesize page clicks or claim to undo page pointerdown handlers.
+  Confirmed drags capture the pointer and temporarily suspend iframe hit-testing;
+  pointer capture alone can lose movement to cross-origin frames in Chromium.
+  Restore original inline values/priorities on every exit. A short click or drag
+  starting inside a foreign iframe cannot be observed without breaking passthrough.
   Keep controls fixed during resizing, clamp portrait/control bounds to the
   viewport, and pair persisted visitor position with reset and PJAX cleanup.
   Rebase host motion with `setHostPosition(..., {resetMotion:true})` after layout

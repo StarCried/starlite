@@ -73,6 +73,78 @@ it("classifies a final displacement even when the release arrives without an int
   expect(h.click(125, 100).defaultPrevented).toBe(true); expect(h.modelClick).not.toHaveBeenCalled();
 });
 
+it("captures only confirmed drags and releases ownership after completion",()=>{
+  const h=harness(), owner=h.win.document.documentElement, captured=new Set<number>();
+  const set=vi.fn((id:number)=>{captured.add(id);}), release=vi.fn((id:number)=>{
+    captured.delete(id);owner.dispatchEvent(new h.win.PointerEvent("lostpointercapture",{bubbles:true,pointerId:id}));
+  });
+  Object.assign(owner,{setPointerCapture:set,hasPointerCapture:(id:number)=>captured.has(id),releasePointerCapture:release});
+  h.pointer("pointerdown");h.pointer("pointermove",106,100);h.pointer("pointerup",106,100);
+  expect(set).not.toHaveBeenCalled();expect(h.click(106,100).defaultPrevented).toBe(false);
+  h.pointer("pointerdown");h.pointer("pointermove",110,100);expect(set).toHaveBeenCalledExactlyOnceWith(7);
+  h.pointer("pointermove",180,150,owner);h.pointer("pointerup",180,150,owner);
+  expect(h.options.move).toHaveBeenLastCalledWith(80,50);expect(h.options.end).toHaveBeenCalledExactlyOnceWith(false);
+  expect(release).toHaveBeenCalledExactlyOnceWith(7);expect(h.click(180,150,owner).defaultPrevented).toBe(true);
+});
+
+it.each(["lostpointercapture","cancel","destroy"])("releases a captured pointer and temporary styles on %s",reason=>{
+  const h=harness(),owner=h.win.document.documentElement;let captured=false;
+  const release=vi.fn(()=>{captured=false;});
+  Object.assign(owner,{setPointerCapture:()=>{captured=true;},hasPointerCapture:()=>captured,releasePointerCapture:release});
+  h.pointer("pointerdown");h.pointer("pointermove",120,110);
+  if(reason==="lostpointercapture"){captured=false;owner.dispatchEvent(new h.win.PointerEvent(reason,{bubbles:true,pointerId:7}));}
+  else if(reason==="cancel")h.drag.cancel();else h.drag.destroy();
+  expect(h.options.end).toHaveBeenCalledExactlyOnceWith(true);expect(captured).toBe(false);
+  expect(h.win.document.documentElement.style.userSelect).toBe("");
+  h.pointer("pointerup",120,110);expect(h.click(120,110).defaultPrevented).toBe(false);
+});
+
+it.each(["release", "pointercancel", "lostpointercapture", "blur", "Escape", "cancel", "destroy", "buttons", "disabled"])("restores iframe hit-testing after %s without changing ordinary clicks", reason => {
+  const h = harness();
+  const frames = [h.win.document.createElement("iframe"), h.win.document.createElement("iframe"), h.win.document.createElement("iframe")];
+  frames[1]!.style.setProperty("pointer-events", "auto", "important");
+  frames[1]!.style.setProperty("border", "0");
+  frames[2]!.style.setProperty("pointer-events", "none");
+  if (reason === "lostpointercapture") Object.assign(h.win.document.documentElement, {
+    setPointerCapture: () => {}, hasPointerCapture: () => false,
+  });
+  h.win.document.body.append(...frames);
+  const originals = frames.map(frame => frame.style.cssText);
+  h.pointer("pointerdown"); h.pointer("pointermove", 106, 100); h.pointer("pointerup", 106, 100);
+  expect(frames.map(frame => frame.style.cssText)).toEqual(originals);
+  expect(h.click(106, 100).defaultPrevented).toBe(false);
+  h.pointer("pointerdown"); h.pointer("pointermove", 120, 110);
+  for (const frame of frames) {
+    expect(frame.style.pointerEvents).toBe("none");
+    expect(frame.style.getPropertyPriority("pointer-events")).toBe("important");
+  }
+  if (reason === "release") h.pointer("pointerup", 120, 110);
+  else if (reason === "pointercancel") h.pointer("pointercancel", 120, 110);
+  else if (reason === "lostpointercapture") h.win.document.documentElement.dispatchEvent(new h.win.PointerEvent("lostpointercapture", { bubbles: true, pointerId: 7 }));
+  else if (reason === "blur") h.win.dispatchEvent(new h.win.Event("blur"));
+  else if (reason === "Escape") h.win.dispatchEvent(new h.win.KeyboardEvent("keydown", { key: "Escape" }));
+  else if (reason === "cancel") h.drag.cancel();
+  else if (reason === "destroy") h.drag.destroy();
+  else if (reason === "buttons") h.pointer("pointermove", 120, 110, h.page, { buttons: 0 });
+  else { h.options.enabled.mockReturnValue(false); h.pointer("pointermove", 120, 110); }
+  expect(h.options.end).toHaveBeenCalledExactlyOnceWith(reason !== "release");
+  expect(frames.map(frame => frame.style.cssText)).toEqual(originals);
+  expect(frames[1]!.style.getPropertyPriority("pointer-events")).toBe("important");
+});
+
+it("restores the page even when releasing native pointer ownership throws", () => {
+  const h = harness(), frame = h.win.document.createElement("iframe"); h.win.document.body.append(frame);
+  Object.assign(h.win.document.documentElement, {
+    setPointerCapture: () => {}, hasPointerCapture: () => true,
+    releasePointerCapture: () => { throw new Error("No active pointer"); },
+  });
+  h.complete();
+  expect(h.options.end).toHaveBeenCalledExactlyOnceWith(false);
+  expect(frame.style.pointerEvents).toBe("");
+  expect(h.win.document.documentElement.style.userSelect).toBe("");
+  expect(h.click(110, 115).defaultPrevented).toBe(true);
+});
+
 it.each(["input", "textarea", "select", "button", "div[contenteditable]", "div[data-starlite-quick-settings]",
   "div[data-starlite-widget-restore]", "div[data-starlite-visitor-toolbar]"])("leaves %s and its descendants available to native interaction", selector => {
   const h = harness(), [tag, attribute] = selector.split("[");
@@ -181,7 +253,7 @@ it("removes every listener, cancels active work, and restores temporary styles o
   const h = harness(), remove = vi.spyOn(h.win, "removeEventListener");
   h.pointer("pointerdown"); h.pointer("pointermove", 110, 115); h.drag.destroy(); h.drag.destroy();
   expect(h.options.end).toHaveBeenCalledExactlyOnceWith(true); expect(h.win.document.documentElement.style.userSelect).toBe("");
-  expect(remove.mock.calls.map(([type]) => type).sort()).toEqual(["pointerdown", "pointermove", "pointerup", "pointercancel", "blur", "keydown", "dragstart", "selectstart", "click"].sort());
+  expect(remove.mock.calls.map(([type]) => type).sort()).toEqual(["pointerdown", "pointermove", "pointerup", "pointercancel", "lostpointercapture", "blur", "keydown", "dragstart", "selectstart", "click"].sort());
   h.options.hover.mockClear(); h.complete(); expect(h.options.start).toHaveBeenCalledOnce(); expect(h.options.hover).not.toHaveBeenCalled();
   expect(h.click(110, 115).defaultPrevented).toBe(false);
   const selectstart = new h.win.Event("selectstart", { bubbles: true, cancelable: true }); h.page.dispatchEvent(selectstart); expect(selectstart.defaultPrevented).toBe(false);

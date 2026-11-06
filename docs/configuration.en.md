@@ -200,6 +200,8 @@ Move the pointer near a VRM character to reveal **− / + / bubbles / hide** ben
 
 With the default `passThrough: true`, transparent areas and ordinary short clicks preserve native page events; no synthetic click is sent. A primary mouse press on an opaque body pixel becomes a drag only after moving more than 6 CSS pixels. Releasing a drag triggers neither a page click nor the character's click response. Form controls, toolbar controls, and modifier-key gestures keep their usual behavior. A page's custom `pointerdown` action cannot be undone after dragging starts.
 
+An active drag can cross embedded comment frames; releasing it restores their normal interaction. Mouse events inside a cross-origin iframe do not reach the blog, so start from a body area outside that frame if the character already overlaps it. Ordinary clicks still go directly to the embedded page.
+
 Position, size, and bubble preferences are saved locally in that browser. **Reset position** clears the visitor's dragged position and reapplies blog placement; **Reset size** targets 100%, subject to the current viewport limits. Narrow or short viewports reduce the base size automatically, and enlargement is limited by visible space around the anchor to keep the portrait and toolbar on screen. Hiding bubbles leaves motions active; **Show character** at the bottom right restores a temporarily hidden character.
 
 VRM Hexo allows body dragging and page click-through together. It handles dragging in the host while always passing `drag: false` to the renderer. To disable only body dragging:
