@@ -2,8 +2,8 @@ import {expect,it,vi} from "vitest";
 import {Window,type HTMLElement} from "happy-dom";
 import {createBootstrapSource} from "../src/bootstrap";
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
-function harness(mobile=false,ready="complete",entered=false,passThrough=false) {
- const win=new Window({url:"https://blog.example/"}), idle: (()=>void)[]=[];
+function harness(mobile=false,ready="complete",entered=false,passThrough=false,viewport:{width?:number;height?:number;showOnMobile?:boolean;backend?:"vrm"|"inochi2d"}={}) {
+ const win=new Window({url:"https://blog.example/",width:viewport.width??1024,height:viewport.height??768}), idle: (()=>void)[]=[];
  Object.defineProperty(win.document,"readyState",{value:ready,configurable:true});
  Object.defineProperty(win.document,"visibilityState",{value:"visible",writable:true,configurable:true});
  Object.defineProperty(win.navigator,"onLine",{value:true,writable:true,configurable:true});
@@ -18,7 +18,7 @@ function harness(mobile=false,ready="complete",entered=false,passThrough=false) 
  (win as any).requestIdleCallback=(run:any)=>{idle.push(run);return 1};
  const load=vi.fn(), controller={status:"running",destroy:vi.fn()}, mount=vi.fn(async(..._args:any[])=>controller);
  load.mockResolvedValue({mountModelWidget:mount});
- const source=createBootstrapSource({entryUrl:"/runtime.js",config:{backend:"vrm",model:"/m.vrm",fallback:"/fallback.png",interactions:{passThrough},dialogue:{enter:{animation:"Click",lines:["Hello"]}}},breakpoint:768,showOnMobile:false}).replace("import(entryUrl.href)","load(entryUrl.href)");
+ const source=createBootstrapSource({entryUrl:"/runtime.js",config:{backend:viewport.backend??"vrm",model:"/m.vrm",fallback:"/fallback.png",interactions:{passThrough},dialogue:{enter:{animation:"Click",lines:["Hello"]}}},breakpoint:768,showOnMobile:viewport.showOnMobile??false}).replace("import(entryUrl.href)","load(entryUrl.href)");
  new Function("globalThis","document","load",source)(win,win.document,load);
  const run=async()=>{idle.shift()?.();await tick()};
  return {win,media,idle,load,mount,controller,timers,source,run,retry:async()=>{
@@ -36,6 +36,55 @@ it("does not wait for pending third-party resources after the body is ready",asy
 });
 it("mobile never imports runtime or mounts a model",async()=>{
  const h=harness(true);await h.run();expect(h.load).not.toHaveBeenCalled();expect(h.win.document.querySelectorAll("[data-starlite-widget-host]")).toHaveLength(0);await h.win.happyDOM.close();
+});
+it.each([{width:1360,height:74},{width:175,height:900},{width:1,height:1}])("never imports VRM below its physical viewport minimum, including mobile opt-in: %j",async viewport=>{
+ for(const showOnMobile of [false,true]) {
+  const h=harness(false,"complete",false,false,{...viewport,showOnMobile});await h.run();
+  expect(h.load).not.toHaveBeenCalled();expect(h.mount).not.toHaveBeenCalled();
+  expect(h.win.document.querySelectorAll("[data-starlite-widget-host]")).toHaveLength(0);
+  await h.win.happyDOM.close();
+ }
+});
+it("accepts the exact VRM physical boundary with mobile opt-in and leaves Inochi2D unchanged",async()=>{
+ const vrm=harness(true,"complete",false,false,{width:176,height:75,showOnMobile:true});await vrm.run();
+ expect(vrm.mount).toHaveBeenCalledOnce();await vrm.win.happyDOM.close();
+ const inochi=harness(true,"complete",false,false,{width:1,height:1,showOnMobile:true,backend:"inochi2d"});await inochi.run();
+ expect(inochi.mount).toHaveBeenCalledOnce();await inochi.win.happyDOM.close();
+});
+it("destroys a ready VRM and its controls below the height minimum, then remounts exactly once",async()=>{
+ const h=harness();await h.run();const state=(h.win as any).__hexoStarLiteWidgetState;
+ const quickSettings={reattach:vi.fn(),destroy:vi.fn()},environmentLighting={destroy:vi.fn()};
+ state.quickSettings=quickSettings;state.environmentLighting=environmentLighting;
+ const original=h.win.document.querySelector("[data-starlite-widget-host]")!;
+ h.win.happyDOM.setWindowSize({width:1360,height:74});h.win.dispatchEvent(new h.win.Event("resize"));await h.run();
+ expect(h.controller.destroy).toHaveBeenCalledOnce();expect(quickSettings.destroy).toHaveBeenCalledOnce();
+ expect(environmentLighting.destroy).toHaveBeenCalledOnce();expect(state.quickSettings).toBeUndefined();
+ expect(state.controller).toBeUndefined();expect(h.mount.mock.calls[0]?.[2].signal.aborted).toBe(true);
+ expect(original.isConnected).toBe(false);expect(h.timers.size).toBe(0);
+ const recovered={status:"running",destroy:vi.fn()};h.mount.mockResolvedValueOnce(recovered);
+ h.win.happyDOM.setWindowSize({width:1360,height:75});h.win.dispatchEvent(new h.win.Event("resize"));await h.run();
+ h.win.dispatchEvent(new h.win.Event("resize"));await h.run();
+ expect(h.load).toHaveBeenCalledOnce();expect(h.mount).toHaveBeenCalledTimes(2);expect(recovered.destroy).not.toHaveBeenCalled();
+ expect(h.win.document.querySelectorAll("[data-starlite-widget-host]")).toHaveLength(1);await h.win.happyDOM.close();
+});
+it("cancels an in-flight VRM at the width minimum and disposes its late result after recovery",async()=>{
+ const h=harness(true,"complete",false,false,{showOnMobile:true});let finish!:(value:any)=>void;
+ h.mount.mockImplementationOnce(()=>new Promise(resolve=>finish=resolve));await h.run();
+ h.win.happyDOM.setWindowSize({width:175,height:900});h.win.dispatchEvent(new h.win.Event("resize"));await h.run();
+ expect(h.mount.mock.calls[0]?.[2].signal.aborted).toBe(true);
+ h.win.happyDOM.setWindowSize({width:176,height:900});h.win.dispatchEvent(new h.win.Event("resize"));await h.run();
+ const late={destroy:vi.fn()};finish(late);await tick();
+ expect(late.destroy).toHaveBeenCalledOnce();expect(h.controller.destroy).not.toHaveBeenCalled();
+ expect(h.mount).toHaveBeenCalledTimes(2);expect(h.win.document.querySelectorAll("[data-starlite-widget-host]")).toHaveLength(1);
+ await h.win.happyDOM.close();
+});
+it("suspends a failed VRM retry below the height minimum without consuming attempts",async()=>{
+ const h=harness();h.load.mockRejectedValueOnce(new Error("offline"));await h.run();
+ h.win.happyDOM.setWindowSize({width:1360,height:74});h.win.dispatchEvent(new h.win.Event("resize"));await h.run();
+ expect(h.timers.size).toBe(0);h.win.dispatchEvent(new h.win.Event("online"));await h.run();expect(h.load).toHaveBeenCalledOnce();
+ expect((h.win as any).__hexoStarLiteWidgetState.retryCount).toBe(0);
+ h.win.happyDOM.setWindowSize({width:1360,height:75});h.win.dispatchEvent(new h.win.Event("resize"));await h.run();
+ expect(h.timers.size).toBe(1);await h.retry();expect(h.mount).toHaveBeenCalledOnce();await h.win.happyDOM.close();
 });
 it("PJAX reattaches the same pending canvas and removes incoming duplicate hosts",async()=>{
  const h=harness();let finish!:(v:any)=>void;h.mount.mockImplementationOnce(()=>new Promise(r=>finish=r));await h.run();

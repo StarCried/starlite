@@ -32,8 +32,11 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   const media = globalThis.matchMedia(mobileQuery);
   const retryDelays = [2000, 5000, 15000];
   state.retryCount ??= 0;
+  // VRM needs a 152x42 toolbar, an 8px gap, 12px margins and a 1px portrait.
+  const fitsViewport = () => (options.showOnMobile || !media.matches) &&
+    (options.config.backend !== "vrm" || (globalThis.innerWidth >= 176 && globalThis.innerHeight >= 75));
   const canLoad = () => document.visibilityState !== "hidden" && globalThis.navigator.onLine !== false &&
-    (options.showOnMobile || !media.matches);
+    fitsViewport();
   const clearRetry = () => {
     globalThis.clearTimeout(state.retryTimer);
     state.retryTimer = undefined;
@@ -98,7 +101,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
   };
   const ensureMounted = async () => {
     const hosts = Array.from(document.querySelectorAll("[data-starlite-widget-host]"));
-    if (!options.showOnMobile && media.matches) {
+    if (!fitsViewport()) {
       nextGeneration();
       clearRetry();
       state.observer?.disconnect();
@@ -192,12 +195,12 @@ export function createBootstrapSource(options: BootstrapOptions): string {
         const controller = await runtime.mountModelWidget(host, environmentLighting ? {...config, environmentLighting:environmentLighting.current()} : config, {signal:abort.signal});
         // A load can finish between fragment replacement and pjax:complete.
         if (state.generation === generation && state.host === host &&
-            (options.showOnMobile || !media.matches) && !host.isConnected) document.body.append(host);
+            fitsViewport() && !host.isConnected) document.body.append(host);
         if (
           state.generation !== generation ||
           state.host !== host ||
           !host.isConnected ||
-          (!options.showOnMobile && media.matches)
+          !fitsViewport()
         ) {
           controller.destroy();
           return;
@@ -246,6 +249,7 @@ export function createBootstrapSource(options: BootstrapOptions): string {
     document.addEventListener("pjax:complete", () => state.scheduleMount());
     globalThis.addEventListener("popstate", () => state.scheduleMount());
     media.addEventListener("change", () => state.scheduleMount());
+    if (options.config.backend === "vrm") globalThis.addEventListener("resize", () => state.scheduleMount());
     document.addEventListener("visibilitychange", () => state.resumeRecovery());
     globalThis.addEventListener("online", () => state.resumeRecovery());
     globalThis.addEventListener("offline", () => state.resumeRecovery());

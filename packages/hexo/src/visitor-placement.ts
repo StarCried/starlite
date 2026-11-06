@@ -34,12 +34,13 @@ export function createVisitorPlacement(options: {
     viewportWidth = Math.max(1, globalThis.innerWidth);
     viewportHeight = Math.max(1, globalThis.innerHeight);
     // 100% is the authored size on roomy screens, reduced on short/narrow ones.
-    factor = Math.max(.01, Math.min(1, viewportWidth * .30 / width, viewportHeight * .55 / height));
+    factor = Math.min(1, viewportWidth * .30 / width, viewportHeight * .55 / height,
+      Math.max(1, viewportHeight - 2 * margin - gap - toolbarHeight) / height);
     const halfMinimum = Math.max(toolbarWidth / 2, width * factor * .5 / 2);
     x = clamp(saved ? saved.x * viewportWidth : viewportWidth - (options.position?.right ?? 16) - width * factor / 2,
       margin + halfMinimum, viewportWidth - margin - halfMinimum);
     y = clamp(saved ? saved.y * viewportHeight : viewportHeight - (options.position?.bottom ?? 0),
-      margin + height * factor * .5, viewportHeight - margin - gap - toolbarHeight);
+      margin + Math.max(1, height * factor * .5), viewportHeight - margin - gap - toolbarHeight);
     scale = Math.min(desiredScale, maximum());
     apply();
   };
@@ -67,7 +68,7 @@ export function createVisitorPlacement(options: {
       if (!Number.isFinite(nextX) || !Number.isFinite(nextY)) return;
       const halfWidth = Math.max(toolbarWidth / 2, width * factor * scale / 2);
       x = clamp(nextX, margin + halfWidth, viewportWidth - margin - halfWidth);
-      y = clamp(nextY, margin + height * factor * scale, viewportHeight - margin - gap - toolbarHeight);
+      y = clamp(nextY, margin + Math.max(1, height * factor * scale), viewportHeight - margin - gap - toolbarHeight);
       saved = { x: x / viewportWidth, y: y / viewportHeight };
       apply(true);
     },

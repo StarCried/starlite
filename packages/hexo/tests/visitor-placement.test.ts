@@ -34,6 +34,34 @@ it("adapts the initial portrait to a short laptop viewport while preserving room
   expect(h.layout.toolbar.y+42).toBeLessThanOrEqual(500);
   await h.win.happyDOM.close();
 });
+it.each([{width:176,height:75},{width:176,height:76},{width:1360,height:75},{width:176,height:900}])("fits the portrait and full toolbar at physical viewport boundaries, including saved corners: %j",async viewport=>{
+  for(const display of [{width:260,height:390},{width:1,height:4096},{width:4096,height:1}]) {
+    for(const saved of [undefined,{x:0,y:0},{x:1,y:1}]) {
+      const h=harness(viewport.width,viewport.height,saved,display);
+      const assertBounds=()=>{
+        const r=h.layout.portrait,bar=h.layout.toolbar;
+        expect(r.width).toBeGreaterThanOrEqual(1);expect(r.height).toBeGreaterThanOrEqual(1);
+        expect(r.left).toBeGreaterThanOrEqual(12-1e-8);expect(r.top).toBeGreaterThanOrEqual(12-1e-8);
+        expect(r.left+r.width).toBeLessThanOrEqual(viewport.width-12+1e-8);
+        expect(bar.x-76).toBeGreaterThanOrEqual(12-1e-8);expect(bar.x+76).toBeLessThanOrEqual(viewport.width-12+1e-8);
+        expect(bar.y+42).toBeLessThanOrEqual(viewport.height-12+1e-8);
+      };
+      assertBounds();
+      for(const scale of [.5,1.5,1]) {h.layout.setScale(scale);assertBounds();}
+      h.layout.moveTo(-1e6,-1e6);assertBounds();h.layout.moveTo(1e6,1e6);assertBounds();
+      await h.win.happyDOM.close();
+    }
+  }
+});
+it("reflows a saved position through the minimum viewport and restores its normal-size placement",async()=>{
+  const h=harness(1360,900,{x:.6,y:.7}),portrait=h.layout.portrait,saved=h.layout.snapshot();
+  h.win.happyDOM.setWindowSize({width:176,height:75});h.layout.reflow();
+  expect(h.layout.portrait.top).toBeCloseTo(12);expect(h.layout.portrait.height).toBeCloseTo(1);
+  expect(h.layout.toolbar).toEqual({x:88,y:21});expect(h.layout.snapshot()).toEqual(saved);
+  h.win.happyDOM.setWindowSize({width:1360,height:900});h.layout.reflow();
+  expect(h.layout.portrait).toEqual(portrait);expect(h.layout.snapshot()).toEqual(saved);
+  await h.win.happyDOM.close();
+});
 it("restricts growth at an edge instead of moving controls away from the pointer",async()=>{
   const h=harness();h.layout.moveTo(-100,400);
   const point=h.layout.toolbar,scale=h.layout.scale;
