@@ -29,8 +29,9 @@ export class HostMotion {
     }
     if (this.#originals.size) manager?.reset();
   }
-  setPosition(x: number, y: number): void {
+  setPosition(x: number, y: number, resetMotion = false): void {
     if (![x, y].every(Number.isFinite) || Math.max(Math.abs(x), Math.abs(y)) > 65536) throw new Error("invalid host position");
+    if (resetMotion) this.suspend();
     if (this.#last) {
       this.#pending.x += x - this.#last[0]; this.#pending.y += y - this.#last[1];
     }

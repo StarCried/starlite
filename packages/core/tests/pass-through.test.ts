@@ -26,6 +26,14 @@ it("reacts once while the exact native modified click reaches the underlying pag
   expect(f.react).toHaveBeenCalledOnce(); expect(received).toHaveBeenCalledOnce(); expect(received.mock.calls[0]![0]).toBe(click);
   expect([down, up, click].every(event => !event.defaultPrevented)).toBe(true); expect(click.ctrlKey).toBe(true);
 });
+it("preserves six-pixel short clicks and rejects movement beyond the shared drag threshold", () => {
+  const f = fixture();
+  f.pointer("pointerdown"); f.pointer("pointermove", 56); f.pointer("pointerup", 56);
+  const click = f.click({ clientX: 56 });
+  expect(f.react).toHaveBeenCalledOnce(); expect(click.defaultPrevented).toBe(false);
+  f.pointer("pointerdown"); f.pointer("pointermove", 56.1); f.pointer("pointerup", 56.1); f.click({ clientX: 56.1 });
+  expect(f.react).toHaveBeenCalledOnce();
+});
 it("suppresses sliding even after returning to the starting point and rejects outside gestures", () => {
   const f = fixture();
   f.pointer("pointerdown"); f.pointer("pointermove", 70); f.pointer("pointermove"); f.pointer("pointerup"); f.click();

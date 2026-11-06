@@ -25,8 +25,8 @@ export interface ModelController {
   /** Refresh current alpha coverage after a host resize, including while paused. */
   refreshInteractionMask?(): void;
   setPointerPosition(clientX: number, clientY: number): void;
-  /** Optional host-movement capability. Coordinates are CSS pixels, local only. */
-  setHostPosition?(x: number, y: number): void;
+  /** Local CSS coordinates. Layout changes reset the motion baseline, without spring impulses. */
+  setHostPosition?(x: number, y: number, options?: { resetMotion?: boolean }): void;
   /** Toggle local model metrics without remounting; disabled by default. */
   setPerformanceVisible?(visible: boolean): void;
   /** Resize the logical portrait in CSS pixels without resetting playback. */
@@ -129,3 +129,5 @@ export { observePassThroughClicks } from "./pass-through.js";
 export { PerformanceOverlay, FrameSamples, validatePerformanceConfig, type PerformanceConfig, type PerformanceFrameDetails } from "./performance.js";
 
 export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem, type QuickSettingCallback } from "./quick-settings.js";
+export { createVisitorToolbar, type VisitorToolbarOptions, type VisitorToolbarState } from "./visitor-toolbar.js";
+export { isModelDrag } from "./drag-gesture.js";

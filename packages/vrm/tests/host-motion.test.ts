@@ -60,3 +60,15 @@ it('runs pre-physics work without springs and restores the drawing origin if it 
  expect(()=>f.motion.update(0,f.camera,480,()=>{throw new Error('rest failed');})).toThrow('rest failed');
  expect(f.root.position.length()).toBe(0);f.motion.destroy();noSprings.destroy();
 });
+
+for(const centered of [false,true])it(`rebases layout changes without an impulse or losing subsequent drag inertia (${centered})`,()=>{
+ const a=rig(centered),b=rig(centered);
+ for(const f of [a,b]){f.motion.setPosition(0,0);f.motion.setPosition(60,0);f.motion.update(1/30,f.camera,480);}
+ a.motion.setPosition(900,700,true);b.motion.setPosition(60,0,true);
+ for(const f of [a,b])f.motion.update(1/30,f.camera,480);
+ expect(a.bone.quaternion.angleTo(b.bone.quaternion)).toBeLessThan(1e-6);
+ a.motion.setPosition(905,700);b.motion.setPosition(65,0);
+ for(const f of [a,b])f.motion.update(1/30,f.camera,480);
+ expect(a.bone.quaternion.angleTo(b.bone.quaternion)).toBeLessThan(1e-6);
+ a.motion.destroy();b.motion.destroy();
+});

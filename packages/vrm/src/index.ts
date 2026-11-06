@@ -1,6 +1,6 @@
 export { resolveLocale, type StarLiteLocale } from "@starcried/starlite-core";
 import * as THREE from "three";
-import { type EnvironmentLighting, PerformanceOverlay, FrameSamples } from "@starcried/starlite-core";
+import { type EnvironmentLighting, PerformanceOverlay, FrameSamples, isModelDrag } from "@starcried/starlite-core";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMPose } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip, type VRMAnimation } from "@pixiv/three-vrm-animation";
@@ -22,6 +22,8 @@ import { AdjustableIdle, RebasedBuiltinGesture } from "./adjustments.js";
 import type { CharacterProfile, ModelAdjustments, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
 export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem } from "@starcried/starlite-core";
+export { createVisitorToolbar, type VisitorToolbarOptions, type VisitorToolbarState } from "@starcried/starlite-core";
+export { isModelDrag } from "@starcried/starlite-core";
 export { validateModelAdjustments, validateVrmWidgetConfig } from "./config.js";
 
 export async function mountModelWidget(host: HTMLElement, config: VrmWidgetConfig, options: MountOptions = {}): Promise<VrmController> {
@@ -296,8 +298,8 @@ class Controller implements VrmController {
     if (!this.#pointerEnabled || this.#status !== "running") return;
     this.#gaze.move(clientX, clientY, this.#host.getBoundingClientRect(), { width: innerWidth, height: innerHeight });
   }
-  setHostPosition(x: number, y: number): void {
-    if (this.#status === "running") this.#hostMotion?.setPosition(x, y);
+  setHostPosition(x: number, y: number, options?: { resetMotion?: boolean }): void {
+    if (this.#status === "running") this.#hostMotion?.setPosition(x, y, options?.resetMotion);
   }
   setPerformanceVisible(visible: boolean): void {
     if (typeof visible !== "boolean") throw new Error("performance visibility must be boolean");
@@ -529,7 +531,7 @@ class Controller implements VrmController {
     on(this.#canvas, "pointerdown", (event) => { const p = event as PointerEvent; if (p.button !== 0) return; const r = this.#host.getBoundingClientRect(); down = { id: p.pointerId, x: p.clientX, y: p.clientY, left: r.left, top: r.top, moved: false }; if (this.#config.interactions?.drag) this.setHostPosition(r.left, r.top); });
     on(window, "pointermove", (event) => {
       const p = event as PointerEvent; if (!down || down.id !== p.pointerId) return;
-      const dx = p.clientX - down.x, dy = p.clientY - down.y; down.moved ||= Math.hypot(dx, dy) > 5;
+      const dx = p.clientX - down.x, dy = p.clientY - down.y; down.moved ||= isModelDrag(dx, dy);
       if (!this.#config.interactions?.drag || !down.moved) return;
       const left = Math.max(0, Math.min(innerWidth - this.#host.offsetWidth, down.left + dx)), top = Math.max(0, Math.min(innerHeight - this.#host.offsetHeight, down.top + dy));
       Object.assign(this.#host.style, { position: "fixed", right: "auto", bottom: "auto", left: `${left}px`, top: `${top}px` });

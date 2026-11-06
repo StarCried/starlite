@@ -4,6 +4,7 @@ import { createDefaultDependencies } from "./dependencies.js";
 
 export { validateInochi2DWidgetConfig } from "./config.js";
 export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem } from "./quick-settings.js";
+export { createVisitorToolbar, type VisitorToolbarOptions, type VisitorToolbarState } from "./quick-settings.js";
 
 export type {
   AmbientAnimationConfig,

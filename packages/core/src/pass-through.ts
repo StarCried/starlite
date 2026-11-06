@@ -1,3 +1,5 @@
+import { isModelDrag } from "./drag-gesture.js";
+
 /** Observe the same native click that reaches the page beneath an inert canvas.
  * Callers opt the host/canvas out of hit testing with pointer-events: none. */
 export function observePassThroughClicks(surface: HTMLElement, onClick: () => void): () => void {
@@ -14,7 +16,7 @@ export function observePassThroughClicks(surface: HTMLElement, onClick: () => vo
   };
   const clear = (): void => { down = undefined; ready = undefined; };
   const move = (event: PointerEvent): void => {
-    if (down?.id === event.pointerId && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) down.moved = true;
+    if (down?.id === event.pointerId && isModelDrag(event.clientX - down.x, event.clientY - down.y)) down.moved = true;
   };
   const listeners: [string, EventListener][] = [
     ["pointerdown", event => {
@@ -44,7 +46,7 @@ export function observePassThroughClicks(surface: HTMLElement, onClick: () => vo
       // Keyboard/programmatic clicks have no matching completed pointer gesture.
       // Modifier keys intentionally remain available to the page's native click.
       if (gesture && click.button === 0 && click.detail > 0 && inside(click)
-        && Math.hypot(click.clientX - gesture.x, click.clientY - gesture.y) <= 5) onClick();
+        && !isModelDrag(click.clientX - gesture.x, click.clientY - gesture.y)) onClick();
     }],
   ];
   for (const [type, listener] of listeners) window.addEventListener(type, listener, { capture: true, passive: true });
