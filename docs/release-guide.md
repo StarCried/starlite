@@ -2,7 +2,7 @@
 
 简体中文 · [English](release-guide.en.md)
 
-本页适用于 `0.1.0`；普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
+本页适用于 `0.1.1`；普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
 
 ## 安装与启动
 
@@ -15,7 +15,7 @@ npx hexo server
 
 无需填写配置，第一次生成自动获取独立授权的固定微光版本，带有演示博客的 13 个动作、点击／偶发句库、首次入场、镜头和显示预设。打开终端中的网址即可体验。日常沿用原 Hexo 命令；插件不会自动部署博客。
 
-需要固定版本时，使用 `npm install --save-exact hexo-starlite@0.1.0`。不指定版本时安装正式 `latest`；旧的 `alpha` 标签保留为历史预发行渠道。
+需要固定版本时，使用 `npm install --save-exact hexo-starlite@0.1.1`。不指定版本时安装正式 `latest`；旧的 `alpha` 标签保留为历史预发行渠道。
 
 微光采用[独立模型许可](weiguang-license.md)，使用即同意，并需在关于页等可见位置保留署名。不接受许可或不需要看板娘时，在 `_config.yml` 停用：
 
@@ -41,6 +41,8 @@ starlite:
 
 动作、逐动作句库、位置和性能开关见[完整配置](configuration.md)及 [YAML 示例](examples/hexo-vrm.yml)。默认微光使用 60 FPS、DPR 1、260 × 390 画布，位置为右侧 112 px、底部 160 px；保持抗锯齿，按目标设备验收。
 
+访客可拖动角色避开正文，靠近角色时使用脚下按钮缩放、关闭气泡或暂时隐藏。尺寸受当前可视宽高限制；关闭气泡仍保留动画。完整设置及恢复默认位置保留在右键菜单中，偏好仅保存在访客浏览器。
+
 单篇文章或独立页面可在 Markdown front matter 中写 `starlite: ["欢迎来到这一页。", "慢慢看。"]`，默认按顺序回应点击和偶发互动；选项及全站 `pageDialogue` 默认值见[页面专属句子](configuration.md#页面专属句子)。
 
 ### 使用自己的模型
@@ -61,7 +63,7 @@ starlite:
 
 标准人形骨骼为必需；Blink 和 lookAt 为可选能力。无动作模型使用内置的 `StarLiteIdle` 基础站姿和轻呼吸，有自己的 `Idle` 时优先采用；其他内嵌动作自动识别；本版另提供通用好奇探头、开心招手和困倦惊醒，均按需映射到点击或偶发互动。名称见配置说明，气泡也可独立使用。模型约定、外部动作和两个后端的配置见[配置说明](configuration.md)。
 
-自定义 VRM 通用默认值为 30 FPS、DPR 上限 1.5、手机断点 768 px。默认保留下层页面点击；显式开启拖动时默认拥有点击区域。无需同时安装旧的 `hexo-model-companion`；旧配置键 `inochi2d_widget:` 应改为 `starlite:`。
+自定义 VRM 通用默认值为 30 FPS、DPR 上限 1.5、手机断点 768 px。默认可拖动身体且保留下层页面短点击；移动超过 6 CSS px 后才接管拖动。跨站评论区上重新起拖的限制见[拖动说明](configuration.md#访客快捷操作与身体拖动)。无需同时安装旧的 `hexo-model-companion`；旧配置键 `inochi2d_widget:` 应改为 `starlite:`。
 
 ## 下载、缓存与加载失败
 
@@ -99,4 +101,4 @@ npm uninstall hexo-starlite
 
 ## 维护者：发布状态与标签
 
-版本元数据和本地检查不等于已经公开发行。每版的托管 CI、精确产物、npm registry 与公开安装验收另记于 [validation](validation.md)。`0.1.0` 使用正式 `latest` 标签；历史 alpha 版本与 tag 保持不变。不要覆盖旧版本或移动旧 tag。
+版本元数据和本地检查不等于已经公开发行。每版的托管 CI、精确产物、npm registry 与公开安装验收另记于 [validation](validation.md)。正式版使用 `latest` 标签；历史 alpha 版本与 tag 保持不变。不要覆盖旧版本或移动旧 tag。
