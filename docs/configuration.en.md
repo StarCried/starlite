@@ -141,7 +141,7 @@ Generic custom-model defaults (example presets can differ):
 | `display.width / height` | 320 × 480 CSS pixels |
 | `render.fps` | 30; 60 or `display` also supported |
 | `render.maxDevicePixelRatio` | 1.5, allowed 1–1.5; 1 can reduce rendering cost with antialiasing retained |
-| `performance.show` | false; rendered FPS, frame-interval p95, and CPU-side frame-work p95 |
+| `performance.show` | false; **Show debug info** displays rendered FPS, frame-interval p95, and CPU-side frame-work p95 |
 | `camera` | yaw, pitch, field of view, and target height |
 | `gaze` | max yaw 25°, max pitch 15°, smoothing 100 ms |
 | `mobile` | `{show: false, breakpoint: 768}`; guard runs before runtime/model requests |

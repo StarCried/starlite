@@ -143,7 +143,7 @@ export function installVisitorMenu(runtime: any, state: any, options: {
           disabled: typeof controller.setFrameRate !== "function",
           options: [...(preferences.fps !== 30 && preferences.fps !== 60 ? [{ value: String(preferences.fps), label: preferences.fps === "display" ? text("跟随屏幕", "Match display") : `${preferences.fps} FPS` }] : []), { value: "30", label: "30 FPS" }, { value: "60", label: "60 FPS" }],
           onChange: (value: string) => set("fps", Number(value)) },
-        { id: "performance", kind: "toggle", label: text("显示性能", "Show performance"), value: preferences.performance,
+        { id: "performance", kind: "toggle", label: text("显示调试信息", "Show debug info"), value: preferences.performance,
           disabled: typeof controller.setPerformanceVisible !== "function", onChange: (value: boolean) => set("performance", value) },
         { id: "reset-position", kind: "action", label: text("恢复默认位置", "Reset position"), onAction: restorePosition },
         { id: "hide", kind: "action", label: text("暂时隐藏角色", "Hide character"), onAction: () => setHidden(true) },

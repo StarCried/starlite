@@ -52,7 +52,7 @@ export class PerformanceOverlay {
     this.element = document.createElement("output");
     this.element.className = "model-widget__performance";
     this.element.setAttribute("data-model-performance", "");
-    this.element.setAttribute("aria-label", "StarLite model performance");
+    this.element.setAttribute("aria-label", "StarLite debug info");
     this.element.setAttribute("aria-live", "off");
     this.element.title = "Rendered FPS and frame-interval p95; CPU p95 is the wall time of model update and WebGL submission, including any driver waits, not measured GPU execution or CPU utilization. The latest 240 frames are sampled. Pausing resets measurements.";
     // Use the logical host, not the expanded canvas: its negative offsets must

@@ -4,9 +4,9 @@ StarLite loads one selected rendering backend. A VRM companion still needs a
 WebGL2 renderer, decoded textures, skinned geometry and a browser/WebView process.
 The size of the npm plugin is not its download, GPU-memory or idle-power cost.
 
-## Show local measurements
+## Show local debug info
 
-For Hexo, add this to `_config.yml`:
+For Hexo, enable **Show debug info** in the right-click menu, or add this to `_config.yml`:
 
 ```yaml
 starlite:

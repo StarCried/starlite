@@ -34,6 +34,9 @@
   The Inochi2D raw browser distribution needs its local locale facade and bundled
   `locale.js`, not a bare package import. Keep translated example terms in sync
   with canonical documents and the DSH copies.
+  Label the diagnostics control “显示调试信息” / “Show debug info”; retain
+  `performance.show`, `setPerformanceVisible` and existing preference keys for
+  compatibility.
 
 ## Public and private assets
 
