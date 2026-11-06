@@ -1,12 +1,14 @@
 # StarLite 当前状态
 
-## 0.1.1 发布准备（2026-11-06）
+## 0.1.1 npm 发行（2026-11-06）
 
 核心、Inochi2D、VRM 与 Hexo 包新增共享脚下快捷栏、普通点击与拖动区分。
 Hexo 按可视宽高限制尺寸并保存访客位置；连续缩放时按钮位置固定，
 气泡可单独隐藏，保留右键详细设置和恢复默认位置。
 本轮不改模型资产，未改动的 `inochi2d-blog` CLI 保持 `0.1.0`。
-源码版本不代表 npm 已发布；最终远端和安装验证将记于 [validation](validation.md)。
+四个包已发布到 npm `latest`，发行源码为 [`v0.1.1`](https://github.com/StarCried/starlite/tree/v0.1.1)。
+完整 CI、依赖审计和公开下载的逐字节核对已通过；安装与验收边界见
+[公开验证记录](validation.md#2026-11-06-public-011-verification)。本轮不另发原生 CLI、模型资产或部署作者博客。
 
 ## 0.1.0 正式发行（2026-11-03）
 
@@ -20,7 +22,7 @@ Hexo 按可视宽高限制尺寸并保存访客位置；连续缩放时按钮位
 - 蓝鱼与微光挥手的半眯眼、蓝鱼动作里的问号／汗滴触发已在本地派生资产
   中修正。资源发行仍独立于源码推送；旧公开模型链接不会因此自动换成新文件。
 
-[0.1.0 正式版](https://github.com/StarCried/starlite/releases/tag/v0.1.0)已公开，五个 npm 包的 `latest` 均为 `0.1.0`；`alpha` 保留历史预发行版本。蓝鱼按[独立模型许可发行](https://github.com/StarCried/starlite/releases/tag/bluefish-v1.0.0-starlite.1)，默认微光保持不变。精确来源、CI、匿名下载、全新 npm 安装及 Chrome／Edge 功能检查见[公开验证记录](validation.md#2026-11-03-public-010-verification)。以下 alpha 记录保留原版本身份。
+[0.1.0 正式版](https://github.com/StarCried/starlite/releases/tag/v0.1.0)已公开，发行时五个 npm 包的 `latest` 均为 `0.1.0`；`alpha` 保留历史预发行版本。蓝鱼按[独立模型许可发行](https://github.com/StarCried/starlite/releases/tag/bluefish-v1.0.0-starlite.1)，默认微光保持不变。精确来源、CI、匿名下载、全新 npm 安装及 Chrome／Edge 功能检查见[公开验证记录](validation.md#2026-11-03-public-010-verification)。以下 alpha 记录保留原版本身份。
 
 ## 历史 alpha 发行
 

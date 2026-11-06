@@ -5,6 +5,74 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-11-06 public 0.1.1 verification
+
+The four runtime/Hexo packages are published to npm `latest` at `0.1.1`.
+The immutable [`v0.1.1` source tag](https://github.com/StarCried/starlite/tree/v0.1.1)
+resolves to `7aa9182c2248bb48d71bf36bf4618fc4b025c0d2`.
+The exact-source [CI](https://github.com/StarCried/starlite/actions/runs/42159603587)
+(Linux validation and Windows Chrome/Edge) and
+[dependency audit](https://github.com/StarCried/starlite/actions/runs/42159603669)
+passed. The unchanged `inochi2d-blog` CLI remains at `0.1.0`; no new native CLI,
+character-model assets or author's blog deployment accompany this patch.
+
+All four archives were downloaded anonymously from the public registry and
+matched the reviewed local files byte for byte, including SHA-256 and SHA-512/SRI.
+Their exact internal dependencies and `latest` tags are `0.1.1`; the historical
+`alpha` tags remain unchanged. Program archives contain no character artwork.
+
+| npm package at 0.1.1 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `@starcried/starlite-core` | 25,546 | `95cc5362225b6ab398ffdea70ed5d564593d29db9c90856c14625ca1894575b6` |
+| `@starcried/starlite-inochi2d` | 245,889 | `40a1d610e57a98607809c5a7ff079458df8d68bb7793e272ff36032db71b9a6e` |
+| `@starcried/starlite-vrm` | 636,675 | `6348ab9cc6e84a82e4572b8a873c21f2984471a7025a15e6c5dd490319ab0435` |
+| `hexo-starlite` | 86,567 | `2a26c0345bb41a798bcb91ee0360b4f3c9dccd2acf081f1dda34251aa122e49b` |
+
+A fresh consumer with empty npm authentication and a fresh cache installed
+`hexo-starlite@0.1.1` and Hexo 7.3.0 from the public registry. Its dependency
+lock and installed paths contained no workspace/local links, and all four
+package integrity values matched the published archives. Weiguang generated
+without `starlite` configuration; BlueFish required only the preset selection.
+Both sites regenerated after `hexo clean` with an unavailable network proxy,
+using their validated model caches rather than existing output.
+
+Chrome and Edge passed all four published-package/model combinations: toolbar
+and menu synchronization, ordinary click-through, confirmed drag suppression
+of the underlying link, hide/restore and PJAX controller retention. The five
+viewport sizes at 150% model scale included real scrollbars. At 390x844 and
+1360x74, the viewport guards executed without requesting renderer JavaScript
+or model files. These checks used registry packages, not local test bundles.
+
+The complete local validation passed Rust's 26 tests, builds, lint, type checks,
+package/license gates and runtime budgets. Core passed 101 tests, VRM 355 and
+Inochi2D 73 (seven optional external-fixture skips). The final Hexo suite passed
+364 tests after the viewport/scrollbar corrections. Windows Chrome and Edge each
+passed the standard browser suite's 21 cases with two optional fixture skips.
+
+Additional real-browser checks covered five CSS viewport sizes from 1360x900
+through 901x450, 150% model size, dragging to all four edges, visible theme/native
+scrollbars, the preset's 900 px mobile breakpoint and the 176x75 minimum layout.
+Placement uses the root client dimensions, excluding scrollbars, and reserves
+12 px margins for both portrait and fixed-size controls. These are viewport
+simulations and functional checks, not new Windows display-scale or performance
+benchmarks. Later local WSL Chromium attempts failed even blank WebGL contexts
+because its EGL display setup was unavailable; hosted Linux validation and the
+exact-source Windows suites passed. The WSL failures are not counted as passes.
+
+The user accepted the blog and isolated native DSH controls: hover visibility,
+fixed controls during scaling, bubble suppression without stopping animations,
+dragging, ordinary click-through, temporary hiding and restoring position.
+Active drags cross embedded comment frames; starting a new body drag over a
+foreign iframe remains unsupported while preserving native click-through, an
+explicitly accepted limitation. DSH's published EXE embeds the same accepted
+core/VRM bytes; its separate installation proof lives in the DSH repository.
+
+The dependency gate retains six low-severity Hexo-host entries tracing to one
+reviewed upstream advisory; see [dependency maintenance](dependency-audit.md).
+Raw archive/CI/browser proof is kept in the sibling DSH workspace's ignored
+`release-output/patch-20261106/` and `release-output/hover-controls-20261106/`.
+Historical long-duration, device and model reports retain their original scope.
+
 ## 2026-11-03 public 0.1.0 verification
 
 [Release `v0.1.0`](https://github.com/StarCried/starlite/releases/tag/v0.1.0)
