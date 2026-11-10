@@ -4,6 +4,8 @@ export interface VisitorToolbarOptions {
   onLarger(): void;
   onBubbles(): void;
   onHide(): void;
+  /** Optional host-only exit action, shown while a session controls the character. */
+  onReleaseControl?(): void;
 }
 
 export interface VisitorToolbarState {
@@ -13,13 +15,16 @@ export interface VisitorToolbarState {
   bubbles: boolean;
   bubblesAllowed: boolean;
   enabled?: boolean;
+  controlActive?: boolean;
 }
 
 /** Compact shared host controls; placement and hover timing belong to the host. */
 export function createVisitorToolbar(options: VisitorToolbarOptions) {
   const en = options.locale === "en";
   const text = (zh: string, english: string) => en ? english : zh;
-  const dimensions = Object.freeze({ width: 152, height: 42 });
+  const standardDimensions = Object.freeze({ width: 152, height: 42 });
+  const controlledDimensions = Object.freeze({ width: 188, height: 42 });
+  let dimensions: Readonly<{width: number; height: number}> = standardDimensions;
   const element = document.createElement("div");
   element.dataset.starliteVisitorToolbar = "";
   // The renderer's native click exclusion also covers the detailed settings menu.
@@ -33,16 +38,17 @@ export function createVisitorToolbar(options: VisitorToolbarOptions) {
   });
   const style = document.createElement("style");
   style.textContent = `
-[data-starlite-visitor-toolbar]{box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 5px;margin:0;border:1px solid #9ba9c740;border-radius:12px;background:#1c2130de;color:#f0f3ff;box-shadow:0 6px 22px #0004;font:14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;backdrop-filter:blur(16px);color-scheme:dark;user-select:none;transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .14s ease}
+[data-starlite-visitor-toolbar]{box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 5px;margin:0;border:0;border-radius:0;background:transparent;color:#f5f7ff;box-shadow:none;backdrop-filter:none;font:14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;user-select:none;transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .14s ease}
 [data-starlite-visitor-toolbar][data-visible=true],[data-starlite-visitor-toolbar]:focus-within{opacity:1;pointer-events:auto}
 [data-starlite-visitor-toolbar][hidden]{display:none!important}
-[data-starlite-visitor-toolbar] button{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:8px;color:inherit;background:transparent;cursor:pointer;transition:background .12s ease,box-shadow .12s ease,transform .12s ease}
-[data-starlite-visitor-toolbar] button[aria-pressed=true]{background:#a7b3ff18;color:#dbe1ff}
-[data-starlite-visitor-toolbar] button:enabled:hover{background:#a7b3ff32}
-[data-starlite-visitor-toolbar] button:enabled:active{background:#a7b3ff50;box-shadow:inset 0 1px 3px #0004;transform:translateY(1px)}
-[data-starlite-visitor-toolbar] button:focus-visible{outline:2px solid #b3bfff;outline-offset:1px}
+[data-starlite-visitor-toolbar] button{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:8px;color:inherit;background:transparent;cursor:pointer;transition:color .12s ease,transform .12s ease}
+[data-starlite-visitor-toolbar] button[hidden]{display:none!important}
+[data-starlite-visitor-toolbar] button[aria-pressed=true],[data-starlite-visitor-toolbar] button[data-toolbar-action=release-control]{color:#bdedff}
+[data-starlite-visitor-toolbar] button:enabled:hover{color:#fff;transform:translateY(-1px) scale(1.1)}
+[data-starlite-visitor-toolbar] button:enabled:active{color:#9fddff;transform:translateY(1px) scale(.92)}
+[data-starlite-visitor-toolbar] button:focus-visible{outline:2px solid #f5f7ff;outline-offset:0;filter:drop-shadow(0 0 1px #10182a)}
 [data-starlite-visitor-toolbar] button:disabled{opacity:.38;cursor:default}
-[data-starlite-visitor-toolbar] svg{display:block;flex:none;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+[data-starlite-visitor-toolbar] svg{display:block;flex:none;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 .7px #10182a) drop-shadow(0 1px 1px #10182ae6);pointer-events:none}
 @media(prefers-reduced-motion:reduce){[data-starlite-visitor-toolbar],[data-starlite-visitor-toolbar] button{transition:none!important}}
 `;
   element.append(style);
@@ -62,7 +68,7 @@ export function createVisitorToolbar(options: VisitorToolbarOptions) {
     icon.append(shape);
     control.append(icon);
     // Mouse use should not pin :focus-within after leaving the character.
-    // Native keyboard focus and activation still reveal and operate the plate.
+    // Native keyboard focus and activation still reveal and operate the controls.
     control.onpointerdown = event => {
       if (event.pointerType === "mouse" && event.button === 0 && event.isPrimary && !control.disabled) event.preventDefault();
     };
@@ -81,10 +87,20 @@ export function createVisitorToolbar(options: VisitorToolbarOptions) {
   slash.dataset.bubblesOff = "";
   bubbles.firstElementChild!.append(slash);
   const hide = button("hide", text("暂时隐藏角色", "Hide character"), "m6 6 12 12M6 18 18 6", options.onHide);
-  const controls = [smaller, larger, bubbles, hide];
+  const releaseControl = options.onReleaseControl ? button("release-control", text("会话接管中，点击退出", "Session controlled; click to exit"),
+    "M12 3v3M10.5 3h3M7 6h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2ZM2 10v6M22 10v6M9 11v1M15 11v1M9 16h6", options.onReleaseControl) : undefined;
+  const controls = [smaller, larger, bubbles, hide, ...(releaseControl ? [releaseControl] : [])];
   const update = (state: VisitorToolbarState) => {
     if (destroyed) return;
     element.hidden = state.enabled === false;
+    const controlled = Boolean(releaseControl && state.controlActive === true);
+    dimensions = controlled ? controlledDimensions : standardDimensions;
+    element.style.width = `${dimensions.width}px`;
+    if (releaseControl) {
+      releaseControl.hidden = !controlled;
+      releaseControl.disabled = !controlled;
+      if (!controlled && !element.hidden && document.activeElement === releaseControl) hide.focus();
+    }
     const validScale = [state.scale, state.minScale, state.maxScale].every(Number.isFinite)
       && state.scale > 0 && state.minScale > 0 && state.maxScale >= state.minScale;
     smaller.disabled = !validScale || state.scale <= state.minScale;
@@ -107,7 +123,7 @@ export function createVisitorToolbar(options: VisitorToolbarOptions) {
   element.addEventListener("focusout", focusout);
   document.body.append(element);
   return {
-    element, dimensions, update,
+    element, get dimensions() { return dimensions; }, update,
     show(visible: boolean) { if (!destroyed) element.dataset.visible = String(visible === true); },
     /** x is the toolbar centre; y is its top edge, both in viewport CSS pixels. */
     place(x: number, y: number, zIndex: number) {

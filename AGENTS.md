@@ -86,6 +86,10 @@
   an 8px gap, 12px margins and a 1px portrait, even with `mobile.show` enabled.
   Keep those limits synchronized when toolbar geometry changes. Browser checks
   must remove Playwright's default `--hide-scrollbars` argument to exercise this.
+  The shared toolbar has no enclosing plate; icon outlines provide contrast.
+  Hosts may supply `onReleaseControl` and `controlActive` for a fifth session-exit
+  action. Its width is 188 only while active; ordinary Hexo controls remain 152.
+  Read current `dimensions` after update and retain the centre/top placement anchor.
   Rebase host motion with `setHostPosition(..., {resetMotion:true})` after layout
   changes and before dragging; resize/reset offsets must not become spring impulses.
   DSH shares the controls/classifier but retains its native window-drag adapter.

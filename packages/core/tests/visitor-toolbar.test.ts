@@ -6,9 +6,9 @@ const windows: Window[] = [];
 afterEach(async () => { await Promise.all(windows.splice(0).map(win => win.happyDOM.close())); });
 const initial: VisitorToolbarState = { scale: 1, minScale: .5, maxScale: 1.5, bubbles: true, bubblesAllowed: true };
 
-function harness(locale?: string) {
+function harness(locale?: string, withControl = false) {
   const win = new Window({ url: "https://blog.example/" }); windows.push(win);
-  const actions = { onSmaller: vi.fn(), onLarger: vi.fn(), onBubbles: vi.fn(), onHide: vi.fn() };
+  const actions = { onSmaller: vi.fn(), onLarger: vi.fn(), onBubbles: vi.fn(), onHide: vi.fn(), ...(withControl ? {onReleaseControl: vi.fn()} : {}) };
   const toolbar = new Function("globalThis", "document", "options", `return (${createVisitorToolbar.toString()})(options)`)(win, win.document, { ...actions, locale }) as ReturnType<typeof createVisitorToolbar>;
   toolbar.update(initial);
   const button = (action: string) => toolbar.element.querySelector(`[data-toolbar-action=${action}]`) as unknown as HTMLButtonElement;
@@ -99,7 +99,7 @@ it("retains keyboard access while hover-hidden and reports focus transitions", (
   h.toolbar.update(initial); expect(h.toolbar.element.hidden).toBe(false);
 });
 
-it("positions a stable unscaled plate and rejects non-finite geometry", () => {
+it("positions stable unscaled controls and rejects non-finite geometry", () => {
   const h = harness();
   expect(h.toolbar.dimensions).toEqual({ width: 152, height: 42 });
   expect(h.toolbar.element.style.width).toBe("152px"); expect(h.toolbar.element.style.height).toBe("42px");
@@ -109,6 +109,46 @@ it("positions a stable unscaled plate and rejects non-finite geometry", () => {
   h.toolbar.place(NaN, Infinity, Infinity);
   expect(h.toolbar.element.style.left).toBe("250.5px"); expect(h.toolbar.element.style.top).toBe("440px");
   h.toolbar.place(100, 200, NaN); expect(h.toolbar.element.style.zIndex).toBe("20");
+});
+
+it("keeps the toolbar and buttons transparent while outlining the icons", () => {
+  const h = harness(); h.toolbar.show(true);
+  const container = h.win.getComputedStyle(h.toolbar.element as never);
+  expect(container.backgroundColor).toBe("transparent");
+  expect(container.borderTopWidth).toBe("0px");
+  expect(container.boxShadow).toBe("none");
+  for (const control of h.toolbar.element.querySelectorAll("button")) {
+    expect(h.win.getComputedStyle(control as never).backgroundColor).toBe("transparent");
+    expect(h.win.getComputedStyle(control.querySelector("svg") as never).filter).toContain("drop-shadow");
+  }
+});
+
+it("adds only the active host control action without moving the centre or top anchor", () => {
+  const h = harness("en", true), release = h.button("release-control");
+  h.toolbar.place(250.5, 440, 21);
+  expect(release.hidden).toBe(true); expect(release.disabled).toBe(true);
+  release.click(); expect(h.actions.onReleaseControl).not.toHaveBeenCalled();
+  expect(h.toolbar.dimensions).toEqual({width: 152, height: 42});
+  h.toolbar.update({...initial, controlActive: true});
+  expect(h.toolbar.dimensions).toEqual({width: 188, height: 42});
+  expect(h.toolbar.element.style.width).toBe("188px");
+  expect(h.toolbar.element.style.left).toBe("250.5px"); expect(h.toolbar.element.style.top).toBe("440px");
+  expect(release.hidden).toBe(false); expect(release.disabled).toBe(false);
+  expect(release.getAttribute("aria-label")).toBe("Session controlled; click to exit");
+  expect(release.querySelector("svg")?.getAttribute("viewBox")).toBe("0 0 24 24");
+  release.click(); expect(h.actions.onReleaseControl).toHaveBeenCalledOnce();
+  release.focus(); h.toolbar.update({...initial, scale: 1.5, controlActive: false});
+  expect(h.win.document.activeElement).toBe(h.button("hide"));
+  expect(h.toolbar.dimensions).toEqual({width: 152, height: 42});
+  expect(h.toolbar.element.style.left).toBe("250.5px"); expect(h.toolbar.element.style.top).toBe("440px");
+  release.click(); expect(h.actions.onReleaseControl).toHaveBeenCalledOnce();
+  h.toolbar.destroy(); release.click(); expect(h.actions.onReleaseControl).toHaveBeenCalledOnce();
+});
+
+it("does not add session controls to ordinary blog toolbars", () => {
+  const h = harness(); h.toolbar.update({...initial, controlActive: true});
+  expect(h.toolbar.element.querySelector("[data-toolbar-action=release-control]")).toBeNull();
+  expect(h.toolbar.dimensions).toEqual({width: 152, height: 42});
 });
 
 it("reattaches once after PJAX and releases controls permanently on destruction", () => {
