@@ -3,6 +3,11 @@
 All notable changes will be recorded here. The project follows semantic
 versioning; prereleases use the explicit npm `alpha` channel.
 
+## Unreleased
+
+- Remove the final head tilt from the generic SleepyStartle gesture while keeping
+  its drowsy nods, wake-up rebound, blink and duration unchanged.
+
 ## 0.1.1 - 2026-11-06
 
 - Add shared hover controls for size, bubbles and temporary hiding, while retaining

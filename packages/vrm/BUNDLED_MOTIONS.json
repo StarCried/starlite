@@ -51,13 +51,19 @@
       "name": "StarLiteSleepyStartle",
       "duration": 5.5,
       "bytes": 35064,
-      "sha256": "d3e9d2583458cc2d63364d44f4b3642bbf7272733c60371933e3a2d2d89910c1",
+      "sha256": "96e56565377bf07caee10d06769f7a17b14bb76445d935dca1a2b2443d048f8d",
       "bodyTracks": 43,
       "expressions": [
         "blink"
       ],
       "maximumRoundtripError": 4.440892098500626e-16,
-      "officialLoaderValidated": true
+      "officialLoaderValidated": true,
+      "revision": {
+        "date": "2026-11-10",
+        "sourceSha256": "d3e9d2583458cc2d63364d44f4b3642bbf7272733c60371933e3a2d2d89910c1",
+        "change": "Remove the final head turn/tilt after 3.86 seconds; preserve drowsiness, startle/rebounds, blink, duration and all other tracks.",
+        "headNeutralFromSeconds": 3.86
+      }
     }
   ]
 }

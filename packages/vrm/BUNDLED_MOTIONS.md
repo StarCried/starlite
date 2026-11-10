@@ -25,7 +25,10 @@ the official loader on synthetic VRM 0 and VRM 1 humanoids.
 
 Only upper-body/finger rotations are animated; hips, legs, eye bones and root
 translations are not overridden. SleepyStartle uses the standard optional blink
-expression; HappyWave uses optional standard happy. Missing optional fingers
+expression; its 2026-11-10 revision removes the final head turn/tilt after the
+3.86 s settle while preserving the drowsy nods, wake-up rebound, recovery blink
+and 5.5 s duration. All other tracks and bundled clips are unchanged.
+HappyWave uses optional standard happy. Missing optional fingers
 or expression bindings do not prevent body animation playback.
 HappyWave retains the existing authored 3.8 s RaisedHandWave performance and
 happy curve, including secondary motion on the non-waving side. It does not

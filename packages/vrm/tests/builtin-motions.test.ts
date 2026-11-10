@@ -65,6 +65,22 @@ for (const entry of BUILTIN_ANIMATIONS.slice(1)) {
   });
 }
 
+it("SleepyStartle keeps its wake-up rebound and blink but stays head-neutral after settling", async () => {
+  const loader = new GLTFLoader().register(parser => new VRMAnimationLoaderPlugin(parser));
+  const {userData:{vrmAnimations}} = await loader.parseAsync(await builtinMotionBytes("StarLiteSleepyStartle"), "");
+  const motion = vrmAnimations[0], head = motion.humanoidTracks.rotation.get("head");
+  const interpolate = head.createInterpolant(new Float32Array(4));
+  const rotation = (time:number) => new Quaternion().fromArray(interpolate.evaluate(time)).normalize();
+  const neutral = rotation(0);
+  // Drowsy nod and the rebound remain a real motion before the final settle.
+  expect(rotation(2.92).angleTo(neutral)).toBeGreaterThan(.1);
+  expect(rotation(3.12).angleTo(rotation(3.29))).toBeGreaterThan(.1);
+  for(let time=3.87;time<=5.5;time+=1/120) expect(rotation(time).angleTo(neutral)).toBeLessThan(1e-5);
+  const blink = motion.expressionTracks.preset.get("blink").createInterpolant(new Float32Array(1));
+  expect(blink.evaluate(4.69)[0]).toBeGreaterThan(.9);
+  expect(blink.evaluate(4.8)[0]).toBe(0);
+});
+
 // The packaged wave starts from the program Idle itself, before per-model pose
 // calibration. An unrelated character's rest pose changes the whole hand arc.
 it("authored RaisedHandWave preserves its complete gesture and smile between program-Idle boundaries", async () => {
