@@ -5,6 +5,7 @@ versioning; prereleases use the explicit npm `alpha` channel.
 
 ## Unreleased
 
+- Use “环境光” consistently for environment lighting in the Chinese documentation.
 - Remove the final head tilt from the generic SleepyStartle gesture while keeping
   its drowsy nods, wake-up rebound, blink and duration unchanged.
 

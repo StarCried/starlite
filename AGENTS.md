@@ -116,6 +116,8 @@
   portrait camera, in host-local CSS pixels. Do not use animated bounds, expanded
   canvas padding or device pixels: doing so moves bubbles during gestures or DPI
   changes. DSH consumes this optional core capability without resizing its window.
+- Use “环境光 / Environment lighting” for the lighting feature in current docs;
+  keep the `environmentLighting` API/config names unchanged.
 - Environment lighting is an optional RGB host hint, not the existing `ambient`
   animation setting. Keep colour acquisition in host adapters; the VRM backend
   reuses its hemisphere and white-key lights, normalizes chroma independently of
