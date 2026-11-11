@@ -5,6 +5,68 @@ results retain their package labels and hashes as historical evidence, not as
 current installation inputs or release approval. Commands use the current
 package names. See [current status](status.md) before release.
 
+## 2026-11-11 public 0.1.2 verification
+
+The four runtime/Hexo packages are published to npm `latest` at `0.1.2`.
+The immutable [`v0.1.2` source tag](https://github.com/StarCried/starlite/tree/v0.1.2)
+resolves to `125a66a3a42f6f71b44bb7724da37573be368d2d`; later publication-proof
+documentation does not change this source or the released package bytes.
+The exact-source [CI](https://github.com/StarCried/starlite/actions/runs/42946649442),
+[dependency audit](https://github.com/StarCried/starlite/actions/runs/42946649474)
+and [dual-platform release dry run](https://github.com/StarCried/starlite/actions/runs/42946723282)
+passed. The unchanged `inochi2d-blog` CLI remains at `0.1.0` and is not republished.
+
+All four archives were downloaded anonymously from the public registry and
+matched the reviewed local files byte for byte, including SHA-256 and SHA-512/SRI.
+Their exact internal dependencies and `latest` tags are `0.1.2`. Package-content
+checks exclude private models and authoring files; independently licensed example
+model resources remain separate from the program archives.
+
+| npm package at 0.1.2 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `@starcried/starlite-core` | 25,957 | `d13213b69f5beda3be85f313fe5c1c8a85dee365c1257bf0cb92d5a5d641b1f1` |
+| `@starcried/starlite-inochi2d` | 246,371 | `80a4c4e52d32b4bf5c3e68372e5bf8b61dce60d55b95d4b6536f7615d68f9c51` |
+| `@starcried/starlite-vrm` | 633,945 | `de45cdff45e11bd65b200c412ca9880d397f47e9cb8c31849dbba8cf60aef884` |
+| `hexo-starlite` | 86,616 | `1640dca89336cbea5936e403e49374d80ac8f6cfa5a2083273570c316ed16ae6` |
+
+A fresh Windows consumer installed `hexo-starlite@0.1.2` and Hexo 7.3.0 with
+empty npm authentication and a fresh cache. Every installed package resolved
+from the public registry without local/workspace links; all four StarLite
+versions and integrity values matched the published archives. The local
+tarballs provided expected hashes only and were not used for installation.
+Weiguang generated without `starlite` configuration; BlueFish required only
+`preset: bluefish`. Both generated again after `hexo clean` with an unavailable
+network proxy, retaining identical verified model bytes from their caches.
+
+Chrome and Edge passed both published presets: fixed toolbar anchors during
+resizing, bubble/menu synchronization, ordinary click-through, confirmed-drag
+suppression of the underlying click, hide/restore, and PJAX controller retention.
+Five viewport sizes from 1360x900 through 901x450 were checked at 150% model size
+with real scrollbars. Mobile 390x844 and very short 1360x74 views executed their
+guards without requesting renderer JavaScript or model files. No page errors
+were reported in these four browser/preset combinations. These are viewport
+simulations and functional checks, not new native display-scale or sustained
+performance measurements.
+
+Complete local `validate` and release package checks passed, including Rust's
+26 tests, builds, lint, type checks, licenses, runtime budgets and package gates.
+Core passed 104 tests, VRM 356, Hexo 364 and Inochi2D 73 with seven optional
+external-fixture unit skips. Local Chromium passed 22 browser cases, including
+the prepared public Aka model's real-WASM rendering and interactions; the
+Mannequin case remained skipped because that optional fixture was not supplied.
+The initial run used an older Aka preparation without an animation manifest and
+failed; the final passing run used the existing Click-capable preparation.
+
+The dependency gate retains the six low-severity Hexo-host affected entries
+under the reviewed upstream exception; see [dependency maintenance](dependency-audit.md).
+The local WSL environment lacked the RustSec scanner, so the successful
+exact-source hosted audit supplies the complete online audit result.
+Raw registry archives, consumer install/generation logs and Chrome/Edge reports
+are retained in the sibling DSH workspace's ignored `release-output/release-0.1.2/`.
+Local command reports and exact tarball manifests are in this repository's
+ignored `target/release-output/0.1.2/`. Historical long tests and device checks
+retain their original scope.
+
 ## 2026-11-06 public 0.1.1 verification
 
 The four runtime/Hexo packages are published to npm `latest` at `0.1.1`.
