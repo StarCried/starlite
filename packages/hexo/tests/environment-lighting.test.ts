@@ -35,6 +35,19 @@ it("starts in the actual theme, switches live without remount or mutating author
  expect(author).toEqual({color:"#ffe6cc",darkColor:"#adc6ff",strength:.4});expect(h.mount).toHaveBeenCalledOnce();
  (h.win as any).__hexoStarLiteWidgetState.environmentLighting.destroy();await h.win.happyDOM.close();
 });
+it("tracks Volantis color-scheme on initial mount and live switches without remounting",async()=>{
+ const h=harness({...author,brightness:1,darkBrightness:.9});
+ h.win.document.documentElement.setAttribute("color-scheme","dark");await h.run();
+ expect(h.mount.mock.calls[0]![1].environmentLighting).toEqual({color:author.darkColor,strength:.4,brightness:.9});
+ h.win.document.documentElement.setAttribute("color-scheme","light");await tick();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.color,strength:.4,brightness:1});
+ h.theme.matches=true;h.theme.addEventListener.mock.calls[0]![1]();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenCalledTimes(2);
+ h.win.document.documentElement.removeAttribute("color-scheme");await tick();
+ expect(h.controller.setEnvironmentLighting).toHaveBeenLastCalledWith({color:author.darkColor,strength:.4,brightness:.9});
+ expect(h.mount).toHaveBeenCalledOnce();
+ (h.win as any).__hexoStarLiteWidgetState.environmentLighting.destroy();await h.win.happyDOM.close();
+});
 it("keeps one observer through PJAX/re-evaluation, and removes it when mobile hides the model",async()=>{
  const h=harness();await h.run();h.evaluate();h.win.document.dispatchEvent(new h.win.Event("pjax:complete"));await h.run();
  expect(h.theme.addEventListener).toHaveBeenCalledOnce();expect(h.mount).toHaveBeenCalledOnce();
@@ -85,7 +98,7 @@ it("releases theme tracking on a runtime fallback",async()=>{
  const cleanup=vi.spyOn(state.environmentLighting,"destroy");state.host.dataset.modelStatus="fallback";await tick();
  expect(cleanup).toHaveBeenCalledOnce();expect(h.theme.removeEventListener).toHaveBeenCalledOnce();h.win.clearTimeout(state.retryTimer);await h.win.happyDOM.close();
 });
-it.each(["data-theme","data-color-mode","data-user-color-scheme"])("recognizes explicit %s and keeps one-colour setups listener-free",async attribute=>{
+it.each(["data-theme","data-color-mode","data-user-color-scheme","color-scheme"])("recognizes explicit %s and keeps one-colour setups listener-free",async attribute=>{
  const win=new Window(),setEnvironmentLighting=vi.fn();win.document.body.setAttribute(attribute,"dark");
  const light=createEnvironmentLighting(author,win as any);expect(light.current().color).toBe(author.darkColor);light.destroy();
  const media=vi.spyOn(win,"matchMedia"),single=createEnvironmentLighting({color:"#aabbcc"},win as any);single.attach({setEnvironmentLighting});

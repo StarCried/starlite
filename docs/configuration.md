@@ -657,4 +657,4 @@ starlite:
 
 `strength: 1` 为标准效果；`1–2` 继续线性放大适配幅度。亮度输入范围仍为 `0.8–1.1`：100% 强度时对应整体灯光亮度系数 `0.8–1.1`，200% 时可扩展至 `0.6–1.2`，效果更夸张。已有明确配置（例如 `strength: 0.2`）保持原值；只有省略强度时采用 100%。省略整个 `environmentLighting` 仍关闭此功能。
 
-主题识别依次检查 `html`、`body` 的 `data-theme`、`data-color-mode`、`data-user-color-scheme`（值为 `dark` / `light`），以及 `dark` / `light`、`dark-mode` / `light-mode` 类；未明确指定时跟随系统 `prefers-color-scheme`。使用其他主题约定时，可让主题切换器同时设置 `document.documentElement.dataset.theme = "dark"` 或 `"light"`。仅配置 `color` 和可选 `strength` 时不监听主题变化；配置独立颜色或任一模式的亮度系数时才监听。此选项仅适用于 VRM。
+主题识别依次检查 `html`、`body` 的 `data-theme`、`data-color-mode`、`data-user-color-scheme`、`color-scheme`（Volantis；值为 `dark` / `light`），以及 `dark` / `light`、`dark-mode` / `light-mode` 类；未明确指定时跟随系统 `prefers-color-scheme`。使用其他主题约定时，可让主题切换器同时设置 `document.documentElement.dataset.theme = "dark"` 或 `"light"`。仅配置 `color` 和可选 `strength` 时不监听主题变化；配置独立颜色或任一模式的亮度系数时才监听。此选项仅适用于 VRM。

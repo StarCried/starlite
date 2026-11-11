@@ -5,11 +5,12 @@ export function createEnvironmentLighting(input: HexoEnvironmentLighting, scope:
   const doc = scope.document;
   const media = input.darkColor === undefined && input.brightness === undefined && input.darkBrightness === undefined
     ? undefined : scope.matchMedia("(prefers-color-scheme: dark)");
-  const attributes = ["data-theme", "data-color-mode", "data-user-color-scheme", "class"];
+  const themeAttributes = ["data-theme", "data-color-mode", "data-user-color-scheme", "color-scheme"];
+  const attributes = [...themeAttributes, "class"];
   const dark = () => {
     for (const element of [doc.documentElement, doc.body]) {
       if (!element) continue;
-      for (const name of attributes.slice(0, 3)) {
+      for (const name of themeAttributes) {
         const value = element.getAttribute(name)?.toLowerCase();
         if (value === "dark" || value === "light") return value === "dark";
       }
