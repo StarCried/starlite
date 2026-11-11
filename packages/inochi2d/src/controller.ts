@@ -9,6 +9,7 @@ import {
   type DialogueContext,
   DialogueScheduler,
   DialogueBubble,
+  InteractionGate,
   resolveDialogueContext,
 } from "./dialogue.js";
 import { MissingModelParameterError } from "./errors.js";
@@ -130,7 +131,7 @@ class ActiveController implements WidgetController {
   #lastRenderedAt: number | undefined;
   #frameRate: number | "display";
   #bubblesVisible = true;
-  #contextClick = false;
+  readonly #interaction = new InteractionGate();
   #status: WidgetStatus = "loading";
   #pausedByUser = false;
   #pausedByVisibility = false;
@@ -293,7 +294,9 @@ class ActiveController implements WidgetController {
     ) {
       return Promise.resolve("stopped");
     }
-    return this.#animations.trigger(name, performance.now(), options);
+    const playback = this.#animations.trigger(name, performance.now(), options);
+    this.#hideBubble();
+    return this.#interaction.protect(playback);
   }
 
   stopAnimation(): void {
@@ -391,7 +394,6 @@ class ActiveController implements WidgetController {
     const context = input === null ? null : resolveDialogueContext(input);
     if (context?.animation !== undefined && !this.#config.animations.has(context.animation)) throw new Error("dialogue context animation is missing: " + context.animation);
     if (this.#dialogue.setContext(context, performance.now())) this.#hideBubble();
-    this.#contextClick = context?.triggers.includes("click") ?? false;
   }
 
   refreshInteractionMask(): void {
@@ -606,9 +608,9 @@ class ActiveController implements WidgetController {
   }
 
   #triggerClick(): void {
-    if (this.#status !== "running") return;
+    if (this.#status !== "running" || !this.#hasClickAction()) return;
     const timestamp = performance.now();
-    if (this.#contextClick && this.#animations.isActive(timestamp)) return;
+    if (!this.#interaction.acceptClick(timestamp)) return;
     const action = this.#dialogue.triggerClick(timestamp);
     if (action) {
       this.#activateDialogue(action, timestamp);
@@ -616,13 +618,14 @@ class ActiveController implements WidgetController {
     }
     const legacyClick = this.#config.interactions.click;
     if (legacyClick) {
+      this.#hideBubble();
       this.#animations.trigger(legacyClick.animation, timestamp);
     }
   }
 
   #hasClickAction(): boolean {
     return Boolean(
-      this.#contextClick || this.#config.dialogue.click || this.#config.interactions.click,
+      this.#dialogue.hasClick || this.#config.interactions.click,
     );
   }
 
@@ -767,7 +770,7 @@ class ActiveController implements WidgetController {
       if (this.#modelRendered && !reducedMotion) {
         const action = this.#dialogue.poll(
           timestamp,
-          this.#animations.isActive(timestamp),
+          this.#interaction.externalActive || this.#animations.isActive(timestamp),
         );
         if (action) {
           this.#activateDialogue(action, timestamp);
@@ -804,7 +807,7 @@ class ActiveController implements WidgetController {
         this.#dialogue.start(timestamp, reducedMotion);
         const action = this.#dialogue.poll(
           timestamp,
-          this.#animations.isActive(timestamp),
+          this.#interaction.externalActive || this.#animations.isActive(timestamp),
         );
         if (action) {
           this.#activateDialogue(action, timestamp);
@@ -817,6 +820,7 @@ class ActiveController implements WidgetController {
 
   #activateDialogue(action: DialogueAction, timestamp: number): void {
     if (action.animation) this.#animations.trigger(action.animation, timestamp);
+    else this.#animations.stop();
     if (this.#bubblesVisible) this.#bubble.show(action, timestamp, this.#dependencies.prefersReducedMotion());
   }
 

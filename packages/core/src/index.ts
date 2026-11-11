@@ -131,3 +131,4 @@ export { PerformanceOverlay, FrameSamples, validatePerformanceConfig, type Perfo
 export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem, type QuickSettingCallback } from "./quick-settings.js";
 export { createVisitorToolbar, type VisitorToolbarOptions, type VisitorToolbarState } from "./visitor-toolbar.js";
 export { isModelDrag } from "./drag-gesture.js";
+export { InteractionGate } from "./interaction-gate.js";

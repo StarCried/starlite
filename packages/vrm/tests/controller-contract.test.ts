@@ -91,7 +91,7 @@ describe.each(["vrm","inochi2d"])("%s host dialogue contexts",backend=>{
  it("adds dialogue after an empty mount and updates it without replacing the canvas or resetting its cursor",async()=>{
   const c=await mount(backend),host=document.body.lastElementChild as HTMLElement,canvas=host.querySelector("canvas"),bubble=host.querySelector<HTMLElement>(".model-widget__bubble")!;
   c.setDialogueContext!(context());click();expect(bubble.textContent).toBe("a-first");
-  click();expect(bubble.textContent).toBe("a-first"); // The foreground gesture owns this interval.
+  click();expect(bubble.textContent).toBe("a-first"); // Rapid repeat clicks do not consume the next sentence.
   advance(1200);c.setDialogueContext!(context());expect(bubble.hidden).toBe(false);expect(bubble.textContent).toBe("a-first");click();expect(bubble.textContent).toBe("a-second");
   c.setDialogueContext!(context("b"));expect(bubble.hidden).toBe(true);advance(1200);click();expect(bubble.textContent).toBe("b-first");
   expect(host.querySelector("canvas")).toBe(canvas);expect(host.querySelectorAll(".model-widget__bubble")).toHaveLength(1);
@@ -110,6 +110,42 @@ describe.each(["vrm","inochi2d"])("%s host dialogue contexts",backend=>{
   c.setDialogueContext!(context());expect(()=>c.setDialogueContext!( {...context("invalid"),animation:"Missing"})).toThrow("animation is missing");
   click();expect(bubble.textContent).toBe("a-first");advance(1200);
   c.setDialogueContext!(null);expect(bubble.hidden).toBe(true);click();expect(bubble.textContent).toBe("Global");
+ });
+ it.each(["enter","idle"])("clicks interrupt %s and previous clicks with a 500ms minimum gap",async sceneName=>{
+  const c=await mount(backend,undefined,{
+   [sceneName]:{animation:"Action",lines:["Automatic"],durationMs:1000,delayMs:0,intervalMinMs:5000,intervalMaxMs:5000},
+   click:{animation:"Other",lines:["Fallback"],durationMs:2000},
+  });
+  const bubble=document.querySelector<HTMLElement>(".model-widget__bubble")!;
+  advance(sceneName==="enter"?100:5200);expect(bubble.textContent).toBe("Automatic");
+  c.setDialogueContext!({...context(),animation:"Other",triggers:["click"]});
+  click();expect(bubble.textContent).toBe("a-first");expect(bubble.dataset.modelAnimation).toBe("Other");
+  advance(499);click();expect(bubble.textContent).toBe("a-first");
+  advance(1);click();expect(bubble.textContent).toBe("a-second");
+  advance(600);await Promise.resolve();
+  expect(bubble.hidden).toBe(false);expect(bubble.textContent).toBe("a-second");
+  if(backend==="vrm")expect((c as any).diagnostics().activeAnimation).toBe("Other");
+ });
+ it("protects host playback, including loops and the next host call after an old callback",async()=>{
+  const c=await mount(backend,undefined,{idle:{animation:"Other",lines:["Idle"],durationMs:1000,intervalMinMs:5000,intervalMaxMs:5000}});
+  c.setDialogueContext!({...context(),triggers:["click"]});
+  const bubble=document.querySelector<HTMLElement>(".model-widget__bubble")!;
+  const old=c.playAnimation("Action",{mode:"loop"});advance(5200);click();expect(bubble.hidden).toBe(true);
+  const next=c.playAnimation("Other",{mode:"loop"});await expect(old).resolves.toBe("interrupted");
+  await expect(Promise.resolve().then(()=>c.playAnimation("Missing"))).rejects.toThrow();
+  click();expect(bubble.hidden).toBe(true);
+  c.stopAnimation();await expect(next).resolves.toBe("stopped");
+  click();expect(bubble.textContent).toBe("a-first");
+  const once=c.playAnimation("Action");expect(bubble.hidden).toBe(true);advance(600);click();expect(bubble.hidden).toBe(true);
+  advance(600);await expect(once).resolves.toBe("completed");click();expect(bubble.textContent).toBe("a-second");
+ });
+ it("leaves automatic gestures alone when no click behavior is configured",async()=>{
+  const c=await mount(backend,undefined,{enter:{animation:"Action",lines:["Automatic"],durationMs:2000,delayMs:500}});
+  advance(100);click();advance(500);
+  const bubble=document.querySelector<HTMLElement>(".model-widget__bubble")!;
+  expect(bubble.textContent).toBe("Automatic");click();advance(300);
+  expect(bubble.hidden).toBe(false);expect(bubble.textContent).toBe("Automatic");
+  if(backend==="vrm")expect((c as any).diagnostics().activeAnimation).toBe("Action");
  });
 });
 describe.each(["vrm", "inochi2d"])("%s performance panel", backend => {
@@ -316,7 +352,7 @@ it('samples the configured click dialogue pool and resumes the base loop',async(
  advance(1200);expect(c.status).toBe('running');expect(c.diagnostics().activeAnimation).toBe('Action');
 });
 
-it('finishes entry despite expired speech and repeated clicks, then returns to Idle',async()=>{
+it('replaces entry after speech expires and ignores rapid duplicate clicks',async()=>{
  const host=document.createElement('div');document.body.append(host);
  const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},
   animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],ambient:{animations:['Action']},
@@ -330,10 +366,11 @@ it('finishes entry despite expired speech and repeated clicks, then returns to I
   window.dispatchEvent(new PointerEvent('pointerup',{pointerId:i}));
  }
  advance(200);expect(c.diagnostics().activeAnimation).toBe('Other');
- advance(400);expect(c.diagnostics().activeAnimation).toBe('Action');
+ advance(400);expect(c.diagnostics().activeAnimation).toBe('Other');
+ advance(500);expect(c.diagnostics().activeAnimation).toBe('Action');
 });
 
-it('does not restart a click response when clicked again before it finishes',async()=>{
+it('restarts an animation-only click response after the minimum gap before it finishes',async()=>{
  const host=document.createElement('div');document.body.append(host);
  const c=await mountModelWidget(host,{model:'test.vrm',fallback:'fallback.png',mobile:{show:true},
   animations:[{name:'Action',url:'a.vrma'},{name:'Other',url:'b.vrma'}],ambient:{animations:['Action']},
@@ -341,7 +378,8 @@ it('does not restart a click response when clicked again before it finishes',asy
  const canvas=host.querySelector('canvas')!;
  const click=()=>{canvas.dispatchEvent(new PointerEvent('pointerdown',{button:0,pointerId:1}));window.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));};
  click();advance(600);click();advance(600);
- expect(c.diagnostics().activeAnimation).toBe('Action');
+ expect(c.diagnostics().activeAnimation).toBe('Other');
+ advance(500);expect(c.diagnostics().activeAnimation).toBe('Action');
 });
 
 it('rejects missing, duplicate and empty animation pools before loading',()=>{

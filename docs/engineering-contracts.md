@@ -103,6 +103,11 @@
   inertialization.
   Explicit stop/destroy still restore neutral immediately; the Inochi2D animation
   restrictions above are unchanged.
+  Automatic enter/idle/click gestures are interruptible by configured clicks,
+  limited to one response per 500 ms. Keep sentence selection behind the shared
+  interaction gate, and protect external `playAnimation` ownership by Promise
+  identity so an old completion cannot unlock a newer host action. Missed idle
+  opportunities are deferred without consuming or queuing a sentence.
 - Only generated program gestures rebase their normalized rotation tracks onto
   the selected Idle reference pose, after StarLiteIdle calibration. Regenerate
   from immutable sources into shared mixer arrays; never modify authored clips

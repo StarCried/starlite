@@ -4,7 +4,7 @@ import { type EnvironmentLighting, PerformanceOverlay, FrameSamples, isModelDrag
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMPose } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip, type VRMAnimation } from "@pixiv/three-vrm-animation";
-import { RenderedHitMask, observePassThroughClicks, type ModelHitMaskListener, DialogueBubble, DialogueScheduler, resolveDialogueSentences, resolveDialogueContext, fetchBounded, type DialogueContext, type DialogueAction, type MountOptions, type WidgetStatus, type AnimationPlaybackOptions, type AnimationPlaybackResult } from "@starcried/starlite-core";
+import { RenderedHitMask, observePassThroughClicks, type ModelHitMaskListener, DialogueBubble, DialogueScheduler, InteractionGate, resolveDialogueSentences, resolveDialogueContext, fetchBounded, type DialogueContext, type DialogueAction, type MountOptions, type WidgetStatus, type AnimationPlaybackOptions, type AnimationPlaybackResult } from "@starcried/starlite-core";
 import { validateCharacterProfile, validateModelAdjustments, validateVrmWidgetConfig } from "./config.js";
 import { parseGlb, inspectVrma, MAX_ANIMATION_BYTES } from "./inspect.js";
 import { VrmAnimationPlayer } from "./playback.js";
@@ -53,6 +53,7 @@ class Controller implements VrmController {
   readonly #fallback = document.createElement("img");
   readonly #bubble: DialogueBubble;
   readonly #dialogue: DialogueScheduler;
+  readonly #interaction = new InteractionGate();
   readonly #stats: VrmDiagnostics = { renderedFrames: 0, frameTimesMs: [], renderCostsMs: [], calls: 0, triangles: 0, geometries: 0, textures: 0, renderer: "", loadMs: 0 };
   readonly #frameIntervals = new FrameSamples(1800);
   readonly #renderCosts = new FrameSamples(1800);
@@ -255,11 +256,16 @@ class Controller implements VrmController {
   }
   getAnimations(): readonly { name: string; durationMs: number }[] { return [...this.#clips].map(([name, clip]) => ({ name, durationMs: clip.duration * 1000 })); }
   playAnimation(name: string, options: AnimationPlaybackOptions = {}): Promise<AnimationPlaybackResult> {
+    return this.#playAnimation(name, options, true);
+  }
+  #playAnimation(name: string, options: AnimationPlaybackOptions = {}, ownedByHost = false): Promise<AnimationPlaybackResult> {
     if (!this.#player || this.#status === "destroyed" || this.#status === "fallback" || this.#reduced.matches) return Promise.resolve("stopped");
     if (!this.#clips.has(name)) return Promise.reject(new Error(`animation does not exist: ${name}`));
     if (this.#player.activeName !== name || options.restart) this.#playStartedAt = performance.now();
     this.#gaze.restoreHead(); this.#ambientSuppressed = false; this.#character?.reset();
-    return this.#player.play(name, options);
+    const playback = this.#player.play(name, options);
+    if (ownedByHost) { this.#bubble.hide(); return this.#interaction.protect(playback); }
+    return playback;
   }
   getExpressions(): readonly string[] { return this.#vrm?.expressionManager?.expressions.map(e => e.expressionName) ?? []; }
   setExpression(name: string, weight: number): void {
@@ -457,7 +463,7 @@ class Controller implements VrmController {
     const animationDelta = this.#playStartedAt === undefined ? delta : Math.min(delta, Math.max(0, (performance.now() - this.#playStartedAt) / 1000));
     this.#playStartedAt = undefined;
     this.#player?.update(animationDelta); this.#startAmbient();
-    const action = referenceOnly ? undefined : this.#dialogue.poll(this.#elapsed * 1000, this.#foregroundActive());
+    const action = referenceOnly ? undefined : this.#dialogue.poll(this.#elapsed * 1000, this.#interaction.externalActive || this.#foregroundActive());
     if (action) this.#showDialogue(action);
     this.#bubble.update(this.#elapsed * 1000);
     // Only the base Idle pose follows the pointer. Foreground gestures retain
@@ -547,18 +553,24 @@ class Controller implements VrmController {
     this.#resizeObserver = new ResizeObserver(() => this.resetCamera()); this.#resizeObserver.observe(this.#host);
   }
   #triggerClick(): void {
-    if (this.#status !== "running" || this.#foregroundActive()) return;
+    if (!this.#dialogue.hasClick && !this.#config.interactions?.click) return;
+    if (this.#status !== "running" || !this.#interaction.acceptClick(performance.now())) return;
     const action = this.#dialogue.triggerClick(this.#elapsed * 1000);
     if (action) this.#showDialogue(action);
     else if (this.#config.interactions?.click) {
       const click = this.#config.interactions.click;
       const names = click.animations ?? [click.animation!];
-      void this.playAnimation(names[Math.floor(Math.random() * names.length)]!, { mode: "once", restart: true });
+      this.#bubble.hide();
+      void this.#playAnimation(names[Math.floor(Math.random() * names.length)]!, { mode: "once", restart: true });
     }
   }
   #showDialogue(action: DialogueAction): void {
+    if (action.animation) void this.#playAnimation(action.animation, { mode: "once", restart: true });
+    else if (this.#foregroundActive()) {
+      if (this.#baseAnimation) void this.#playAnimation(this.#baseAnimation, { mode: "loop", restart: true });
+      else this.#player?.stop();
+    }
     if (this.#bubblesVisible) this.#bubble.show(action, this.#elapsed * 1000, this.#reduced.matches);
-    if (action.animation) void this.playAnimation(action.animation, { mode: "once", restart: true });
   }
   #setStatus(status: WidgetStatus): void { this.#status = status; this.#host.dataset.modelStatus = status; this.#performance?.setStatus(status); }
   #dispose(): void {

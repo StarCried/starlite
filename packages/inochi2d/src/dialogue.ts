@@ -1,1 +1,1 @@
-export { DialogueScheduler, DialogueBubble, resolveDialogueSentences, resolveDialogueContext, observePassThroughClicks, type DialogueAction, type DialogueContext } from "@starcried/starlite-core";
+export { DialogueScheduler, DialogueBubble, InteractionGate, resolveDialogueSentences, resolveDialogueContext, observePassThroughClicks, type DialogueAction, type DialogueContext } from "@starcried/starlite-core";

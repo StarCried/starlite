@@ -118,6 +118,8 @@ export class DialogueScheduler {
     this.#random = random;
   }
 
+  get hasClick(): boolean { return Boolean(this.#config.click || this.#context?.triggers.includes("click")); }
+
   start(timestampMs: number, immediateEnter = false): void {
     if (this.#started) {
       return;
@@ -146,7 +148,10 @@ export class DialogueScheduler {
   }
 
   poll(timestampMs: number, foregroundActive: boolean): DialogueAction | undefined {
-    if (!this.#started || foregroundActive) {
+    if (!this.#started) return undefined;
+    if (foregroundActive) {
+      // A missed occasional gesture is not queued behind ongoing interaction.
+      if (this.#nextIdleAt !== undefined && timestampMs >= this.#nextIdleAt) this.#scheduleIdle(timestampMs);
       return undefined;
     }
     if (
@@ -172,6 +177,8 @@ export class DialogueScheduler {
   }
 
   triggerClick(timestampMs: number): DialogueAction | undefined {
+    // Direct engagement replaces a delayed entrance as well as an active one.
+    this.#enterDueAt = undefined;
     this.deferIdle(timestampMs);
     if (!this.#config.click && !this.#context?.triggers.includes("click")) {
       return undefined;

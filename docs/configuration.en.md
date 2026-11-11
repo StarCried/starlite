@@ -82,6 +82,8 @@ Place external VRMA under `source/motions/` if using that URL. Names are case-se
 
 Bubbles can work without motion: use `lines` and omit animation fields. `durationMs` sets sentence display time. `enter` runs once per tab for the same model, `click` responds to clicks, and `idle` schedules occasional interactions; it does not mean the continuously breathing baseline.
 
+A configured click response can interrupt entrance, occasional or previous click gestures, with at least 500 ms between responses. Ignored repeat clicks do not consume sentences; occasional gestures defer while busy instead of queuing. VRM retains its 400 ms smooth transition and switches the matching sentence together. A text-only response ends the previous automatic gesture; unconfigured clicks leave it alone. An early response cancels a pending entrance. Host or Agent playback started through `playAnimation` remains protected until it finishes, is stopped or is replaced by another host call.
+
 ```yaml
 starlite:
   dialogue:

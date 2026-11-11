@@ -20,9 +20,10 @@ it("draws from click and idle pools on each trigger and respects foreground prio
   value = .99;
   expect(scheduler.triggerClick(0)?.animation).toBe("Nod");
   expect(scheduler.poll(1100,true)).toBeUndefined();
-  expect(scheduler.poll(1100,false)?.animation).toBe("Stretch");
+  expect(scheduler.poll(1100,false)).toBeUndefined();
+  expect(scheduler.poll(2100,false)?.animation).toBe("Stretch");
   value = 0;
-  expect(scheduler.poll(2200,false)?.animation).toBe("Yawn");
+  expect(scheduler.poll(3200,false)?.animation).toBe("Yawn");
 });
 
 it.each(["enter", "idle", "click"] as const)("pairs %s animation with only its bound sentences", scene => {
@@ -126,10 +127,18 @@ it("retains a pending first entrance but never replays it when dialogue contexts
   scheduler.setContext(null,1000);expect(scheduler.poll(1000,false)).toBeUndefined();
 });
 
-it("does not consume an idle entry while foreground work blocks its trigger",()=>{
+it("drops a busy idle opportunity without consuming a line or queuing it after foreground work",()=>{
   const scheduler=new DialogueScheduler(contextBase(),()=>0);scheduler.start(0);scheduler.setContext(dialogueContext(),0);
   expect(scheduler.poll(3000,true)).toBeUndefined();expect(scheduler.poll(3100,true)).toBeUndefined();
-  expect(scheduler.poll(3200,false)?.line).toBe("A");expect(scheduler.triggerClick(3300)?.line).toBe("B");
+  expect(scheduler.poll(3200,false)).toBeUndefined();
+  expect(scheduler.poll(4000,false)?.line).toBe("A");expect(scheduler.triggerClick(4100)?.line).toBe("B");
+});
+
+it("a direct click cancels a delayed entrance instead of replaying it afterward",()=>{
+  const scheduler=new DialogueScheduler({...contextBase(),enter:{animation:"Enter",lines:["Welcome"],delayMs:500,durationMs:100}},()=>0);
+  scheduler.start(0);expect(scheduler.triggerClick(100)?.scene).toBe("click");
+  expect(scheduler.poll(500,false)).toBeUndefined();
+  expect(scheduler.poll(1200,false)?.scene).toBe("idle");
 });
 
 it("adds bounded text-only idle interaction to a model without a global dialogue library",()=>{
