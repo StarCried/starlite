@@ -34,7 +34,7 @@ starlite:
     allowRedistribution: true
 ```
 
-A standard humanoid VRM works without authored animations: StarLite supplies a relaxed Idle with breathing and limited head tracking. Blink and eye tracking use the model's optional standard bindings. The source version also provides optional curious-peek, happy-wave, and sleepy-startle motions for humanoid models; assign them only where wanted. Character artwork is downloaded separately from the program.
+A standard humanoid VRM works without authored animations: StarLite supplies a relaxed Idle with breathing and limited head tracking. Blink and eye tracking use the model's optional standard bindings. StarLite also provides optional curious-peek, happy-wave, and sleepy-startle motions for humanoid models; assign them only where wanted. Character artwork is downloaded separately from the program.
 
 ## Let an Agent help
 
@@ -62,4 +62,4 @@ Explain how to start StarLite, replace the model, and customize dialogue. Do not
 
 [Configuration](docs/configuration.en.md) · [Upgrade and troubleshooting](docs/release-guide.en.md) · [Development](docs/development.md)
 
-Program code is [BSD-2-Clause](LICENSE). Models and motions retain their own licenses. [Weiguang](docs/weiguang-license.en.md) and [BlueFish](docs/bluefish-license.en.md) are optional, separately licensed examples. New source features are not automatically available in the current npm release; check the release notes before installing a specific version.
+Program code is [BSD-2-Clause](LICENSE). Models and motions retain their own licenses. [Weiguang](docs/weiguang-license.en.md) and [BlueFish](docs/bluefish-license.en.md) are optional, separately licensed examples.

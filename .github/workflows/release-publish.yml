@@ -1,0 +1,89 @@
+name: Release publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      prepare_run:
+        description: Successful Release prepare run ID whose artifact was reviewed
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: starlite-release-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: npm-release
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+    steps:
+      - name: Require a successful preparation from this repository
+        id: preparation
+        uses: actions/github-script@v7
+        env:
+          PREPARE_RUN: ${{ inputs.prepare_run }}
+        with:
+          script: |
+            const run_id = Number(process.env.PREPARE_RUN);
+            if (!Number.isSafeInteger(run_id) || run_id <= 0) throw new Error('Invalid prepare run ID');
+            const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo, run_id});
+            if (run.conclusion !== 'success' || run.event !== 'workflow_dispatch' ||
+                run.path !== '.github/workflows/release-prepare.yml' || run.head_branch !== 'main')
+              throw new Error('Use a successful main-branch Release prepare run');
+            core.setOutput('revision', run.head_sha);
+      - uses: actions/download-artifact@v4
+        with:
+          name: starlite-release
+          path: ${{ runner.temp }}/release
+          run-id: ${{ inputs.prepare_run }}
+          github-token: ${{ github.token }}
+      - name: Read source identity
+        id: source
+        env:
+          RELEASE_DIRECTORY: ${{ runner.temp }}/release
+          PREPARED_REVISION: ${{ steps.preparation.outputs.revision }}
+        run: |
+          node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.env.RELEASE_DIRECTORY+"/release-manifest.json"));if(!/^[a-f0-9]{40}$/.test(m.sourceRevision)||m.sourceRevision!==process.env.PREPARED_REVISION)throw Error("Prepared source mismatch");fs.appendFileSync(process.env.GITHUB_OUTPUT,"revision="+m.sourceRevision+"\n")'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Use npm supporting OIDC publish and dist-tag recovery
+        run: npm install --global npm@11.21.0 --ignore-scripts --no-audit --no-fund
+      - name: Preflight source tag and GitHub release before any npm write
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/release-github.mjs preflight --out "$RUNNER_TEMP/release"
+      - name: Publish reviewed npm tarballs using trusted publishing
+        run: npm run release -- publish --out "$RUNNER_TEMP/release"
+      - name: Verify a fresh anonymous registry installation
+        run: npm run release:consumer -- --out "$RUNNER_TEMP/release"
+      - name: Upload the same files and publish the completed GitHub draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/release-github.mjs publish --out "$RUNNER_TEMP/release"
+      - name: Verify public GitHub downloads anonymously
+        run: node tools/release-github.mjs verify --out "$RUNNER_TEMP/release"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-verification
+          path: |
+            ${{ runner.temp }}/release/*verification.json
+            ${{ runner.temp }}/release/*proof.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -4,8 +4,6 @@
 
 Requires Node.js 22.12+, an existing Hexo 7 blog, and a desktop Chrome/Edge browser with WebGL2. Hexo 8 has not been accepted yet. You do not need Rust, Blender, or an API key.
 
-This guide targets StarLite 0.1.2, including visitor dragging, responsive sizing and shared hover controls.
-
 ## Install and start
 
 ```sh
@@ -15,7 +13,7 @@ npx hexo server
 
 Run these in the blog directory. Generation automatically fetches the pinned Weiguang example with its 13 authored motions and dialogue. Open the printed URL. The plugin does not deploy your site.
 
-The default npm tag is `latest`; use `hexo-starlite@0.1.2` to pin this release. Weiguang's [separate model terms](weiguang-license.en.md) require visible attribution. If you disagree or do not want the companion:
+The default npm tag is `latest`. To pin a version, choose it from [Releases](https://github.com/StarCried/starlite/releases) and use `npm install --save-exact hexo-starlite@<version>`, replacing `<version>`. Weiguang's [separate model terms](weiguang-license.en.md) require visible attribution. If you disagree or do not want the companion:
 
 ```yaml
 starlite:
@@ -41,7 +39,7 @@ starlite:
 
 `locale` is optional: the plugin inherits Hexo's `language`, using Chinese for Chinese tags, English for other nonempty tags, and Chinese when no language is set. An explicit locale accepts `en` or `zh-CN`. It controls interface labels and shipped example text, never translates your sentences, and introduces no translation service or network requests. Rebuild after changing it.
 
-[Full configuration](configuration.en.md) explains animations, per-page lines, display, performance, and model adjustments. The Weiguang display preset uses 60 FPS, DPR 1, a 260 × 390 canvas, and offsets of 112 px from the right and 160 px from the bottom.
+[Full configuration](configuration.en.md) explains animations, per-page lines, display, performance, and model adjustments. Refer to that guide for example presets and custom-model defaults.
 
 Visitors can drag the character away from content and use its hover toolbar to resize it, hide bubbles, or temporarily hide the character. Size adapts to the visible viewport; hiding bubbles keeps animations active. The full right-click menu retains detailed settings and **Reset position**. Preferences stay in the visitor's browser. Short clicks still reach the page; dragging starts beyond six CSS pixels. See the [cross-origin comment-frame limitation](configuration.en.md#failure-handling-and-visitor-settings) before placing the character over an embedded comment area.
 

@@ -14,7 +14,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    outputs:
+      docs-only: ${{ steps.scope.outputs.docs-only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - id: scope
+        run: node tools/ci-scope.mjs
+
+  docs:
+    needs: scope
+    if: needs.scope.outputs.docs-only == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node tools/check-docs.mjs
+      - run: git diff --check
+
   validate:
+    needs: scope
+    if: needs.scope.outputs.docs-only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -28,29 +59,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.85.0
         with:
           components: clippy,rustfmt
-      - name: Install deterministic WASM build tools
-        shell: bash
-        run: |
-          curl --fail --location --silent --show-error \
-            --output "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
-            https://apt.llvm.org/llvm-snapshot.gpg.key
-          test "$(gpg --show-keys --with-colons "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
-            | awk -F: '$1 == "fpr" { print $10; exit }')" \
-            = "6084F3CF814B57C1CF12EFD515CF4D18AF4F7421"
-          sudo gpg --dearmor \
-            --output /usr/share/keyrings/apt.llvm.org.gpg \
-            "$RUNNER_TEMP/llvm-snapshot.gpg.key"
-          echo "deb [signed-by=/usr/share/keyrings/apt.llvm.org.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm-20.list
-          sudo apt-get update
-          sudo apt-get install --yes lld-20
-          curl --fail --location --silent --show-error \
-            --output "$RUNNER_TEMP/binaryen.tar.gz" \
-            https://github.com/WebAssembly/binaryen/releases/download/version_120/binaryen-version_120-x86_64-linux.tar.gz
-          echo "ddb097af51d1bdb17300d986b0de7d97422f1933dedb4c9eda3510e0bf4076cc  $RUNNER_TEMP/binaryen.tar.gz" \
-            | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/binaryen.tar.gz" -C "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/binaryen-version_120/bin" >> "$GITHUB_PATH"
+      - run: bash tools/install-ci-wasm-tools.sh
       - uses: actions/cache@v4
         with:
           path: ~/.cache/starlite/official-sdk
@@ -58,6 +67,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run validate
+      - run: npm run check:docs
       - run: npm run test:browser
       - run: git diff --check
       - uses: actions/upload-artifact@v4
@@ -101,3 +111,24 @@ jobs:
           name: windows-${{ matrix.channel }}-traces
           path: examples/vanilla/test-results
           retention-days: 7
+
+  result:
+    if: always()
+    needs: [scope, docs, validate, windows-browser]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require the selected gates to pass
+        env:
+          SCOPE: ${{ needs.scope.result }}
+          DOCS_ONLY: ${{ needs.scope.outputs.docs-only }}
+          DOCS: ${{ needs.docs.result }}
+          VALIDATE: ${{ needs.validate.result }}
+          WINDOWS: ${{ needs.windows-browser.result }}
+        run: |
+          test "$SCOPE" = success
+          if [ "$DOCS_ONLY" = true ]; then
+            test "$DOCS" = success
+          else
+            test "$VALIDATE" = success
+            test "$WINDOWS" = success
+          fi

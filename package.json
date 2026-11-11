@@ -5,13 +5,19 @@
   "description": "Lightweight VRM companions for web and desktop, with an optional Inochi2D backend",
   "license": "BSD-2-Clause",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.14",
+    "npm": ">=10.9"
   },
   "workspaces": [
     "packages/*",
     "examples/*"
   ],
   "scripts": {
+    "changeset": "changeset",
+    "release": "node tools/release.mjs",
+    "test:release": "node --test tools/release.test.mjs tools/release-github.test.mjs tools/ci-scope.test.mjs",
+    "release:consumer": "node tools/verify-registry-install.mjs",
+    "check:docs": "node tools/check-docs.mjs",
     "build": "npm run fixtures && npm run build:wasm && npm run build --workspace @starcried/starlite-core && npm run build --workspace @starcried/starlite-inochi2d && npm run build --workspace @starcried/starlite-vrm && npm run build --workspace hexo-starlite && npm run build --workspace @starcried/starlite-vanilla-example && npm run build --workspace @starcried/starlite-hexo-example && npm run build --workspace @starcried/starlite-hexo-vrm-example",
     "build:wasm": "node tools/build-official-sdk.mjs",
     "check:runtime-budget": "node tools/verify-runtime-budget.mjs",
@@ -25,7 +31,7 @@
     "pack:release-check": "npm run check:licenses && INOCHI2D_RELEASE_PACK=1 node tools/verify-package-contents.mjs",
     "stage:native": "node tools/stage-native-pipeline.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present && npm run test:demo && npm run test:budgets && npm run test:dependency-audit",
+    "test": "npm run test --workspaces --if-present && npm run test:demo && npm run test:budgets && npm run test:dependency-audit && npm run test:release",
     "test:budgets": "node --test tools/verify-runtime-budget.test.mjs tools/verify-performance-report.test.mjs",
     "test:browser": "npm run test:browser --workspace @starcried/starlite-vanilla-example",
     "validate": "npm run check:rust && npm run build && npm run lint && npm run typecheck && npm run check:runtime-budget && npm run check:licenses && npm run test && npm run pack:check",
@@ -35,9 +41,11 @@
     "test:dependency-audit": "node --test tools/check-dependency-audit.test.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "@playwright/test": "1.61.1",
     "@types/node": "26.1.1",
     "happy-dom": "21.0.4",
+    "semver": "7.8.6",
     "typescript": "7.0.2",
     "vite": "8.1.6",
     "vitest": "4.1.12"

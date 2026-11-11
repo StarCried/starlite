@@ -1,0 +1,135 @@
+# StarLite engineering contracts
+
+## Repository boundaries
+
+- `packages/core` owns the format-neutral playback contract,
+  cancellable mounts and dialogue scheduling. It must not import a backend.
+- `packages/vrm` owns VRM inspection/preparation, Three.js/three-vrm
+  rendering, VRMA playback and data-only character profiles. Keep private
+  character models and animation-authoring projects outside this repository.
+- Product names are StarLite, StarLite for Hexo and StarLite for DSH. Local
+  checkouts use `starlite` and `starlite-dsh`; package names and repository metadata
+  follow these identities. Keep compatibility identifiers when changing display names.
+
+- `crates/inochi2d-pipeline` owns untrusted `.inp/.inx` inspection,
+  compatibility and rights reports, deterministic texture optimization
+  (lossless unless web limits require resizing), manifests, and transactional
+  output.
+- `tools/build-official-sdk.mjs` owns the reproducible official D-SDK download,
+  source compatibility patches, minimal browser export surface, Binaryen
+  optimization, and pinned output hashes.
+- `packages/inochi2d` owns model fetch, official WASM calls, WebGL2 command
+  rendering, lifecycle, motion synthesis, interaction, DPR/FPS policy, and
+  fallback presentation.
+- `packages/hexo` owns Hexo 7 configuration, manifest verification,
+  hashed asset routes, injection, and PJAX-safe singleton bootstrapping.
+- `packages/inochi2d-blog` owns fail-closed orchestration. No code path may call
+  `hexo deploy` before rights, identity, preparation, generation, and browser
+  gates have all passed.
+- Examples may depend on packages; packages must not depend on examples.
+- Shared UI locales are `zh-CN` and `en`. Hexo resolves an explicit locale before
+  its configured language; preserve user-authored dialogue and model metadata.
+  The Inochi2D raw browser distribution needs its local locale facade and bundled
+  `locale.js`, not a bare package import. Keep translated example terms in sync
+  with canonical documents and the DSH copies.
+  Label the diagnostics control “显示调试信息” / “Show debug info”; retain
+  `performance.show`, `setPerformanceVisible` and existing preference keys for
+  compatibility.
+
+## Public and private assets
+
+- Never add StarCried source art, Creator projects, private puppets, credentials,
+  deployment tokens, or real blog content.
+- Committed fixtures must be synthetic, artwork-free, and redistributable.
+- Third-party puppets are ignored local test inputs only, with license and
+  attribution recorded in `docs/validation.md`.
+- Package checks must reject `.inp`, `.inx`, `.vrm`, `.vrma` and `.blend` files.
+  The user-approved Idle plus CuriousPeek, HappyWave and SleepyStartle ship as
+  embedded, artwork-free motion data. Keep `BUNDLED_MOTIONS.json` hashes and
+  provenance with the runtime; HappyWave reuses a selected Warudo upper-body
+  motion and must not be described as wholly original. Use reserved names
+  `StarLiteIdle`, `StarLiteCuriousPeek`, `StarLiteHappyWave`, `StarLiteSleepyStartle`.
+  Existing user mappings remain unchanged when the catalog gains program clips.
+- Default Hexo examples are selected with `starlite.preset`; keep the initial
+  Weiguang choice and download only the selected example. Each catalog entry
+  has separate pinned assets and model terms, available before download. The
+  code's BSD license never applies to example artwork. Verify exported VRM0
+  orientation in the actual runtime (which rotates VRM0), not only Blender.
+- A Hexo preset's explicit `adjustments` override replaces the entire calibration;
+  do not deep-merge it, because the adjustment preview exports `{}` to clear
+  corrections. The preview reads validated `extras.starlite.adjustments` defaults;
+  the runtime still takes its calibration from host config, without a fallback
+  that would silently restore model defaults after a user clears them.
+
+## Compatibility contract
+
+- Supported browsers are desktop Chrome and Edge with WebGL2.
+- Mobile defaults to hidden and must return before runtime import or model/WASM
+  fetch.
+- Core owns the shared visitor toolbar and `isModelDrag` classifier (>6 CSS px).
+  Hexo owns alpha-hit body dragging and foot-anchored viewport placement; its
+  public VRM `interactions.drag` defaults to true while renderer drag remains
+  false, preserving native pass-through short clicks. Keep serialized helpers
+  self-contained with explicit dependencies, capture drag completion on window,
+  and never synthesize page clicks or claim to undo page pointerdown handlers.
+  Confirmed drags capture the pointer and temporarily suspend iframe hit-testing;
+  pointer capture alone can lose movement to cross-origin frames in Chromium.
+  Restore original inline values/priorities on every exit. A short click or drag
+  starting inside a foreign iframe cannot be observed without breaking passthrough.
+  Keep controls fixed during resizing, clamp portrait/control bounds to the
+  viewport, and pair persisted visitor position with reset and PJAX cleanup.
+  Use root `clientWidth`/`clientHeight` for placement and the VRM viewport guard
+  so scrollbars are excluded; fall back to inner dimensions only before layout
+  reports a nonzero size. The 176x75 CSS px minimum reserves a 152x42 toolbar,
+  an 8px gap, 12px margins and a 1px portrait, even with `mobile.show` enabled.
+  Keep those limits synchronized when toolbar geometry changes. Browser checks
+  must remove Playwright's default `--hide-scrollbars` argument to exercise this.
+  The shared toolbar has no enclosing plate; icon outlines provide contrast.
+  Hosts may supply `onReleaseControl` and `controlActive` for a fifth session-exit
+  action. Its width is 188 only while active; ordinary Hexo controls remain 152.
+  Read current `dimensions` after update and retain the centre/top placement anchor.
+  Rebase host motion with `setHostPosition(..., {resetMotion:true})` after layout
+  changes and before dragging; resize/reset offsets must not become spring impulses.
+  DSH shares the controls/classifier but retains its native window-drag adapter.
+- Model-authored, non-additive `Forced` animation lanes may be normalized by the
+  pipeline and played by exact name. Creator `leadIn`/`leadOut` regions may be
+  used for explicitly configured ambient loops. MeshGroup, Camera,
+  SimplePhysics, Cubic bindings, and ColorBurn are supported by the pinned SDK
+  compatibility profile. Do not add WebGL1, BC7, model automation,
+  additive/Bezier/crossfade animation behavior, voice/camera input, or
+  Firefox/Safari support without an approved scope change.
+- VRM state changes use a bounded 400 ms captured-pose blend with cubic
+  ease-in/ease-out weights for gesture continuity; this is not velocity-preserving
+  inertialization.
+  Explicit stop/destroy still restore neutral immediately; the Inochi2D animation
+  restrictions above are unchanged.
+- Only generated program gestures rebase their normalized rotation tracks onto
+  the selected Idle reference pose, after StarLiteIdle calibration. Regenerate
+  from immutable sources into shared mixer arrays; never modify authored clips
+  or restart playback on calibration. Animated forearm/finger tracks align only
+  within bounded entry/exit ramps (with local resampling); preserve their active
+  authored shape to avoid overfolded elbows or doubled fist curl. Static tracks
+  follow the reference throughout. Never add unmapped bones or hip motion.
+  A replacement generic gesture must begin/end at the program Idle reference,
+  not a sample character's rest pose; a constant arm offset rotates the entire
+  active hand arc. Preserve unrelated clip hashes when replacing one motion.
+- VRM bubble anchors sample the initial neutral alpha silhouette once and project
+  the cached reference point (falling back to visible bounds) through the base
+  portrait camera, in host-local CSS pixels. Do not use animated bounds, expanded
+  canvas padding or device pixels: doing so moves bubbles during gestures or DPI
+  changes. DSH consumes this optional core capability without resizing its window.
+- Use “环境光 / Environment lighting” for the lighting feature in current docs;
+  keep the `environmentLighting` API/config names unchanged.
+- Environment lighting is an optional RGB host hint, not the existing `ambient`
+  animation setting. Keep colour acquisition in host adapters; the VRM backend
+  reuses its hemisphere and white-key lights, normalizes chroma independently of
+  luminance, and bounds the brightness target to .8–1.1. Strength defaults to 1
+  and accepts 0–2; preserve the accepted 0–1 curve exactly, then amplify linearly
+  above 1 (effective overall light multiplier .6–1.2 at strength 2).
+  Null/zero restores both original light intensities and colours;
+  near-black hints must not amplify colour noise. Hexo uses explicit bright/dark
+  colours with one lifecycle-owned theme observer, never
+  screen capture. Keep mobile, retry and PJAX cleanup paths paired.
+- Keep official SDK source, toolchain, raw WASM, optimized WASM, LLD, and
+  Binaryen versions synchronized with `tools/official-sdk/pin.json` and
+  `docs/upstream.md`.

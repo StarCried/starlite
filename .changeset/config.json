@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [["@starcried/starlite-core", "@starcried/starlite-inochi2d", "@starcried/starlite-vrm", "hexo-starlite"]],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "origin/main",
+  "format": false,
+  "privatePackages": { "version": false, "tag": false },
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

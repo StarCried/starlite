@@ -28,7 +28,7 @@ Move the pointer near the character to reveal a toolbar beneath it: **− / + / 
 
 By default, transparent areas and ordinary short clicks let the underlying page receive native clicks. Pressing the character's body and moving more than 6 CSS pixels drags it; release triggers neither a page click nor the character's click response. Narrow or short viewports reduce its size automatically, and enlargement stays within the visible area. Set `drag: false` under `starlite.interactions` to disable body dragging while retaining page click-through.
 
-The source version supports English menus and example dialogue: it follows Hexo's `language`, or an explicit `starlite.locale: en`. Custom sentences are kept exactly as written.
+StarLite supports English menus and example dialogue: it follows Hexo's `language`, or an explicit `starlite.locale: en`. Custom sentences are kept exactly as written.
 
 ## Let an Agent install it
 

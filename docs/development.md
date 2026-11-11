@@ -10,7 +10,7 @@
 
 ## 工具与检查
 
-需要 Node.js 22.12+。完整 Inochi2D／原生验证另需 Rust 1.85、LLD 20、Binaryen 120 和 curl。SDK 的来源、工具链与输出按 [upstream](upstream.md) 固定。
+JavaScript 工具链要求见根 [package.json](../package.json)。完整 Inochi2D／原生验证另需 Rust、LLD、Binaryen 和 curl，版本与来源按 [upstream](upstream.md) 固定。发布工具及预检见 [发布流程](releasing.md)。
 
 ```sh
 npm ci
@@ -27,6 +27,12 @@ git diff --check
 
 [稳定化验收](stabilization.md) · [性能预算](performance.md) · [模型兼容](model-compatibility.md) · [依赖维护](dependency-audit.md)
 
-[配置](configuration.md) · [历史验证与发布门](validation.md) · [CI](ci.md) · [模型和动作政策](model-policy.md) · [第三方声明](../THIRD_PARTY_NOTICES.md) · [安全政策](../SECURITY.md)
+[配置](configuration.md) · [发布流程](releasing.md) · [历史验证](validation.md) · [CI](ci.md) · [模型和动作政策](model-policy.md) · [第三方声明](../THIRD_PARTY_NOTICES.md) · [安全政策](../SECURITY.md)
 
 构建、源码推送、npm 发布、角色分发和博客部署分别执行；体验命令不执行任何发布操作。
+
+## 完成一个变更
+
+把行为变更、必要测试和受影响的用户说明放在同一变更中；新增功能和修复用 `npm exec changeset` 写一段面向用户的变化说明。文档整理或内部维护没有可发布的行为变化时，不必为了走流程增加版本。版本分组、准备和发行使用 [发布流程](releasing.md) 中的固定命令。
+
+维护代码按职责命名。当前说明只描述当前行为；完成的计划和验收结果留在对应发行记录。涉及渲染、模型与交互约束时读取 [工程约定](engineering-contracts.md)，无需把每次排查经过追加到 AGENTS.md。

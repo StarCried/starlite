@@ -1,0 +1,1061 @@
+# Historical validation through 0.1.2
+
+Archived evidence, not the current release procedure. Original dates, versions and test boundaries are preserved. Use [the maintained release guide](../releasing.md) for new releases.
+
+# Validation checklist
+
+Current naming is StarLite. Current publication proof appears first; older dated
+results retain their package labels and hashes as historical evidence, not as
+current installation inputs or release approval. Commands use the current
+package names. See [current status](../status.md) before release.
+
+## 2026-11-11 public 0.1.2 verification
+
+The four runtime/Hexo packages are published to npm `latest` at `0.1.2`.
+The immutable [`v0.1.2` source tag](https://github.com/StarCried/starlite/tree/v0.1.2)
+resolves to `125a66a3a42f6f71b44bb7724da37573be368d2d`; later publication-proof
+documentation does not change this source or the released package bytes.
+The exact-source [CI](https://github.com/StarCried/starlite/actions/runs/42946649442),
+[dependency audit](https://github.com/StarCried/starlite/actions/runs/42946649474)
+and [dual-platform release dry run](https://github.com/StarCried/starlite/actions/runs/42946723282)
+passed. The unchanged `inochi2d-blog` CLI remains at `0.1.0` and is not republished.
+
+All four archives were downloaded anonymously from the public registry and
+matched the reviewed local files byte for byte, including SHA-256 and SHA-512/SRI.
+Their exact internal dependencies and `latest` tags are `0.1.2`. Package-content
+checks exclude private models and authoring files; independently licensed example
+model resources remain separate from the program archives.
+
+| npm package at 0.1.2 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `@starcried/starlite-core` | 25,957 | `d13213b69f5beda3be85f313fe5c1c8a85dee365c1257bf0cb92d5a5d641b1f1` |
+| `@starcried/starlite-inochi2d` | 246,371 | `80a4c4e52d32b4bf5c3e68372e5bf8b61dce60d55b95d4b6536f7615d68f9c51` |
+| `@starcried/starlite-vrm` | 633,945 | `de45cdff45e11bd65b200c412ca9880d397f47e9cb8c31849dbba8cf60aef884` |
+| `hexo-starlite` | 86,616 | `1640dca89336cbea5936e403e49374d80ac8f6cfa5a2083273570c316ed16ae6` |
+
+A fresh Windows consumer installed `hexo-starlite@0.1.2` and Hexo 7.3.0 with
+empty npm authentication and a fresh cache. Every installed package resolved
+from the public registry without local/workspace links; all four StarLite
+versions and integrity values matched the published archives. The local
+tarballs provided expected hashes only and were not used for installation.
+Weiguang generated without `starlite` configuration; BlueFish required only
+`preset: bluefish`. Both generated again after `hexo clean` with an unavailable
+network proxy, retaining identical verified model bytes from their caches.
+
+Chrome and Edge passed both published presets: fixed toolbar anchors during
+resizing, bubble/menu synchronization, ordinary click-through, confirmed-drag
+suppression of the underlying click, hide/restore, and PJAX controller retention.
+Five viewport sizes from 1360x900 through 901x450 were checked at 150% model size
+with real scrollbars. Mobile 390x844 and very short 1360x74 views executed their
+guards without requesting renderer JavaScript or model files. No page errors
+were reported in these four browser/preset combinations. These are viewport
+simulations and functional checks, not new native display-scale or sustained
+performance measurements.
+
+Complete local `validate` and release package checks passed, including Rust's
+26 tests, builds, lint, type checks, licenses, runtime budgets and package gates.
+Core passed 104 tests, VRM 356, Hexo 364 and Inochi2D 73 with seven optional
+external-fixture unit skips. Local Chromium passed 22 browser cases, including
+the prepared public Aka model's real-WASM rendering and interactions; the
+Mannequin case remained skipped because that optional fixture was not supplied.
+The initial run used an older Aka preparation without an animation manifest and
+failed; the final passing run used the existing Click-capable preparation.
+
+The dependency gate retains the six low-severity Hexo-host affected entries
+under the reviewed upstream exception; see [dependency maintenance](../dependency-audit.md).
+The local WSL environment lacked the RustSec scanner, so the successful
+exact-source hosted audit supplies the complete online audit result.
+Raw registry archives, consumer install/generation logs and Chrome/Edge reports
+are retained in the sibling DSH workspace's ignored `release-output/release-0.1.2/`.
+Local command reports and exact tarball manifests are in this repository's
+ignored `target/release-output/0.1.2/`. Historical long tests and device checks
+retain their original scope.
+
+## 2026-11-06 public 0.1.1 verification
+
+The four runtime/Hexo packages are published to npm `latest` at `0.1.1`.
+The immutable [`v0.1.1` source tag](https://github.com/StarCried/starlite/tree/v0.1.1)
+resolves to `7aa9182c2248bb48d71bf36bf4618fc4b025c0d2`.
+The exact-source [CI](https://github.com/StarCried/starlite/actions/runs/42159603587)
+(Linux validation and Windows Chrome/Edge) and
+[dependency audit](https://github.com/StarCried/starlite/actions/runs/42159603669)
+passed. The unchanged `inochi2d-blog` CLI remains at `0.1.0`; no new native CLI,
+character-model assets or author's blog deployment accompany this patch.
+
+All four archives were downloaded anonymously from the public registry and
+matched the reviewed local files byte for byte, including SHA-256 and SHA-512/SRI.
+Their exact internal dependencies and `latest` tags are `0.1.1`; the historical
+`alpha` tags remain unchanged. Program archives contain no character artwork.
+
+| npm package at 0.1.1 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `@starcried/starlite-core` | 25,546 | `95cc5362225b6ab398ffdea70ed5d564593d29db9c90856c14625ca1894575b6` |
+| `@starcried/starlite-inochi2d` | 245,889 | `40a1d610e57a98607809c5a7ff079458df8d68bb7793e272ff36032db71b9a6e` |
+| `@starcried/starlite-vrm` | 636,675 | `6348ab9cc6e84a82e4572b8a873c21f2984471a7025a15e6c5dd490319ab0435` |
+| `hexo-starlite` | 86,567 | `2a26c0345bb41a798bcb91ee0360b4f3c9dccd2acf081f1dda34251aa122e49b` |
+
+A fresh consumer with empty npm authentication and a fresh cache installed
+`hexo-starlite@0.1.1` and Hexo 7.3.0 from the public registry. Its dependency
+lock and installed paths contained no workspace/local links, and all four
+package integrity values matched the published archives. Weiguang generated
+without `starlite` configuration; BlueFish required only the preset selection.
+Both sites regenerated after `hexo clean` with an unavailable network proxy,
+using their validated model caches rather than existing output.
+
+Chrome and Edge passed all four published-package/model combinations: toolbar
+and menu synchronization, ordinary click-through, confirmed drag suppression
+of the underlying link, hide/restore and PJAX controller retention. The five
+viewport sizes at 150% model scale included real scrollbars. At 390x844 and
+1360x74, the viewport guards executed without requesting renderer JavaScript
+or model files. These checks used registry packages, not local test bundles.
+
+The complete local validation passed Rust's 26 tests, builds, lint, type checks,
+package/license gates and runtime budgets. Core passed 101 tests, VRM 355 and
+Inochi2D 73 (seven optional external-fixture skips). The final Hexo suite passed
+364 tests after the viewport/scrollbar corrections. Windows Chrome and Edge each
+passed the standard browser suite's 21 cases with two optional fixture skips.
+
+Additional real-browser checks covered five CSS viewport sizes from 1360x900
+through 901x450, 150% model size, dragging to all four edges, visible theme/native
+scrollbars, the preset's 900 px mobile breakpoint and the 176x75 minimum layout.
+Placement uses the root client dimensions, excluding scrollbars, and reserves
+12 px margins for both portrait and fixed-size controls. These are viewport
+simulations and functional checks, not new Windows display-scale or performance
+benchmarks. Later local WSL Chromium attempts failed even blank WebGL contexts
+because its EGL display setup was unavailable; hosted Linux validation and the
+exact-source Windows suites passed. The WSL failures are not counted as passes.
+
+The user accepted the blog and isolated native DSH controls: hover visibility,
+fixed controls during scaling, bubble suppression without stopping animations,
+dragging, ordinary click-through, temporary hiding and restoring position.
+Active drags cross embedded comment frames; starting a new body drag over a
+foreign iframe remains unsupported while preserving native click-through, an
+explicitly accepted limitation. DSH's published EXE embeds the same accepted
+core/VRM bytes; its separate installation proof lives in the DSH repository.
+
+The dependency gate retains six low-severity Hexo-host entries tracing to one
+reviewed upstream advisory; see [dependency maintenance](../dependency-audit.md).
+Raw archive/CI/browser proof is kept in the sibling DSH workspace's ignored
+`release-output/patch-20261106/` and `release-output/hover-controls-20261106/`.
+Historical long-duration, device and model reports retain their original scope.
+
+## 2026-11-03 public 0.1.0 verification
+
+[Release `v0.1.0`](https://github.com/StarCried/starlite/releases/tag/v0.1.0)
+is a non-draft, non-prerelease release. Its tag and public `SOURCE_REVISION`
+resolve to `cb6f88261f5b9ab8cfe156978b834df5b709f8a6`. The five package
+archives came from the exact-source [Release dry run](https://github.com/StarCried/starlite/actions/runs/41595651605),
+including both native pipeline targets. The [CI](https://github.com/StarCried/starlite/actions/runs/41595630958)
+and [dependency audit](https://github.com/StarCried/starlite/actions/runs/41595630773)
+passed. Later documentation commits do not move the tag or replace its artifacts.
+
+- The complete local validation passed Rust's 26 tests, builds, lint, type
+  checking, license/package gates and runtime budgets. Package tests passed
+  353 VRM, 280 Hexo, 85 core and 73 Inochi2D checks; seven optional external
+  Inochi2D fixture cases remained skipped. The browser suite passed 21 cases
+  with two optional external-model skips, then the public Aka pipeline/WASM
+  case passed separately. The unavailable Mannequin case was not rerun.
+- All five npm packages were downloaded anonymously from the public registry.
+  Their bytes, SHA-256 and SHA-512/SRI matched the reviewed archives. Each
+  `latest` tag is `0.1.0`; existing `alpha` tags remain `0.1.0-alpha.3`.
+- All seven public GitHub program assets were independently downloaded without
+  Authorization or cookies. Lengths, SHA-256, the flat `SHA256SUMS` and the
+  source tag matched. Program packages contain no character-model artwork.
+
+| npm package at 0.1.0 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `@starcried/starlite-core` | 23,291 | `d00cb28640351267d42ef6e85e0a52703066e2f20550ff0d83a6a7be7adccc33` |
+| `@starcried/starlite-inochi2d` | 245,579 | `294f39f25440560382798ddfb59444a24269307cceb6b9e1e74752a8c8eec47b` |
+| `@starcried/starlite-vrm` | 635,395 | `8465cfdb8043432910e517c0a9681af6a89ca0dd8a4510f6f6aea1046030fbfa` |
+| `hexo-starlite` | 78,137 | `d184630c2c6e470d204205338d3df1479884f0f539714ce04831bacede97194a` |
+| `inochi2d-blog` | 1,328,672 | `00b7f5ff9bb63aac4666b03294577bac3af0fb3db93879bad4bd03439ed4aede` |
+
+A fresh consumer with empty npm authentication files and a fresh cache installed
+`hexo-starlite@0.1.0` and Hexo 7.3.0 from the registry. No workspace links or
+local package archives were used. Ordinary Hexo generation acquired Weiguang
+with no `starlite` configuration, and acquired BlueFish with only
+`starlite.preset: bluefish`. Both outputs retained their model hashes when
+regenerated with an unavailable network proxy. Desktop Chrome and Edge rendered
+both generated sites without page errors, retained the controller on the PJAX
+lifecycle event, and passed click-through checks. At 390 px width neither model
+nor renderer JavaScript was requested; the lightweight widget stylesheet may
+still be loaded by the page.
+
+[BlueFish's independent release](https://github.com/StarCried/starlite/releases/tag/bluefish-v1.0.0-starlite.1)
+was also downloaded and checked, including all five model/notices/checksum
+assets. The VRM is 10,427,496 bytes, SHA-256
+`896b9013642af427b475c4cd559ff9eb570a4cd543cc92e5418778560603e20b`.
+It retains wrist lift 30 degrees and head-follow strength 2, and selects the
+accepted program gestures. This public version supersedes the earlier local
+candidate pins below; its independent model terms still apply.
+
+The author's blog was upgraded through npm and deployed as
+`7fa6b08a23dd21dabbcbf40b696c1cdf7b1ca933`; its
+[Pages deployment](https://github.com/StarCried/StarCried.github.io/actions/runs/41602360285)
+passed. Public HTML, runtime, model and profile bytes matched the deployed Git
+blobs. Chrome/Edge checks covered the home, about, gallery, friends and StarLite
+article pages, actual PJAX navigation retaining the controller, and mobile
+requests. These were headless functional checks, not a new user acceptance or
+CPU/GPU, memory, FPS or long-running benchmark.
+
+The online dependency gate retains six low-severity affected Hexo-host entries
+tracing to one reviewed upstream advisory, not a zero-vulnerability claim;
+see [dependency maintenance](../dependency-audit.md). Raw publication, registry
+consumer and browser proofs are kept in the ignored sibling DSH workspace's
+`release-output/stable-20261103/`. Historical performance and manual reports
+below keep their original versions and scope.
+
+## 2026-11-02 BlueFish default calibration (local candidate)
+
+The user selected wrist lift 30 degrees and head-follow strength 2 in the local
+adjustment preview, leaving other controls unchanged. BlueFish now selects
+`StarLiteIdle` as its default baseline with those model-specific adjustments.
+
+- The derived VRM is 10,427,464 bytes, SHA-256
+  `da1696afb88e7d61f3b306cbb60e5bcba6780dc1b003f757e04a2612f423d3c3`.
+  Only adjustment metadata and the default Idle mapping changed. Non-JSON chunks,
+  original Idle and gesture data, and the embedded license remain unchanged.
+- The Hexo preset and its local asset pins match this candidate. All 248 Hexo
+  tests, package build/type checking, example syntax checks and diff checks
+  passed. Explicit user calibration replaces preset calibration, including `{}`
+  and gaze-only overrides; other models retain their previous defaults.
+- In the actual local browser, refreshing the adjustment page restored 30/2,
+  HappyWave completed and returned to built-in Idle, and Reset exported `{}`.
+  The independent real Hexo preset generated and rendered the exact pinned model.
+- DSH source commit `b13344a` initializes embedded adjustments only on new import;
+  its 84 Rust tests and 569 + 14 JavaScript checks passed. The installed daily
+  companion was not rebuilt/replaced for this change.
+
+This records local source/assets and short functional checks, not a new release,
+blog deployment, or performance benchmark. Private files remain outside Git.
+
+## 2026-10-31 bundled gestures and English source validation
+
+The source changes through `99cce47` add three optional, artwork-free humanoid
+gestures and English interfaces/documentation. This is source validation, not a
+new npm release, model release, or blog deployment.
+
+- `npm run validate` passed: 26 Rust tests, formatting/Clippy, builds, lint,
+  type checks, license inventory, package checks and runtime budgets. Package
+  suites passed 296 VRM, 247 Hexo, 63 core and 73 Inochi2D tests; seven optional
+  external Inochi2D fixture tests were skipped. Demo, budget and audit-policy
+  tool tests also passed.
+- `npm run test:browser` passed 21 Chromium tests, with two optional external
+  model cases initially skipped. The public Aka pipeline/WASM browser case was
+  then run separately with the existing local fixture and passed. The private
+  Mannequin browser case was not repeated.
+- Both VRM0 and VRM1 fixtures play all three actual embedded clips, complete,
+  return to Idle and make no external motion requests. Official retargeting
+  tests include optional missing fingers/Blink, reserved-name rejection, and
+  preserved hips. Existing model mappings are not automatically changed.
+- Independent local model checks covered BlueFish gestures, 27 Weiguang clips,
+  Blender expression actions and six actual Chrome waving renders. The waving
+  eyes stay open; added question/sweat animation triggers are absent. Original
+  optional model morphs remain. Body motion bytes are unchanged where only
+  expressions were edited. Private models and screenshots remain local.
+- English adjustment controls passed browser tests. English package READMEs
+  and local document links were checked; user-authored sentences and model
+  metadata remain untouched by UI translation.
+
+The shared VRM JS/CSS measured 1,438,720 raw, 478,652 gzip and 416,997 Brotli
+bytes. The updated budget explicitly accounts for the three bundled motions;
+this is not a new CPU/GPU, memory, or long-run performance measurement.
+
+The online dependency gate passed with the exact, time-limited local-Hexo
+`deepmerge` exception documented in [dependency maintenance](../dependency-audit.md).
+There are six low-severity affected entries, not zero vulnerabilities. The
+existing legacy model-authoring checker still rejects the unchanged quiet
+Working motion's amplitude; it is not counted as passing or used as evidence
+for this expression-only edit. Body-byte equality, expression binding checks
+and real renders are the relevant checks for that edit.
+
+## 2026-10-22 public alpha3 verification
+
+[Release `v0.1.0-alpha.3`](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.3)
+was published at `2026-10-22T09:40:34Z` as a non-draft prerelease. Its real Git
+tag, public `SOURCE_REVISION`, and reviewed cloud artifacts all resolve to
+`f83a4ec0f795a14f36d6724465e3a89f9c1e8529`; later documentation commits do not
+move this release identity.
+
+The exact-source [CI](https://github.com/StarCried/starlite/actions/runs/39753402580),
+[dependency audit](https://github.com/StarCried/starlite/actions/runs/39753402465)
+and [release build](https://github.com/StarCried/starlite/actions/runs/39754064471)
+all passed. Linux, Windows Chrome and Edge each passed 18 browser tests with
+2 optional external-model checks skipped. The release build freshly produced
+both Linux x64 and Windows x64 native pipeline binaries, whose embedded
+manifest sizes and hashes were verified before accepting all five tarballs.
+
+Earlier two-worker Chrome runs lost their SwiftShader WebGL context during
+initial shader linking, not while awaiting a slow download. The successful
+single-worker run used the same Windows image `20261018.275.1`, whose published
+[software inventory](https://github.com/actions/runner-images/blob/win25-vs2026/20261018.275/images/windows/Windows2025-VS2026-Readme.md)
+lists Chrome `155.0.8059.85`; successful browser version was not separately
+captured. The failure trace directly recorded that version and ANGLE Vulkan
+SwiftShader. CI now follows Playwright's single-worker recommendation without
+changing assertions, timeouts, retries or renderer flags. This comparison does
+not establish resource contention as the root cause or provide hardware-GPU
+performance evidence.
+
+Anonymous registry downloads of all five fixed `0.1.0-alpha.3` versions matched
+the final cloud tarballs byte-for-byte, including length, SHA-256 and registry
+SHA-512 SRI. Every `alpha` tag points to alpha.3; each existing `latest` remains
+alpha.1. The following hashes also match the anonymous public GitHub downloads:
+
+| Package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `@starcried/starlite-core` | 20,778 | `121f43fa04f9119d9e6e2784bb5a28c72ff2d2cb65507d6504ef7f03f1fd4dfd` |
+| `@starcried/starlite-inochi2d` | 244,372 | `07d58196ecb4918ab0a028ba1b42f30642c80ff95460c379c70437a2c501b7fa` |
+| `@starcried/starlite-vrm` | 415,219 | `135ce13d44f3c0e49089b1303c824b4c38468775e0e69dac9197a4c265429772` |
+| `hexo-starlite` | 51,796 | `60877b05d53dca268fd0d55f9f0413dab79178011eaf8a1174ab1e9f4630b140` |
+| `inochi2d-blog` | 1,328,684 | `ada851a62931119dcb83568c5d7b085f898889967a99868ad4a40e84d944132e` |
+
+A fresh anonymous npm configuration and cache installed `hexo-starlite` and
+its three runtime dependencies from the registry, not local tarballs. Ordinary
+Hexo 7.3 CLI generation passed with an artwork-free synthetic VRM, one model
+route and no WASM route. A separate local install of all five exact cloud
+tarballs also passed page dialogue, wrist-adjustment payload and CLI-help
+checks; this is not described as a public-registry CLI installation.
+
+All seven public GitHub attachments (five packages, `SOURCE_REVISION` and the
+flat `SHA256SUMS`) were independently downloaded without Authorization or
+cookies and matched the reviewed upload manifest. The checksum file covers
+the five packages and source marker. Raw artifact, registry, GitHub-download
+and consumer proofs remain ignored in the desktop checkout under
+`release-output/shared-alpha3-20261022/`; the prior GPU traces retain their
+original failed-run identities.
+
+Vite 8.1.6 and Vitest 4.1.12 remove the newly reported development-tool
+findings. The green audit still includes the existing two Hexo advisories
+across nine affected entries, with their `2026-11-18` review deadline; see
+[dependency maintenance](../dependency-audit.md). No new exception was added,
+and this is not a claim of zero vulnerabilities. This publication did not
+repeat long-run GPU/RAM measurements, redeploy the real blog or publish model
+source artwork.
+
+## 2026-10-22 palm symmetry and independent wrist lift
+
+The palm direction correction previously applied opposite local-X twist signs
+to the two hands. The actual normalized program Idle has mirrored hand
+rotations; the extra side sign broke that symmetry. Palm twists now use matching
+local-X signs, with the existing VRM0 coordinate conversion retained. Tests
+compare palm normals from the actual loaded Idle at the first, middle and final
+samples for both VRM versions, rather than checking rotation magnitude alone.
+
+Optional `idle.wristLiftDegrees` accepts -45 to +45 degrees, defaults to no
+correction and bends only the hand in the forearm's plane. It composes with
+palm twist without changing the lift direction. Mixer tests verify the wrist's
+world position and upper/lower arm tracks remain unchanged. Reset, breathing,
+finite limits, zero values and model-local persistence remain covered.
+
+Validation passed: 274 VRM tests, 233 Hexo tests, workspace type checks, package
+contents/licenses, runtime budget, and 18 browser tests (2 optional external
+model tests skipped). DSH passed 546 JavaScript tests, 14 dependency checks,
+74 Rust tests (one private fixture ignored), Clippy and both candidate builds.
+The new wrist control uses the existing live-preview/persistence path; this
+round did not repeat native GUI operation of that added control.
+
+Actual Chrome and Edge runs on unchanged Wolfman and Weiguang models checked
+positive/negative palm twist combined with positive/negative wrist lift, paused
+updates, individual/all reset, YAML export and one canvas/model request per
+model. Screenshots were visually inspected for symmetric palms and raised
+fingertips. Reports/screenshots remain ignored under the desktop checkout's
+`release-output/adjustments-20261022/` with `wrist` in their filenames.
+
+The new runtime SHA-256 is
+`c8717a325d5162d04b403327fc6624d14f47e72e4c2a704735782853f03de13e`.
+JS/CSS size checks measured 1,197,315 raw, 296,446 gzip and 237,130 Brotli bytes,
+within the existing budgets. On 2026-10-22 the user accepted the functionality
+and appearance in the local `http://127.0.0.1:4196/adjust` browser preview,
+including symmetric palms and independent wrist lift. This acceptance does
+not extend to a separate native GUI operation of the new wrist control.
+No new long-run performance measurement, publication or deployment is claimed.
+
+## 2026-10-22 local model pose and gaze adjustments
+
+The local VRM candidate exposes optional `adjustments` and the live
+`setModelAdjustments()` API. Per-controller derivatives of the program Idle
+adjust mirrored arms, palm twist, optional standard finger curl and elbow bend;
+the original tracks, breathing and authored clips remain unchanged. Head and
+eye strength are independent, retain angle limits and yield to foreground
+motions. Missing optional bones do not become required import capabilities.
+
+Hexo passes validated author configuration through `_config.yml`. The independent
+`examples/vrm` adjustment page exports explicit program-Idle selection when pose
+controls are used, including for models with an embedded authored Idle. Gaze-only
+exports preserve the blog's original base animation. DSH stores optional
+adjustments on individual library entries, previews them through local window
+events and debounces persistence; renderer identity excludes these values, so
+sliders do not remount the character. Old settings retain their prior behavior.
+
+Final local checks passed:
+
+- `npm run validate`: Rust formatting, Clippy and 26 Rust tests; build, lint,
+  type checks, license inventory and five-package content checks. JavaScript
+  workspace/tool suites passed 677 tests; 7 optional external-model tests were
+  skipped. The VRM package accounts for 265 passing tests and Hexo for 229.
+- `npm run test:browser`: 18 passed, 2 optional external-model checks skipped.
+  New browser checks exercise live and paused controls, explicit zero values,
+  reset, YAML export and unavailable eye/finger controls while retaining one
+  canvas and one model fetch.
+- Actual Windows Chrome and Edge checks with unchanged Wolfman and Weiguang
+  models passed. Open/fist poses and raised arms were visually inspected; head
+  strength zero, bounded stronger head follow, model-local preview values and
+  foreground-action continuity were checked. No JavaScript page errors occurred.
+- DSH's isolated native Windows app was launched from Explorer and imported
+  Wolfman through the system picker. Its new panel immediately changed the
+  visible pet, persisted 45-degree arm lift and explicit `handCurl: 0`, disabled
+  the unavailable eye control, exposed advanced controls and restored defaults.
+  Production profile files remained unchanged. Native and desktop checks are
+  also recorded in that checkout's ignored `release-output/` reports.
+
+The final VRM runtime SHA-256 is
+`72216358d362be88448185ac273a3356f778cea6f243b21d9e44bd70e2b8ecca`.
+Its JS/CSS budget is 1,197,133 raw, 296,375 gzip and 237,023 Brotli bytes, all
+below the existing gates. Those are transfer-size checks, not new GPU, RAM or
+long-run performance measurements. No dependency or model asset was added to a
+program package. The whole-workspace validation log is ignored at
+`target/adjustments-validate.log`; Windows browser reports and screenshots are
+under the desktop checkout's `release-output/adjustments-20261022/`.
+
+All changes remain local. This records automated/native checks, not user visual
+acceptance, npm publication, public CI, deployment or another long-run benchmark.
+
+## 2026-10-22 downloaded third-party humanoid VRM import
+
+The unchanged **Wolfman (#035)** from Polygonal Mind's 100Avatars collection was
+used as an ordinary downloaded user model. The creator's
+[release notes](https://github.com/PolygonalMind/100Avatars/releases/tag/v24.02.1)
+license the avatars CC0, consistent with the embedded VRM metadata. The original
+[VRM source](https://raw.githubusercontent.com/PolygonalMind/100Avatars/master/100Avatars_035/100Avatars_035_Wolfman.vrm)
+is 2,322,788 bytes, SHA-256
+`b63f699f36d5db203a6029add68982148f4c3868f2ed1c9df0d404b5123a3d40`.
+The asset remains an ignored local test input; no avatar artwork was committed,
+packaged or deployed.
+
+The VRM 0 model has 5,573 triangles, 15 required and 37 optional humanoid bone
+mappings, usable Blink bindings, and no embedded motions. It declares bone
+look-at but has no eye bones. Its supported baseline is the bundled
+`StarLiteIdle`, automatic blinking and limited head follow; visible eye motion
+is not claimed.
+
+A fresh Windows Hexo 7.3.0 site installed `hexo-starlite@alpha` from public npm,
+which resolved to **0.1.0-alpha.2**, without workspace links, local tarballs or a
+prepared model bundle. Ordinary custom-model configuration and `hexo generate`
+passed. Actual Chrome 156 and Edge 155 checks confirmed:
+
+- Textured, full-body rendering, active bundled Idle, automatic Blink and
+  approximately -15 to +14 degree head-follow response.
+- Text-only click bubbles work without an event motion, render literal text and
+  preserve clicks on the underlying page.
+- Twenty PJAX replacements keep the same controller/canvas and issue one VRM
+  request, with zero VRMA or WASM requests.
+- A fresh 390 x 844 mobile page requests zero model or StarLite runtime JS files;
+  its stylesheet is still requested normally.
+- Original, copied and generated model hashes match; no JavaScript page errors.
+  The loader's quaternion-proxy warning and the example theme's missing favicon
+  were non-blocking. This was not a performance or dependency-audit run.
+
+The current local StarLite for DSH source was built with separate Tauri test
+identities and profile/cache directories; it used the native **Add VRM model**
+file picker and a loopback status-only mock, without model API requests. Import
+saved the original Wolfman, selected it automatically and listed one bundled
+Idle without manual animation mapping. The ordinary desktop launch was verified
+by double-clicking the executable in Windows Explorer: its parent was Explorer,
+and Windows reported no package identity. In that fresh profile the imported
+model immediately appeared with textures and full body, without restarting or
+manually changing preferences.
+
+Two earlier launches from the packaged Codex environment saved the model but
+received HTTP 403 for the generated bundled Idle VRMA. A canonical-path probe
+located the files in Codex's package-virtualized LocalCache, outside the scope
+computed before the test profile existed. Restarting worked because the existing
+path then canonicalized differently. The same executable's unpackaged Explorer
+launch passed first import; the packaged-launch failure is test-environment
+evidence, not a reproduced ordinary DSH installation defect. No product source
+fix or workaround was applied to obtain the unpackaged result.
+
+Ignored reports, screenshots, native diagnostics and exact configuration are
+under the desktop checkout's
+`release-output/vrm-user-import-20261022/`; the fresh public Hexo commands and
+results are in its `hexo/RESULTS.md`. Local previews use ports 4194 (minimal) and
+4195 (text bubble). Real blog configuration, installed character preferences and
+DSH sessions were not replaced. This qualifies one actual third-party VRM input;
+conversion of a VRChat Unity avatar project was researched separately and was
+not executed.
+
+## 2026-10-19 alpha.3 version preparation
+
+All workspace versions and internal dependency references, npm lock metadata,
+Cargo workspace metadata and the local pipeline lock entry use
+`0.1.0-alpha.3`. Third-party dependency versions are unchanged. The release-facing
+instructions now describe no-configuration Hexo startup and the default separately
+licensed Weiguang preset; alpha.2 publication evidence below retains its original
+identity.
+
+Before the metadata update, implementation source `37a9c5b` passed:
+
+- `npm run validate`: 26 Rust and 506 JavaScript/tool tests passed; 7 optional
+  external-model unit tests skipped. Build, lint, typecheck, runtime-size,
+  license and five-package content gates passed.
+- `npm run test:browser`: 16 Chromium tests passed and 2 external-model tests
+  skipped. Supplying the existing CC BY Aka fixture then passed 17 tests;
+  only the private Mannequin test remained skipped.
+- `npm run pack:release-check` and `git diff --check` passed.
+
+After the metadata update, `npm run build`, `cargo test --workspace` (26 passed),
+`npm run pack:release-check` and `git diff --check` passed again. The complete
+online dependency gate used pinned cargo-audit 0.22.2 and passed: the existing
+2 reviewed npm advisories affect 9 entries, and RustSec reports 57 dependencies,
+zero vulnerabilities and zero informational warnings. The raw finding scope and
+review deadline remain visible in [dependency maintenance](../dependency-audit.md).
+
+The rebuilt VRM runtime SHA-256 remains
+`d0b467dcf3c945bec73b30aa091d4fcb3ceef418761ea794a7237158232c4385`,
+identical to the existing 923.9-second physical-GPU run and 20 mount/destroy
+cycles. That exact-runtime evidence is reused without claiming another long run;
+its device, memory and measurement limits remain in [performance](../performance.md).
+
+These are local source/version checks, not hosted CI, registry publication or
+public-installation proof. Release CI must build and stage the exact tagged
+Linux and Windows MSVC native artifacts before the reviewed tarballs are
+published. No older native file or tarball is relabelled as a new build.
+
+## 2026-10-15 public alpha.2 verification
+
+[StarLite 0.1.0-alpha.2](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.2)
+was published at `2026-10-15T08:19:02Z` as a prerelease. The public tag and
+`SOURCE_REVISION` both resolve to
+`903fe2cab9e0f37ad36cd904e301fa482af2508e`. Hosted
+[CI](https://github.com/StarCried/starlite/actions/runs/38700801035) and
+[native/five-package release build](https://github.com/StarCried/starlite/actions/runs/38701298960)
+passed for this exact source. The published CLI archive contains the official
+Windows MSVC and Linux binaries, not the local GNU candidate binaries.
+
+All five public npm tarballs were downloaded anonymously and matched the exact
+CI artifacts byte-for-byte, including their lengths, SHA-256 and SHA-512 SRI.
+Every `alpha` tag points to `0.1.0-alpha.2`; `latest` remains at
+`0.1.0-alpha.1`, so installation and updates still specify `@alpha` or a version.
+
+| Package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `hexo-starlite` | 24,846 | `b6a58b9a9733164434d3bc630b278b7a08025371df365d3583352747767d93cf` |
+| `inochi2d-blog` | 1,328,547 | `a8d77c8b8fbb97bb087e0d537858745d4c66233f52a3c9c97a0638fcf448b71a` |
+| `@starcried/starlite-core` | 9,607 | `a5c9d10b1f7681298b5e6dd1789a354aaf95373e8b606adfd7bca8c527b6d244` |
+| `@starcried/starlite-inochi2d` | 234,432 | `e236ef4184bb6c47171cf36535b279aa39f502dc0a86ce954c32966cfbaf3d62` |
+| `@starcried/starlite-vrm` | 393,004 | `094b221327acdf6aa6837aa073649b20979afdd66802d73b81116ed46aa927b0` |
+
+All seven GitHub public assets were also downloaded anonymously and matched
+their reviewed digests: five tarballs, the flat `SHA256SUMS` manifest and
+`SOURCE_REVISION`. Public filenames contain no CI directory prefix. The focused
+ignored proof, including registry URLs, SRI, source and CI identities, is
+`target/release-output/0.1.0-alpha.2/registry-z2hZbT/publication-proof.json`.
+
+The real blog then installed alpha.2 from public npm and generated 449 files
+with Hexo 7.3.0. The local in-app browser rendered the home and about pages;
+navigation retained one widget host and one canvas. Deployment commit
+`df13656290a32925ae65b11273e082e49aa7d2f3` passed
+[GitHub Pages](https://github.com/StarCried/StarCried.github.io/actions/runs/38705481249).
+Anonymous online checks returned HTTP 200 for both pages and all 15 model
+resources. The online runtime SHA-256,
+`6413ea1e284f7fdb11c2d6254a3ceb894037d00756eda5dd3a7be89ebe686437`,
+matched the local generated bytes. The ignored blog proof is
+`.inochi2d/verification/npm-alpha2-live-deployment.json` in the blog checkout.
+Online browser control timed out, so these network checks are not recorded as
+online visual/manual acceptance. Later documentation does not move the release
+tag or replace its program artifacts.
+
+## 2026-10-15 alpha.2 release candidate
+
+All workspace package versions and internal dependencies, npm lock metadata and
+Cargo package metadata use `0.1.0-alpha.2`. Third-party versions are unchanged.
+The versioned source passed:
+
+- `npm run validate`: Rust 26 and JavaScript/demo 349 passed; 7 optional external
+  real-model tests skipped. Both backends, official WASM, examples, lint,
+  typecheck, license inventory, runtime budget and five package-content gates passed.
+- `npm run test:browser`: actual Chromium 14 passed, 2 optional external-model
+  tests skipped. VRM0/1 without optional expressions render with the bundled Idle;
+  underlying links remain clickable. Import/model/context failures recover.
+- Fresh Linux x64 and Windows x64 GNU pipeline builds both report
+  `0.1.0-alpha.2`. The Windows executable ran and inspected the artwork-free
+  synthetic puppet successfully on Windows. Only Windows system DLLs are required.
+- `npm run pack:release-check` and `git diff --check` passed. The native vendor
+  manifest records both exact binary hashes; package checks exclude character
+  files and source artwork.
+
+Logs, reviewed tarballs, checksums and their exact source revision are under
+ignored `target/release-output/0.1.0-alpha.2/`. These are local release checks;
+hosted CI, public-registry installation and production-blog verification remain
+separate evidence. The earlier alpha.1 publication and hashes below are unchanged.
+
+## 2026-10-15 public alpha verification
+
+[StarLite 0.1.0-alpha.1](https://github.com/StarCried/starlite/releases/tag/v0.1.0-alpha.1)
+and all five npm packages were published from source `a103ca9`; the runtime
+baseline remains `986443cc`. Hosted [CI](https://github.com/StarCried/starlite/actions/runs/38588191042)
+and [release dry run](https://github.com/StarCried/starlite/actions/runs/38588219594)
+passed for the exact release commit. Later documentation does not move the tag
+or replace its tarballs.
+
+A fresh isolated public-registry installation used Node 22.22.1,
+`npm install hexo@7 hexo-starlite@alpha`, then `npx --no-install hexo generate`.
+Hexo 7.3.0 and core/Inochi2D/VRM/Hexo packages at alpha.1 were ordinary installed
+packages, without workspace links or local tarball substitution. Their lock and
+anonymous registry SRI values exactly matched the release CI tarball SHA-512.
+The first request encountered npm metadata propagation; the bounded retry used
+the public registry and succeeded.
+
+The approved public Blog VRM retained all 13 embedded clips and its embedded
+profile/license. Generated bytes remained 9,116,328 with SHA-256
+`d98a431d84c015787a3239eaf709a7b3b075b4353c10ac59a3023f5ca4c05b8b`.
+Hexo emitted five files: one page, two VRM runtime files and model/fallback.
+The runtime/model route hashes were verified, with one widget/module, the mobile
+guard ahead of import and article-first scheduling. This checks public
+installation and generated output, not an additional browser performance run.
+The ignored report is under
+`target/release-output/public-hexo-registry-UROsGq/qualification-report.json`.
+
+## 2026-10-14 current runtime baseline
+
+Runtime source `986443cc07018ba99240b0dd217bbdf31484b57d` passed the full local
+release checks on Node 22.22.1:
+
+- `npm run validate`: Rust 26 passed; JavaScript workspace and demo tests
+  296 passed, 7 skipped for optional external real-model fixtures.
+- Both backend builds, official WASM rebuild, examples, lint, typecheck,
+  third-party license checks and all five `npm pack --dry-run` content checks
+  passed. Raw Inochi2D runtime JavaScript + WASM was 589,016 bytes against
+  the 1,572,864-byte budget; this is not a VRM performance measurement.
+- `npm run test:browser`: 11 passed, 2 skipped for optional external
+  pipeline/Mannequin model inputs.
+- `git diff --check` passed and the source tree remained clean. Logs are ignored
+  under `target/release-output/starlite-validate.log` and
+  `target/release-output/starlite-browser.log`, with source and exit status.
+
+Hosted CI, native release artifact provenance and public-registry installation
+remain separate checks. Later documentation changes do not change this runtime
+baseline or turn local package checks into proof of publication.
+
+## 2026-10-13 local StarLite rename
+
+The package directories, package identities, Hexo key, examples and local
+consumers were migrated together. This check does not approve publication.
+
+- Workspace unit suites: 269 passed, 7 skipped (external real-model fixtures).
+- Playwright: 11 passed, 2 skipped (external real-model inputs).
+- Four runtime package builds, three application example builds, lint,
+  typecheck, package-content/license checks and  passed.
+- The Inochi2D runtime budget check measured 586,722 bytes against 1,572,864;
+  this is not a VRM GPU, memory or loading benchmark.
+- The documented prepare script and YAML configuration generated an isolated
+  Hexo page using synthetic VRM/VRMA inputs after the documented enablement and
+  source-hash steps. No private character assets were used in that smoke test.
+- The browser gate exposed a bare core-package import in the Inochi2D output.
+  Routing it through the existing bundled bridge fixed the output; the browser
+  suite then passed.
+- Six real-blog routes were checked at 1440 x 900 and 390 x 844 with screenshots.
+  Desktop retained one running host at right 112 / bottom 160 CSS px. Mobile
+  requested no model, VRMA or runtime JS (the widget stylesheet is still loaded).
+  No local HTTP or layout-overflow failure was found. External resources were
+  blocked, so CDN images, external lazy-load scripts and real PJAX interaction
+  were outside this narrow rename check; synthetic PJAX tests ran separately.
+- Full Rust validation and a clean WASM rebuild, hosted CI, signed installers,
+  public-registry installation and final product release gates were not run.
+  No push, package publication, release or site deployment was performed.
+
+## 2026-07-29 full code-review regression pass
+
+The review added focused coverage for the Inochi2D Lighten, LinearDodge,
+AddGlow, Inverse, and SliceFromLower blend equations; missing optional
+parameters versus real runtime traps; pointer-capture cancellation; non-finite
+injected random/DPR/config values; duplicate parameter/node UUIDs; malformed
+masks; canonical bounded bundle files; symbolic-link rejection; byte-identical
+immutable bundle reuse; and PJAX mounts completed after their host is replaced.
+
+`npm run validate` passes after a reproducible official-SDK rebuild. The public
+Aka and prepared Mannequin models also pass all 69 SDK/runtime tests when their
+respective test paths are supplied. Their two environment-gated Chromium tests
+also pass against real WASM; the harness now reports the first page exception
+directly instead of obscuring model-contract failures behind a load timeout.
+The private Hexo fixture now uses Hexo 7's built-in Nunjucks renderer instead
+of `hexo-renderer-ejs`, removing its vulnerable
+`ejs -> jake/filelist/minimatch` dependency chain without adding a package.
+Both the complete `npm audit` and `npm audit --omit=dev` report zero
+vulnerabilities. `cargo-audit` is not installed in the WSL toolchain and was
+not claimed as run.
+
+## Local commands
+
+```sh
+npm ci
+npm run check:rust
+npm run lint
+npm run typecheck
+npm run build
+npm test
+npm run test:browser
+npm run pack:check
+git diff --check
+```
+
+For a prepared redistributable model:
+
+```sh
+INOCHI2D_TEST_MODEL_PATH=/absolute/path/model.inp npm test --workspace @starcried/starlite-inochi2d
+INOCHI2D_TEST_MODEL_PATH=/absolute/path/model.inp npm run test:browser
+```
+
+The release dry-run additionally builds native Linux x64 and Windows x64
+binaries, stages a SHA-256 manifest, checks all npm package contents, creates
+tarballs, and uploads artifacts. It never publishes npm packages or deploys a
+blog.
+
+## Publishing an alpha
+
+For dual-backend installation and usage see [the release guide](../release-guide.md).
+
+Publication remains a separate maintainer approval after the public repository
+and hosted release-dry-run succeed. Publish the exact reviewed tarballs in
+dependency order, using the non-default `alpha` dist-tag:
+
+```sh
+npm publish starcried-starlite-core-0.1.0-alpha.3.tgz --tag alpha --access public
+npm publish starcried-starlite-inochi2d-0.1.0-alpha.3.tgz --tag alpha --access public
+npm publish starcried-starlite-vrm-0.1.0-alpha.3.tgz --tag alpha --access public
+npm publish hexo-starlite-0.1.0-alpha.3.tgz --tag alpha
+npm publish inochi2d-blog-0.1.0-alpha.3.tgz --tag alpha
+```
+
+Before the first command, verify npm authentication/MFA, package-name
+availability, `SHA256SUMS`, and the public Git commit used to build the
+artifacts. After each command, inspect its registry version, integrity, and
+dist-tag before continuing. An npm release does not authorize publishing a
+model or running production `hexo deploy`.
+
+## Required failure paths
+
+- Valid, malformed, missing, and cross-origin model responses.
+- Unsupported/corrupt `.inp/.inx`, BC7, resource limits, invalid parameter
+  ranges/axes/bindings, malformed/missing configured animations, unsupported
+  animation lanes, overlapping ambient lanes, malformed dialogue libraries or
+  timing, conflicting click ownership, unsupported binding interpolation,
+  malformed/missing procedural ambient parameters, invalid SDK model bounds,
+  and non-finite draw buffers.
+- Publication prohibition, missing attestation, source hash drift, corrupt
+  native binary manifest, blocked native execution with no generated Hexo
+  config, bundle size/hash mismatch, and unsafe generated paths.
+- WebGL context loss, fallback activation, hidden/restored tab, and
+  reduced-motion static rendering.
+- Twenty PJAX completions with one canvas and one runtime/model load.
+- 390 x 844 with no widget runtime, WASM, or model request.
+
+## Windows release gate
+
+- Use the clean worktree, never the dirty production blog checkout.
+- Run `inochi2d-blog deploy --dry-run` in installed Chrome and Edge.
+- The CLI injects a validation-only WebGL probe, forces DPR 1.25, waits for 90
+  frames that actually draw the Inochi2D canvas, synchronizes the GPU, and
+  fails closed below 29.5 measured FPS or above 33 ms p95 render duration.
+- Inspect home, article, gallery, and long pages at 1440 x 900.
+- Confirm no back-to-top collision, clipping, or horizontal overflow.
+- Confirm blink, downward/upward pointer response, a physical press/release
+  `Click` animation with the authored right arm clearly moving while its hand
+  stays connected to its sleeve, drag outside the original canvas rectangle
+  without a click action, and double-click reset.
+- With a model that contains them, confirm every configured ambient animation
+  loops through its Creator `leadIn`/`leadOut` region, a foreground scene wins
+  overlapping lanes and the ambient clip resumes afterward, and the
+  enter/idle/click bubble displays only configured plain-text sentences above
+  the model.
+- With a model-authored `SimplePhysics` rig, confirm hair, sleeves, tail, or
+  other driven parts react to their authored parent/head/arm movement. Do not
+  accept camera scaling or synthesized parameter motion as a physics substitute.
+- Confirm a model with an ineffective declared Breath target reports fallback
+  breathing and changes idle frames without enabling motion under
+  `prefers-reduced-motion`.
+- Measure the configured desktop size at DPR 1.25: 30 FPS and p95 render
+  duration at most 33 ms. The current Mannequin acceptance profile is
+  390 x 540 CSS pixels.
+- Confirm raw runtime JS plus WASM at most 1.5 MiB and prepared model at most
+  8 MiB.
+- Disable the widget and regenerate; no host or widget assets may load.
+
+## Local public-model baseline (2026-07-23)
+
+The ignored manual fixture is Aka from the official
+[Inochi2D example-models](https://github.com/Inochi2D/example-models) project.
+Its official record credits design and rigging to seagetch under CC BY 4.0.
+Neither archive nor model is committed or packaged.
+
+- downloaded archive SHA-256:
+  `d6bcbe9d1afe04c6f688c47f9838339384233b5594fe61784be8cd7cb4877701`;
+- source Aka SHA-256:
+  `dbf82ffb86d1c761bca883ad37ec1c47487a447f8104290b459ce60aaee81e0f`;
+- source size: 17,731,911 bytes, 76 TGA textures;
+- prepared SHA-256:
+  `d6ef9fd894e43c2fc4846edd37cb12b762715e789e14612349021d4bfce609e6`;
+- prepared size: 7,073,513 bytes, 76 PNG textures;
+- reduction: 10,658,398 bytes (60.11%);
+- official WASM/WebGL2 mount, upright transparent layers, pointer pose
+  difference, click response, whole-page drag/reset, hashed Hexo bundle, mobile
+  no-fetch, and 20-event PJAX singleton passed in Playwright Chromium.
+- a 41-position scan of `Head:: Yaw-Pitch` changes more than 1,000 vertices at
+  every step and rejects frozen ranges, large discontinuities, and single-vertex
+  spikes.
+
+The exact Rust 1.85 toolchain passes formatting, Clippy with warnings denied,
+and all native tests. `image` is pinned to 0.25.9 because 0.25.10 requires Rust
+1.88.
+
+An earlier production interaction/layout/mobile gate passed against the clean
+Windows Volantis test worktree in installed Chrome and Edge. Locally built and
+SHA-verified Linux/Windows native binaries were packed into tarballs, installed
+into that worktree, and the Windows binary inspected the fixture successfully.
+That automated gate did not detect the subsequently reported D-SDK layer and
+parameter-decoding regression. The corrected artifact was therefore rebuilt and
+rerun through the full installed Chrome/Edge gate; automation passed again, but
+final visual acceptance still requires a human review.
+
+The first packaged full-blog dry run remained fail-closed because the original
+full-screen `starfield.js` limited host-page scheduling below 30 FPS. The
+minimal Hexo baseline passed at 30.00 FPS and 0.80 ms p95 at DPR 1.25, and
+isolating only the starfield restored Chrome callbacks to about 59.95 Hz.
+Non-persistent diagnostics showed that throttling the visual would work, but
+the approved solution instead preserved its animation rate and optimized its
+rendering.
+
+The clean blog worktree now caches the slowly changing atmospheric layer,
+computes orbit trigonometry once per frame, keeps the primary sky at full DPR,
+and caps only the masked duplicate cover backing store at 0.9x. A deterministic
+before/after screenshot changed just 0.071% of pixels above the comparison
+threshold, with no visible design regression during review.
+
+The installed-package command below then passed without browser injection or
+starfield isolation:
+
+```powershell
+.\node_modules\.bin\inochi2d-blog.cmd deploy --dry-run `
+  --config .\inochi2d-blog.config.local.json
+```
+
+The final corrected D-WASM run rebuilt the public Aka model from the original
+`.inp`, generated 446 Hexo files, measured Chrome at 30.15 FPS/0.90 ms p95 and
+Edge at 29.98 FPS/0.80 ms p95, passed the physical pointer-release
+interaction/PJAX/mobile gates, and confirmed that `hexo deploy` was not
+executed. Additional desktop/mobile route checks passed on home, about,
+gallery, friends, prose, and code-heavy pages; reduced motion scheduled no
+starfield animation frames.
+
+## Model-authored Click baseline (2026-07-24)
+
+A test-only copy of Aka was opened in Inochi Creator 0.8.6 and given a standard
+`Click` animation. Neither the copy nor its prepared bundle is committed or
+packaged.
+
+- test-copy source SHA-256:
+  `d49fc0472eaa195b0a1acf64d76e9ba9abcb7e393ec0099c6cda49b5efdb84b0`;
+- source size: 17,737,006 bytes;
+- prepared model SHA-256:
+  `6c4d9b8d1561a16ea31a36be89ed68bbf46bdb332d26346105b1868deaaa77d5`;
+- prepared model size: 7,078,608 bytes;
+- `Click` targets `Arm:: Right:: Move` with `Linear` keys
+  `0:0`, `18:0.9411765`, `30:0.9411765`, and `45:0`;
+- Creator visual inspection confirmed the anatomical right arm (screen-left)
+  rises with its hand and sleeve connected and returns to neutral.
+
+The normalized animation profile was checked against the official 0.8.7 SDK
+sampling behavior: nearest keeps the left key at the exact midpoint, cubic uses
+the official four-point formula, full vector defaults are retained, and
+`leadIn`/`leadOut` accept the official `-1` sentinel. Bezier, additive, and
+non-`Forced` lanes fail closed.
+
+With the ignored prepared model, all 29 runtime tests and all eight Playwright
+browser tests passed. The final local tarballs were installed into the clean
+Windows Volantis worktree. Its manifest-addressed bundle was
+`d49fc0472eaa-6c4d9b8d1561-ae920b62626e`; 447 Hexo files were generated.
+Installed Chrome and Edge each measured 29.98 FPS over 90 GPU-synchronized
+frames at DPR 1.25, with 0.90 ms and 1.10 ms p95 render duration respectively.
+Both passed the visible model-authored click, pointer, drag/reset, PJAX, layout,
+and mobile no-fetch gates. The command was `deploy --dry-run`; `hexo deploy`
+was not executed.
+
+The release review also switches to reduced motion in the middle of a named
+clip and asserts that the lane returns to its model default. The full validated
+runtime is 538,715 raw JavaScript-plus-WASM bytes. The retained package
+candidate is a local, ignored release-candidate directory outside the repository
+with SHA-256 values:
+
+- `inochi2d-web`: `a406ec109aeb8af267090211f0e779f6961de822fabbfb9a1aa4353592b95860`;
+- `hexo-model-companion`: `59ee023e4a349611bea03443094c8069147e722b2a13fb7c3645405a0aed7d9c`;
+- `inochi2d-blog`: `9856c67f1e001ae133559bcc03a6970661d21d82c225b7ba341c0d76a03b3956`.
+
+The packaged unsigned Windows helper was also deliberately exercised as a
+failure path. Local endpoint policy blocked it, and the CLI stopped before Hexo
+generation. The successful final run used a hash-verified, source-built copy
+through `pipelineBinary`, leaving the endpoint block in place.
+
+## Ambient, dialogue, and model-physics baseline (2026-07-27)
+
+Automated ambient-animation tests use only source-generated parameter lanes and
+contain no model artwork or authored replacement animation. They verify Creator
+`leadIn`/`leadOut` looping, exact-name validation, independent-lane limits,
+foreground-scene precedence, ambient phase resumption, and reduced-motion
+neutral restoration. Visual acceptance of a tail loop remains conditional on a
+user model that actually contains the configured clip.
+
+The dialogue scheduler and widget tests cover:
+
+- entry only after the first successful model frame;
+- randomized occasional idle scheduling without a second animation loop;
+- immediate click priority and idle deferral after interaction;
+- safe plain-text output, viewport-aware bubble placement, drag/reset
+  positioning, page pause/fallback cleanup, and reduced-motion static behavior;
+- exact animation names and sentence/timing validation through the runtime,
+  Hexo adapter, and model-to-blog CLI;
+- generation failure when any referenced animation is missing from either the
+  source or prepared model.
+
+The ignored public physics fixture is the test-only Aka `Click` copy and source
+SHA-256 listed above. It contains 19 model-authored `SimplePhysics` nodes. The
+pinned official SDK originally loaded the nodes but did not reproduce Creator
+0.8 behavior: legacy enum spellings needed normalization, shared node properties
+were overwritten instead of composed, stale property offsets were not cleared
+each frame, and pinned `numath` 0.5.0's matrix inverse did not convert physics
+output back to the driver's local XY basis. The reproducible browser build
+applies those compatibility rules without rewriting the model.
+
+The official-WASM test confirms all 19 drivers are recognized, all 19 target
+parameters resolve, every driver retains its spring-pendulum/XY mode and
+non-zero output scale, and sixty positive 1/60-second updates after moving the
+model-authored head/body inputs produce finite vertices. The central front-hair
+driver must change by more than `0.12` on X and its X response must exceed Y by
+at least four times, preventing the former wrong-axis result from passing. The
+2026-07-27 Aka run measured `0.176773` on X and `0.015592` on Y, close to the
+Creator 0.8.6 diagnostic (`0.178648`/`0.012782`). No synthetic hair, sleeve, or
+tail motion or parameter amplification is used. Final visual acceptance of each
+secondary part remains conditional on the model author's intended rig and a
+human browser review.
+
+The resulting optimized official WASM is 451,459 bytes. The complete raw
+runtime JavaScript plus WASM is 574,565 bytes, below the 1.5 MiB release budget.
+
+## Local Mannequin compatibility baseline (2026-07-27)
+
+The user-generated Mannequin/Purplestar fixture is local-only. Its model,
+textures, and prepared bundle are ignored and must not be committed, packaged,
+or deployed without a separate redistribution review. `npm run build`
+regenerates the synthetic public example fixture, so restage the ignored
+Mannequin `puppet.inp` and manifest after the full build before running the
+environment-gated real-model suite.
+
+- 600% source SHA-256:
+  `0b2afb08c570cfa5b45c280c446b845d0262a706f7438d21c24214d2a418347c`;
+- source size: 22,598,857 bytes, with 207 PNG textures and a largest source
+  texture of 3840 x 7680;
+- local-only derived source SHA-256:
+  `500506d103cb9731ed287de876533e50348ebed08c995691060796680bacde2b`;
+  this copy adds one `Click` clip without changing texture or vendor sections;
+- derived prepared SHA-256:
+  `6905fb450329db8e4a3c21a2d03868a827da5b32bb6f8779fa5d9f4094499a98`;
+- derived prepared size: 8,144,294 bytes after two adaptive resize passes;
+- 82 unique parameters after merging the split
+  `Physics - Right Lower Arm` UUID alias;
+- 298 nodes, including 2 MeshGroups, 33 SimplePhysics drivers, and 10
+  ColorBurn parts; 21 physics targets resolve because 12 optional template
+  nodes are absent from this generated character;
+- official-WASM tests verify finite Cubic deformation, MeshGroup and ColorBurn
+  draw commands, visible head/gaze/body/tail/click parameter effects, changing
+  head/tail physics output, stable repeated texture reads, and single-
+  premultiplied translucent face pixels;
+- Chromium automation confirms transparent connected layers, automatic
+  centering/containment, correctly directed pointer-driven eye/head poses,
+  continuous tail/tip motion, whole-page drag, double-click reset, and a
+  model-authored click pose with its dialogue bubble, with no console warning
+  or fallback. The real-model browser test centers the widget for symmetric
+  pointer input and verifies both iris and face-color centroids: the measured
+  DPR-1.25 audit moved the iris about 9 px left, 10 px right, 4 px up, and 4 px
+  down from neutral. The same real-model test now verifies enter, idle, and
+  click scene labels and sentences; confirms each scene produces an upper-face
+  `Click` pose; drags the 390x540 widget by 200x100 CSS pixels; and verifies
+  double-click returns it to the configured bottom-right position. Final
+  directionality remains an explicit human visual-acceptance item.
+
+The original Mannequin export contains no embedded animation clips. The
+local-only derived fixture adds a three-lane `Click` animation for testing:
+`Head - Roll`, `Left Eye - Blink`, and `Right Eye - Blink`. The general
+pipeline does not synthesize this clip; a production model must already contain
+the exact configured animation before click/dialogue actions can be enabled.
+Mannequin's exported binding grids use the standard horizontal X and vertical Y
+storage order even though the related head parameter is named
+`Head - Pitch/Yaw`. The adapter therefore preserves X/Y storage order and only
+inverts the eye-gaze Y target to match the widget's pointer convention.
+The official-SDK real-model test also reads live physics output from front/back
+head hair, ears, all four upper/lower arm chains, and the tail while their
+parents and configured tail drivers move; each group must exceed the minimum
+nonzero response threshold.
+At the local 1.5x display profile, the widget occupies 390x540 CSS pixels and
+uses a 488x675 backing canvas at DPR 1.25. A 10-second real-model Chromium
+sample sustained 30.00 FPS with a 33.4 ms p95 frame interval and no intervals
+above 40 ms; a separate five-second GPU-synchronized sample reported a 1.7 ms
+p95 render-callback duration. The same generated Windows Volantis page passed
+the production browser gate in installed Chrome 150 at 29.98 FPS/2.10 ms p95
+and Edge 150 at 29.64 FPS/2.10 ms p95. Those gates also cover visible pointer
+and click changes, whole-page drag/reset, horizontal overflow, PJAX singleton
+behavior, and mobile no-fetch. The test blog then completed 20 real PJAX round
+trips (40 post-navigation checkpoints) between the home and category routes.
+Every checkpoint retained exactly one widget host and one canvas with
+`running` status and no widget error; the final page was restored to the home
+route for manual acceptance. The environment-gated SDK test resolves its WASM
+from the package working directory, matching the other official-SDK tests.
+
+## Windows CLI with explicit WSL compression (2026-07-28)
+
+The Windows test worktree used the original 22,599,804-byte Mannequin `.inx`
+and an explicit `Ubuntu` pipeline runner. Inspection and adaptive compression
+ran in WSL; Hexo 7, installed Chrome, installed Edge, and the local preview
+server remained Windows processes. The single `preview` command produced the
+same 8,144,294-byte prepared model and hashes listed above.
+
+The generated site contained 449 files. Chrome measured 29.98 FPS/1.60 ms p95
+render duration and Edge measured 29.98 FPS/1.70 ms at DPR 1.25. The isolated
+preview retained exactly one 390x540 widget canvas, a click produced the
+configured Chinese dialogue, and the browser console had no warning or error.
+The pre-existing `public/index.html` hash and length did not change.
+
+A second run selected a nonexistent absolute WSL binary. It returned non-zero
+before Hexo, did not listen on its preview port, preserved the production
+output, and removed only its failed one-run directory. No native fallback or
+deploy path was taken.
+
+Manual review then found the horizontal iris and face-color response too large
+while all other behavior was acceptable. The inferred Mannequin profile now
+uses `0.4` horizontal gaze, `0.35` horizontal head, and `0.12` body yaw;
+vertical gaze/head scales remain `-0.55`/`0.5`. The real-model browser test
+compares left/right extrema, requires nonzero eye and face movement, and also
+sets upper bounds so a future change cannot silently restore the excessive
+amplitude. Animation sampling covers the peak over time instead of depending
+on one timing-sensitive screenshot. Three consecutive single-worker
+real-model runs passed.
+
+The rebuilt Windows preview again generated 449 files. Chrome and Edge each
+measured 29.98 FPS with 1.70 ms p95 at DPR 1.25. Its injected configuration
+contains the calibrated values, one 390x540 canvas is running, click dialogue
+still works, and the browser console has no warning or error.
+
+The user accepted the calibrated Mannequin fixture for this local workflow
+phase, reporting the remaining behavior as good enough to proceed. This is not
+acceptance of the future StarCried production puppet: that model must repeat
+inspection, preparation, parameter calibration, Chrome/Edge gates, and human
+visual review because identical semantic parameter names do not guarantee
+identical deformation strength. The acceptance preview was then stopped; its
+one-run directory was removed and the pre-existing test-blog `public` output
+remained byte-identical.
+## 2026-10-19 VRM qualification
+
+The current VRM0/VRM1 matrix uses three-vrm-girl (© pixiv Inc.), Seed-san
+(© VirtualCast, Inc.) and Constraint Twist (© 2022 pixiv Inc.) as ignored local
+test inputs, plus separately licensed Weiguang (© StarCried). Exact model
+SHA-256 values, primary license sources and required attribution are recorded in
+[model compatibility](../model-compatibility.md). No third-party avatar is tracked,
+included in npm packages or uploaded by these checks. The new fixed-scene
+hardware measurements and their limits are in [performance](../performance.md).

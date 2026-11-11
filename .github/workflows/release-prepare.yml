@@ -1,0 +1,103 @@
+name: Release prepare
+
+on:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: Release group
+        type: choice
+        options: [public, cli]
+        default: public
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    if: inputs.group == 'cli'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            artifact: linux-x64
+            binary: target/release/inochi2d-pipeline
+          - os: windows-2025
+            artifact: win32-x64
+            binary: target/release/inochi2d-pipeline.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require reviewed main history
+        shell: bash
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - run: cargo build --locked --release -p inochi2d-pipeline
+      - name: Record native source
+        shell: bash
+        run: git rev-parse HEAD > target/release/SOURCE_REVISION
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.binary }}
+            target/release/SOURCE_REVISION
+          if-no-files-found: error
+          retention-days: 3
+
+  package:
+    needs: native
+    if: ${{ !cancelled() && (needs.native.result == 'success' || needs.native.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          components: clippy,rustfmt
+      - run: bash tools/install-ci-wasm-tools.sh
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/starlite/official-sdk
+          key: official-sdk-${{ runner.os }}-${{ hashFiles('tools/official-sdk/pin.json', 'tools/official-sdk/**', 'tools/build-official-sdk.mjs') }}
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/cargo-audit
+          key: cargo-audit-${{ runner.os }}-${{ runner.arch }}-0.22.2-v1
+      - name: Install pinned RustSec scanner independently of the build toolchain
+        run: |
+          if [ ! -x "$RUNNER_TEMP/cargo-audit/bin/cargo-audit" ]; then
+            rustup toolchain install stable --profile minimal
+            cargo +stable install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/cargo-audit"
+          fi
+      - uses: actions/download-artifact@v4
+        if: inputs.group == 'cli'
+        with:
+          pattern: '*-x64'
+          path: ${{ runner.temp }}/native
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Build, test and pack clean source once
+        env:
+          RELEASE_GROUP: ${{ inputs.group }}
+          CARGO_AUDIT_BIN: ${{ runner.temp }}/cargo-audit/bin/cargo-audit
+        run: npm run release -- prepare --group "$RELEASE_GROUP" --out "$RUNNER_TEMP/release" --native-dir "$RUNNER_TEMP/native"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starlite-release
+          path: ${{ runner.temp }}/release
+          if-no-files-found: error
+          retention-days: 30

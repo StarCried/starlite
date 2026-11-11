@@ -67,7 +67,7 @@ starlite:
 
 ## 进阶
 
-除初始默认的微光，`0.1.0` 起也可在 `_config.yml` 选择蓝色大肥鱼：
+除初始默认的微光，也可在 `_config.yml` 选择蓝色大肥鱼：
 
 ```yaml
 starlite:

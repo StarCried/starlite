@@ -2,7 +2,7 @@
 
 简体中文 · [English](release-guide.en.md)
 
-本页适用于 `0.1.2`；普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
+普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
 
 ## 安装与启动
 
@@ -15,7 +15,7 @@ npx hexo server
 
 无需填写配置，第一次生成自动获取独立授权的固定微光版本，带有演示博客的 13 个动作、点击／偶发句库、首次入场、镜头和显示预设。打开终端中的网址即可体验。日常沿用原 Hexo 命令；插件不会自动部署博客。
 
-需要固定版本时，使用 `npm install --save-exact hexo-starlite@0.1.2`。不指定版本时安装正式 `latest`；旧的 `alpha` 标签保留为历史预发行渠道。
+需要固定版本时，先从 [Releases](https://github.com/StarCried/starlite/releases) 选择版本，再使用 `npm install --save-exact hexo-starlite@<version>`（替换 `<version>`）。不指定版本时安装 `latest`。
 
 微光采用[独立模型许可](weiguang-license.md)，使用即同意，并需在关于页等可见位置保留署名。不接受许可或不需要看板娘时，在 `_config.yml` 停用：
 
@@ -39,7 +39,7 @@ starlite:
       lines: ["你好，欢迎来坐坐。"]
 ```
 
-动作、逐动作句库、位置和性能开关见[完整配置](configuration.md)及 [YAML 示例](examples/hexo-vrm.yml)。默认微光使用 60 FPS、DPR 1、260 × 390 画布，位置为右侧 112 px、底部 160 px；保持抗锯齿，按目标设备验收。
+动作、逐动作句库、位置和性能开关见[完整配置](configuration.md)及 [YAML 示例](examples/hexo-vrm.yml)。示例预设与自定义模型的默认值见配置参考；在目标设备上检查显示效果。
 
 访客可拖动角色避开正文，靠近角色时使用脚下按钮缩放、关闭气泡或暂时隐藏。尺寸受当前可视宽高限制；关闭气泡仍保留动画。完整设置及恢复默认位置保留在右键菜单中，偏好仅保存在访客浏览器。
 
@@ -61,13 +61,13 @@ starlite:
 
 两项 `publication` 确认涵盖模型、贴图和内嵌动作的博客托管权；模型许可仍须遵守。来源 SHA-256 由实际文件计算，也可设置 `publication.sourceSha256` 固定已审阅版本，文件变化时拒绝生成。必要博客托管会把模型文件交给访客；许可可以约束再利用，不能保证文件无法下载。
 
-标准人形骨骼为必需；Blink 和 lookAt 为可选能力。无动作模型使用内置的 `StarLiteIdle` 基础站姿和轻呼吸，有自己的 `Idle` 时优先采用；其他内嵌动作自动识别；本版另提供通用好奇探头、开心招手和困倦惊醒，均按需映射到点击或偶发互动。名称见配置说明，气泡也可独立使用。模型约定、外部动作和两个后端的配置见[配置说明](configuration.md)。
+标准人形骨骼为必需；Blink 和 lookAt 为可选能力。无动作模型使用内置的 `StarLiteIdle` 基础站姿和轻呼吸，有自己的 `Idle` 时优先采用；其他内嵌动作自动识别；另提供通用好奇探头、开心招手和困倦惊醒，均按需映射到点击或偶发互动。名称见配置说明，气泡也可独立使用。模型约定、外部动作和两个后端的配置见[配置说明](configuration.md)。
 
 自定义 VRM 通用默认值为 30 FPS、DPR 上限 1.5、手机断点 768 px。默认可拖动身体且保留下层页面短点击；移动超过 6 CSS px 后才接管拖动。跨站评论区上重新起拖的限制见[拖动说明](configuration.md#访客快捷操作与身体拖动)。无需同时安装旧的 `hexo-model-companion`；旧配置键 `inochi2d_widget:` 应改为 `starlite:`。
 
 ## 下载、缓存与加载失败
 
-默认模型不随 npm 包分发，安装 npm 包时也不下载。首次生成按固定版本 `weiguang-v3.0.0-starlite.1` 获取资源，缓存于博客根目录的 `node_modules/.cache/hexo-starlite/weiguang-v3.0.0-starlite.1/`。每次生成校验固定长度与 SHA-256，有效缓存可离线使用；不会自动改用未知的最新模型。生成资源同时附带 `LICENSE-Weiguang.md` 和 `ASSET-SOURCES.md`。
+默认模型不随 npm 包分发，安装 npm 包时也不下载。首次生成按预设目录中的固定版本获取资源，缓存于博客根目录的 `node_modules/.cache/hexo-starlite/<example-version>/`。每次生成校验固定长度与 SHA-256，有效缓存可离线使用；不会自动改用未知的最新模型。生成资源同时附带 `LICENSE-Weiguang.md` 和 `ASSET-SOURCES.md`。
 
 生成进程向 `github.com/StarCried/starlite/releases/download/` 下的固定版本资源发送 HTTPS GET；允许的 GitHub 资源域名为 `github.com`、`objects.githubusercontent.com`、`release-assets.githubusercontent.com`。不发送模型 API Key 或访客信息；模型与许可的地址、大小和校验值可在 [`default-preset.ts`](../packages/hexo/src/default-preset.ts) 和 [`bluefish-preset.ts`](../packages/hexo/src/bluefish-preset.ts) 核对。只获取选中的示例；指定自己的 `model` 或设置 `enable: false` 不会下载示例。
 
