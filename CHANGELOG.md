@@ -3,11 +3,19 @@
 All notable changes will be recorded here. The project follows semantic
 versioning; prereleases use the explicit npm `alpha` channel.
 
-## Unreleased
+## 0.1.2 - 2026-11-11
 
+- Remove the shared hover toolbar's enclosing background. Keep icons legible on
+  light and dark backgrounds with outlines, plus hover, focus and pressed feedback.
+- Add an optional session-control exit button for host integrations; ordinary
+  Hexo controls retain their four buttons and fixed resizing anchor.
+- Rename the performance control to “显示调试信息” / “Show debug info”, retaining
+  existing configuration and preference keys.
 - Use “环境光” consistently for environment lighting in the Chinese documentation.
 - Remove the final head tilt from the generic SleepyStartle gesture while keeping
   its drowsy nods, wake-up rebound, blink and duration unchanged.
+- Publish the four runtime/Hexo packages together; the unchanged `inochi2d-blog`
+  CLI remains at 0.1.0. Example model assets and licenses remain independent.
 
 ## 0.1.1 - 2026-11-06
 

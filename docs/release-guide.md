@@ -2,7 +2,7 @@
 
 简体中文 · [English](release-guide.en.md)
 
-本页适用于 `0.1.1`；普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
+本页适用于 `0.1.2`；普通启动步骤见 [Hexo README](../packages/hexo/README.md)。需要 Node.js 22.12+、正常工作的 Hexo 7 博客，以及支持 WebGL2 的桌面 Chrome／Edge。Hexo 8 尚待单独验收，用户无需 Rust、Blender 或 API key。
 
 ## 安装与启动
 
@@ -15,7 +15,7 @@ npx hexo server
 
 无需填写配置，第一次生成自动获取独立授权的固定微光版本，带有演示博客的 13 个动作、点击／偶发句库、首次入场、镜头和显示预设。打开终端中的网址即可体验。日常沿用原 Hexo 命令；插件不会自动部署博客。
 
-需要固定版本时，使用 `npm install --save-exact hexo-starlite@0.1.1`。不指定版本时安装正式 `latest`；旧的 `alpha` 标签保留为历史预发行渠道。
+需要固定版本时，使用 `npm install --save-exact hexo-starlite@0.1.2`。不指定版本时安装正式 `latest`；旧的 `alpha` 标签保留为历史预发行渠道。
 
 微光采用[独立模型许可](weiguang-license.md)，使用即同意，并需在关于页等可见位置保留署名。不接受许可或不需要看板娘时，在 `_config.yml` 停用：
 

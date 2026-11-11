@@ -4,7 +4,7 @@
 
 Requires Node.js 22.12+, an existing Hexo 7 blog, and a desktop Chrome/Edge browser with WebGL2. Hexo 8 has not been accepted yet. You do not need Rust, Blender, or an API key.
 
-This guide targets StarLite 0.1.1, including visitor dragging, responsive sizing and shared hover controls.
+This guide targets StarLite 0.1.2, including visitor dragging, responsive sizing and shared hover controls.
 
 ## Install and start
 
@@ -15,7 +15,7 @@ npx hexo server
 
 Run these in the blog directory. Generation automatically fetches the pinned Weiguang example with its 13 authored motions and dialogue. Open the printed URL. The plugin does not deploy your site.
 
-The default npm tag is `latest`; use `hexo-starlite@0.1.1` to pin this release. Weiguang's [separate model terms](weiguang-license.en.md) require visible attribution. If you disagree or do not want the companion:
+The default npm tag is `latest`; use `hexo-starlite@0.1.2` to pin this release. Weiguang's [separate model terms](weiguang-license.en.md) require visible attribution. If you disagree or do not want the companion:
 
 ```yaml
 starlite:
