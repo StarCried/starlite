@@ -1,6 +1,6 @@
 {
   "name": "hexo-starlite",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Hexo adapter for Inochi2D and VRM model companion components",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,8 +23,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@starcried/starlite-inochi2d": "0.1.2",
-    "@starcried/starlite-vrm": "0.1.2",
+    "@starcried/starlite-inochi2d": "0.1.3",
+    "@starcried/starlite-vrm": "0.1.3",
     "undici": "7.30.1"
   },
   "peerDependencies": {
