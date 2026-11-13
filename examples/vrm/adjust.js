@@ -14,6 +14,8 @@ const specs=[
   {group:'gaze',key:'eyeStrength',label:t("眼球灵敏度", "Eye following"),min:0,max:2,step:.05,initial:1,unit:'×',hint:t("根据模型有效的眼球骨骼或表情驱动视线。", "Uses the model's valid eye-bone or expression bindings.")},
   {group:'idle',key:'elbowBendDegrees',label:t("肘部弯曲", "Elbow bend"),min:-20,max:45,step:1,initial:0,unit:'°',advanced:true,hint:t("小幅弯曲前臂，避免双臂过直。", "Add a small forearm bend to soften straight arms.")},
   {group:'gaze',key:'smoothingMs',label:t("跟随缓动时间", "Follow smoothing"),min:20,max:1000,step:10,initial:100,unit:' ms',advanced:true,hint:t("数值越小跟上越快，越大越柔和。", "Lower values respond faster; higher values ease more slowly.")},
+  {group:'tailSway',key:'amplitudeDegrees',label:t('摆尾角度','Sway angle'),min:0,max:50,step:1,initial:10,unit:'°',hint:t('向每侧摆动的最大角度；0 关闭。','Maximum angle to either side; zero disables sway.')},
+  {group:'tailSway',key:'periodSeconds',label:t('摆尾周期','Sway period'),min:3,max:30,step:.5,initial:10,unit:' s',hint:t('完整左右来回一次所需时间。','Time for one complete left/right cycle.')},
 ];
 const controls=new Map(), saved=new Map();
 let controller,currentModel,models=[],adjustments={},generation=0,abort;
@@ -37,21 +39,32 @@ for(const spec of specs){
   row.append(heading,input);
   let manual;
   if(spec.manual){const wrap=document.createElement('label');wrap.className='manual';manual=document.createElement('input');manual.type='checkbox';manual.id='hand-manual';manual.onchange=()=>setValue(spec,manual.checked?Number(input.value):undefined);wrap.append(manual,document.createTextNode(t("手动设置张合", "Adjust hand curl")));row.append(wrap);}
-  row.append(hint);$(spec.advanced?'#advanced-controls':'#basic-controls').append(row);controls.set(spec.key,{input,output,reset,manual});
+  row.append(hint);$(spec.group==='tailSway'?'#tail-controls':spec.advanced?'#advanced-controls':'#basic-controls').append(row);controls.set(spec.key,{input,output,reset,manual});
 }
+$('#tail-title').textContent=t('主动摆尾','Tail sway');
+$('#tail-root-label').textContent=t('尾根骨骼名称','Tail root bone name');
+$('#tail-hint').textContent=t('填写 VRM 中唯一的尾根骨骼原名，留空关闭。仅待机时主动摆动；物理与碰撞由模型决定。','Enter the exact, unique tail root node name from the VRM; leave blank to disable. Sway runs during idle; the model owns physics and collisions.');
+$('#tail-root').onchange=()=>{
+  const next=structuredClone(adjustments),rootBone=$('#tail-root').value.trim();
+  if(rootBone)next.tailSway={...next.tailSway,rootBone};else delete next.tailSway;
+  try{controller?.setModelAdjustments(next);adjustments=next;saved.set(currentModel?.id,structuredClone(next));$('#status').textContent=t('已更新','Updated');}
+  catch{$('#status').textContent=t('未找到唯一尾根，请核对 VRM 中的骨骼原名。','No unique tail root found. Check the original node name in the VRM.');}
+  refreshControls();
+};
 function refreshControls(){
   const optional=currentModel?.capabilities.humanoid.optionalBones??[];
   const hasFingers=optional.some(name=>/(Thumb|Index|Middle|Ring|Little)/.test(name));
   for(const spec of specs){
-    const c=controls.get(spec.key),value=adjustments[spec.group]?.[spec.key],available=Boolean(controller)&&(spec.key!=='eyeStrength'||currentModel.capabilities.lookAt.eyes)&&(spec.key!=='handCurl'||hasFingers);
+    const c=controls.get(spec.key),value=adjustments[spec.group]?.[spec.key],available=Boolean(controller)&&(spec.group!=='tailSway'||Boolean(adjustments.tailSway))&&(spec.key!=='eyeStrength'||currentModel.capabilities.lookAt.eyes)&&(spec.key!=='handCurl'||hasFingers);
     c.input.value=String(value??spec.initial);c.input.disabled=!available||(spec.manual&&value===undefined);c.reset.disabled=!available||value===undefined;
     if(c.manual){c.manual.checked=value!==undefined;c.manual.disabled=!available;}
     c.output.textContent=!available?t("不可用", "Unavailable"):spec.manual&&value===undefined?t("保持原动作", "Keep authored pose"):valueText(spec,value??spec.initial);
   }
+  $('#tail-root').value=adjustments.tailSway?.rootBone??'';
   const lines=['starlite:'];
   if(Object.keys(adjustments.idle??{}).length)lines.push('  neutralAnimation: StarLiteIdle','  ambient:','    animations: [StarLiteIdle]');
   if(!Object.keys(adjustments).length)lines.push('  adjustments: {}');
-  else{lines.push('  adjustments:');for(const [group,values]of Object.entries(adjustments)){lines.push(`    ${group}:`);for(const [key,value]of Object.entries(values))lines.push(`      ${key}: ${value}`);}}
+  else{lines.push('  adjustments:');for(const [group,values]of Object.entries(adjustments)){lines.push(`    ${group}:`);for(const [key,value]of Object.entries(values))lines.push(`      ${key}: ${typeof value==='string'?JSON.stringify(value):value}`);}}
   $('#config-output').value=lines.join('\n');
 }
 async function mount(id){

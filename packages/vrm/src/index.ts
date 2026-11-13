@@ -20,6 +20,7 @@ import { BUILTIN_ANIMATIONS } from "./builtin-motion-catalog.js";
 export { BUILTIN_ANIMATIONS } from "./builtin-motion-catalog.js";
 import { EnvironmentLight } from "./environment-lighting.js";
 import { AdjustableIdle, RebasedBuiltinGesture } from "./adjustments.js";
+import { TailSway } from "./tail-sway.js";
 import type { CharacterProfile, ModelAdjustments, VrmController, VrmDiagnostics, VrmWidgetConfig } from "./types.js";
 export type * from "./types.js";
 export { QuickSettingsMenu, type QuickSettingsOptions, type QuickSettingItem } from "@starcried/starlite-core";
@@ -74,6 +75,7 @@ class Controller implements VrmController {
   #neutral: VRMPose | undefined;
   #neutralAnimation: string | undefined;
   #adjustableIdle: AdjustableIdle | undefined;
+  #tailSway: TailSway | undefined;
   readonly #builtinGestures: RebasedBuiltinGesture[] = [];
   #adjustments: ModelAdjustments = {};
   #portraitBounds: THREE.Box3 | undefined;
@@ -100,7 +102,7 @@ class Controller implements VrmController {
 
   constructor(host: HTMLElement, config: VrmWidgetConfig) {
     this.#host = host; this.#config = config; this.#gaze = new PointerGaze(config.gaze);
-    this.#adjustments = { ...(config.adjustments?.idle ? { idle: { ...config.adjustments.idle } } : {}), ...(config.adjustments?.gaze ? { gaze: { ...config.adjustments.gaze } } : {}) };
+    this.#adjustments = structuredClone(config.adjustments ?? {});
     this.#gaze.setAdjustments(this.#adjustments.gaze);
     this.#environmentLight.set(config.environmentLighting ?? null, true);
     this.#frameRate = config.render?.fps ?? 30; this.#pointerEnabled = config.interactions?.pointer ?? true;
@@ -165,6 +167,14 @@ class Controller implements VrmController {
       VRMUtils.removeUnnecessaryVertices(vrm.scene);
       // Custom expression-blink morphs must survive loading unchanged.
       this.#scene.add(vrm.scene);
+      const namedNodes = new Map<string, THREE.Object3D[]>();
+      vrm.scene.traverse(node => {
+        const index = gltf.parser?.associations.get(node)?.nodes;
+        const name = index === undefined ? undefined : modelJson.nodes?.[index]?.name;
+        if (typeof name === "string") namedNodes.set(name, [...(namedNodes.get(name) ?? []), node]);
+      });
+      this.#tailSway = new TailSway(vrm.scene, namedNodes, vrm.springBoneManager);
+      this.#tailSway.set(this.#adjustments.tailSway);
       const characterProfile = this.#config.profile !== undefined ? profile : modelJson.extras?.starlite?.profile;
       if (characterProfile !== undefined) {
         validateCharacterProfile(characterProfile); this.#profile = characterProfile;
@@ -278,7 +288,7 @@ class Controller implements VrmController {
     this.stopAnimation(); this.#vrm.expressionManager.setValue(name, weight);
     if (this.#status === "paused") this.#tick(0);
   }
-  stopAnimation(): void { this.#playStartedAt = undefined; this.#gaze.restoreHead(); this.#ambientSuppressed = true; this.#player?.stop(); }
+  stopAnimation(): void { this.#playStartedAt = undefined; this.#gaze.restoreHead(); this.#ambientSuppressed = true; this.#player?.stop(); this.#tailSway?.reset(); }
   pause(): void { this.#paused = true; this.#bubble.hide(); this.#sync(); }
   resume(): void { this.#paused = false; this.#dialogue.deferIdle(this.#elapsed * 1000); this.#sync(); }
   get inspecting(): boolean { return this.#inspection.inspecting; }
@@ -377,7 +387,8 @@ class Controller implements VrmController {
   setModelAdjustments(adjustments: ModelAdjustments): void {
     validateModelAdjustments(adjustments);
     if (this.#status === "destroyed" || this.#status === "disabled") return;
-    this.#adjustments = { ...(adjustments.idle ? { idle: { ...adjustments.idle } } : {}), ...(adjustments.gaze ? { gaze: { ...adjustments.gaze } } : {}) };
+    this.#tailSway?.set(adjustments.tailSway);
+    this.#adjustments = structuredClone(adjustments);
     this.#gaze.restoreHead(); this.#gaze.setAdjustments(this.#adjustments.gaze);
     this.#adjustableIdle?.update(this.#adjustments.idle);
     if (this.#neutral && this.#neutralAnimation === "StarLiteIdle" && this.#adjustableIdle) {
@@ -525,6 +536,7 @@ class Controller implements VrmController {
     this.#hostMotion?.update(delta, this.#baseCamera, this.#viewport.rect.baseHeight, () => {
       this.#character?.afterExpressions();
       vrm.nodeConstraintManager?.update();
+      this.#tailSway?.update(delta, Boolean(!referenceOnly && !this.#reduced.matches && !this.#ambientSuppressed && this.#baseAnimation && this.#player?.activeName === this.#baseAnimation && !this.#foregroundActive()));
     });
     for (const material of vrm.materials ?? []) (material as THREE.Material & { update?: (delta: number) => void }).update?.(delta);
     const bounds = this.#poseBounds?.measure(vrm.scene, this.#motionBounds) ?? this.#portraitBounds;
@@ -631,6 +643,7 @@ class Controller implements VrmController {
   #dispose(): void {
     this.#hitMask.clear();
     this.#bubble.hide(); this.#stopFrame(); this.#player?.destroy(); this.#player = undefined; this.#hostMotion?.destroy(); this.#hostMotion = undefined;
+    this.#tailSway?.destroy(); this.#tailSway = undefined;
     if (this.#vrm) {
       const closed = new Set<object>();
       this.#vrm.scene.traverse((object) => {

@@ -12,9 +12,12 @@ npm run start --workspace @starcried/starlite-vrm-example -- --model /path/to/av
 
 打开终端显示的本地地址，或 `/adjust`。滑条即时预览，模型文件保持原样；
 调好后复制页面生成的 `starlite.adjustments` 到 Hexo `_config.yml`。
+
 包含姿态调节时，导出配置还会显式选用系统 `StarLiteIdle`，确保自带 Idle 的模型
 也能应用预览中的姿态；仅调整跟随时保留博客原来的 Idle。
 手部张合需勾选“手动设置”，否则保留原动作。没有眼球或手指映射时显示不可用。
+
+有尾巴的模型可展开「主动摆尾」，填写 VRM 中唯一的尾根骨骼原名，再调整角度和周期。留空关闭；物理和碰撞仍由 VRM 决定。详见[摆尾配置](../../docs/configuration.md#主动摆尾)。
 “掌心朝向”对称调整内外扭转；“手腕抬高”只折动手掌，可与抬臂、掌心朝向组合。
 
 姿态参数校准系统默认 `StarLiteIdle`，保留其呼吸。三个通用动作

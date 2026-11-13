@@ -9,7 +9,13 @@ function finite(value: unknown, min: number, max: number): value is number {
 }
 export function validateModelAdjustments(input: unknown): asserts input is ModelAdjustments {
   const object = (value: unknown): value is Record<string, unknown> => Boolean(value && typeof value === "object" && !Array.isArray(value));
-  if (!object(input) || Object.keys(input).some(key => key !== "idle" && key !== "gaze")) throw new Error("invalid model adjustments");
+  if (!object(input) || Object.keys(input).some(key => key !== "idle" && key !== "gaze" && key !== "tailSway")) throw new Error("invalid model adjustments");
+  const tail = input.tailSway;
+  if (tail !== undefined && (!object(tail)
+    || Object.keys(tail).some(key => !["rootBone", "amplitudeDegrees", "periodSeconds"].includes(key))
+    || typeof tail.rootBone !== "string" || !tail.rootBone.trim() || tail.rootBone.length > 128 || /[\u0000-\u001f\u007f]/u.test(tail.rootBone)
+    || (tail.amplitudeDegrees !== undefined && !finite(tail.amplitudeDegrees, 0, 50))
+    || (tail.periodSeconds !== undefined && !finite(tail.periodSeconds, 3, 30)))) throw new Error("invalid model adjustments.tailSway");
   const groups = {
     idle: { armLiftDegrees: [-30, 45], palmTwistDegrees: [-45, 45], wristLiftDegrees: [-45, 45], handCurl: [0, 1], elbowBendDegrees: [-20, 45] },
     gaze: { headStrength: [0, 2], eyeStrength: [0, 2], smoothingMs: [20, 1000] },

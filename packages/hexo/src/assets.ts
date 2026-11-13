@@ -575,7 +575,7 @@ export function collectVrmModelAssets(location:string, baseDirectory=process.cwd
  const {inspectVrm} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
  const modelBytes = files.get(manifest.model.file)!;
  const embeddedAnimations = inspectVrm(Uint8Array.from(modelBytes).buffer).animations.map(a=>a.name);
- const embeddedNeutralAnimation = validateEmbeddedProfile(modelBytes,[...embeddedAnimations,...manifest.animations.map(animation=>animation.name)]);
+ const {neutralAnimation: embeddedNeutralAnimation, adjustments} = validateEmbeddedMetadata(modelBytes,[...embeddedAnimations,...manifest.animations.map(animation=>animation.name)]);
  const neutralAnimation = manifest.profile ? JSON.parse(files.get(manifest.profile.file)!.toString("utf8")).neutralAnimation as string | undefined : embeddedNeutralAnimation;
  const assets=[...files].map(([relativePath,contents])=>({relativePath,contents}));
  assets.push({relativePath:"manifest.json",contents:Buffer.from(JSON.stringify(manifest))});
@@ -583,7 +583,7 @@ export function collectVrmModelAssets(location:string, baseDirectory=process.cwd
  for(const asset of assets) digest.update(asset.relativePath).update("\0").update(asset.contents);
  const hash=digest.digest("hex").slice(0,12);
  return {backend:"vrm",hash,routePrefix:`vrm-model/${hash}`,modelFile:manifest.model.file,sourceSha256:manifest.model.sourceSha256,animations:[],
-   vrm:{animations:manifest.animations.map(a=>({name:a.name,url:a.file,durationMs:a.durationMs})),embeddedAnimations,...(manifest.profile ? {profile:manifest.profile.file} : {}),...(neutralAnimation ? {neutralAnimation} : {})},
+   vrm:{animations:manifest.animations.map(a=>({name:a.name,url:a.file,durationMs:a.durationMs})),embeddedAnimations,...(manifest.profile ? {profile:manifest.profile.file} : {}),...(neutralAnimation ? {neutralAnimation} : {}),...(adjustments ? {adjustments} : {})},
    ...(options.localPreview ? {localPreview:true} : {}), assets};
 }
 
@@ -600,7 +600,7 @@ export function collectVrmFileAssets(location: string, baseDirectory = process.c
  const contents = readBoundedRegularFile(resolve(baseDirectory, location), options.localPreview ? 64 * 1024 * 1024 : MAX_VRM_MODEL_BYTES, "VRM model");
  const {inspectVrm} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
  const inspected = inspectVrm(Uint8Array.from(contents).buffer);
- const neutralAnimation = validateEmbeddedProfile(contents,[...inspected.animations.map(animation=>animation.name),...(options.animationNames ?? [])]);
+ const {neutralAnimation,adjustments} = validateEmbeddedMetadata(contents,[...inspected.animations.map(animation=>animation.name),...(options.animationNames ?? [])]);
  const sourceSha256 = createHash("sha256").update(contents).digest("hex");
  const fallback = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="260" height="360" viewBox="0 0 260 360"><rect width="260" height="360" rx="24" fill="#dfe5f0"/><text x="130" y="180" text-anchor="middle" fill="#46536a" font-family="system-ui,sans-serif">StarLite</text></svg>');
  const hash = createHash("sha256").update(contents).update(fallback).digest("hex").slice(0,12);
@@ -608,14 +608,20 @@ export function collectVrmFileAssets(location: string, baseDirectory = process.c
  return {
    backend:"vrm", hash, routePrefix:`vrm-model/${hash}`,
    modelFile:"model.vrm", fallbackFile:"fallback.svg", sourceSha256, animations:[],
-   vrm:{animations:[],embeddedAnimations,...(neutralAnimation ? {neutralAnimation} : {})}, assets:[{relativePath:"model.vrm",contents},{relativePath:"fallback.svg",contents:fallback}],
+   vrm:{animations:[],embeddedAnimations,...(neutralAnimation ? {neutralAnimation} : {}),...(adjustments ? {adjustments} : {})}, assets:[{relativePath:"model.vrm",contents},{relativePath:"fallback.svg",contents:fallback}],
    ...(options.localPreview ? {localPreview:true} : {}),
  };
 }
 
-function validateEmbeddedProfile(contents: Buffer, animationNames: readonly string[]): string | undefined {
+function validateEmbeddedMetadata(contents: Buffer, animationNames: readonly string[]): {neutralAnimation?: string; adjustments?: NonNullable<ModelAssetBundle["vrm"]>["adjustments"]} {
  const {parseGlb} = require("@starcried/starlite-vrm/inspect") as typeof import("@starcried/starlite-vrm/inspect", {with:{"resolution-mode":"import"}});
- const profile = parseGlb(Uint8Array.from(contents).buffer,"vrm").extras?.starlite?.profile;
+ const model = parseGlb(Uint8Array.from(contents).buffer,"vrm");
+ const {profile,adjustments} = model.extras?.starlite ?? {};
+ if (adjustments !== undefined) {
+   const validate: (input: unknown) => void = require("@starcried/starlite-vrm/config").validateModelAdjustments;
+   validate(adjustments);
+   if (adjustments.tailSway && model.nodes.filter((node: {name?:string}) => node.name === adjustments.tailSway.rootBone).length !== 1) throw new Error("extras.starlite.adjustments.tailSway.rootBone must identify one model node");
+ }
  if (profile !== undefined) {
    const validateCharacterProfile: (input: unknown) => void = require("@starcried/starlite-vrm/config").validateCharacterProfile;
    try { validateCharacterProfile(profile); }
@@ -624,7 +630,7 @@ function validateEmbeddedProfile(contents: Buffer, animationNames: readonly stri
    if (neutralAnimation !== undefined && !require("@starcried/starlite-vrm/config").isBuiltinAnimation(neutralAnimation) && !animationNames.includes(neutralAnimation)) {
      throw new Error(`extras.starlite.profile.neutralAnimation references unavailable animation ${JSON.stringify(neutralAnimation)}; choose an embedded/configured VRMA animation or StarLiteIdle`);
    }
-   return neutralAnimation;
+   return {neutralAnimation,adjustments};
  }
- return undefined;
+ return {adjustments};
 }

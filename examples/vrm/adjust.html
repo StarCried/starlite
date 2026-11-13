@@ -18,6 +18,7 @@
     <p class="note">姿态调节保留 Idle 呼吸，三个通用动作也会接回调后的站姿。模型自带和外部动作保持原样。</p>
     <section id="basic-controls" aria-label="基础调节"></section>
     <details><summary>更多调节</summary><section id="advanced-controls" aria-label="更多调节"></section></details>
+    <details><summary id="tail-title"></summary><section id="tail-controls"><label id="tail-root-label" for="tail-root"></label><input id="tail-root" type="text" maxlength="128"><p id="tail-hint" class="note"></p></section></details>
     <section class="export"><h2>用于 Hexo</h2><p class="note">把以下内容合并到现有的 <code>starlite:</code> 配置下。含姿态调节时会明确选用系统 Idle；仅调视线时保留原来的 Idle。模型路径由你设置。</p><textarea id="config-output" readonly rows="8" aria-label="Hexo 调节配置"></textarea><button id="copy" type="button">复制配置</button><output id="copy-result" role="status"></output></section>
     <p class="note footnote">滑条即时预览，不重新加载模型。调节在本页按模型分别保留；刷新后恢复默认。</p>
   </aside>

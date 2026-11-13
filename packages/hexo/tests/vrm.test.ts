@@ -41,6 +41,15 @@ it("keeps redistribution and source identity gates for VRM",async()=>{
  writeFileSync(join(allowed,"motions/0.vrma"),"broken");expect(()=>collectVrmModelAssets(allowed)).toThrow("hash mismatch");
 });
 
+it("forwards optional tail sway without changing the idle mapping and rejects invalid values",async()=>{
+ const directory=await bundle(),assets=collectVrmModelAssets(directory);
+ const tailSway={rootBone:"Tail.Root",amplitudeDegrees:35,periodSeconds:10};
+ const hexo:any={config:{starlite:{backend:"vrm",enable:true,bundle:directory,fallback:"fallback.png",publication:{confirm:true,allowRedistribution:true,sourceSha256:assets.sourceSha256},adjustments:{tailSway},ambient:{animations:["Idle"]}}}};
+ expect(readEnabledConfig(hexo,assets)?.widget).toMatchObject({adjustments:{tailSway},ambient:{animations:["Idle"]}});
+ hexo.config.starlite.adjustments.tailSway.periodSeconds=0;
+ expect(()=>readEnabledConfig(hexo,assets)).toThrow("tailSway");
+});
+
 function animatedModel() {
  const original=model(), jsonSize=original.readUInt32LE(12), json=JSON.parse(original.subarray(20,20+jsonSize).toString());
  const binary=Buffer.concat([original.subarray(28+jsonSize),Buffer.from(new Float32Array([0,1,0,0,0,1,0,0,.15,Math.sqrt(1-.15**2)]).buffer)]);
@@ -130,6 +139,22 @@ it("leaves model adjustments absent by default and permits an explicit empty res
  const assets=collectVrmFileAssets("./avatar.vrm",root),blog=simpleHexo(root);
  expect(readEnabledConfig(blog.hexo,assets)?.widget).not.toHaveProperty("adjustments");
  expect(readEnabledConfig(simpleHexo(root,{adjustments:{}}).hexo,assets)?.widget).toHaveProperty("adjustments",{});
+});
+
+it("reads embedded tail defaults and lets an explicit configuration replace or clear them",()=>{
+ const root=mkdtempSync(join(tmpdir(),"hexo-vrm-tail-default-"));roots.push(root);
+ const original=model(),size=original.readUInt32LE(12),json=JSON.parse(original.subarray(20,20+size).toString());
+ json.nodes.push({name:"Tail.Root"});json.nodes[0].children.push(json.nodes.length-1);
+ const adjustments={tailSway:{rootBone:"Tail.Root",amplitudeDegrees:35,periodSeconds:10}};
+ json.extras={starlite:{adjustments}};writeFileSync(join(root,"avatar.vrm"),glb(json,original.subarray(28+size)));
+ const assets=collectVrmFileAssets("./avatar.vrm",root);
+ expect(readEnabledConfig(simpleHexo(root).hexo,assets)?.widget).toHaveProperty("adjustments",adjustments);
+ for(const override of [{},{gaze:{headStrength:0}},{tailSway:{rootBone:"Tail.Root",amplitudeDegrees:0}}]) {
+   expect(readEnabledConfig(simpleHexo(root,{adjustments:override}).hexo,assets)?.widget).toHaveProperty("adjustments",override);
+ }
+ json.extras.starlite.adjustments.tailSway.rootBone="missing";
+ writeFileSync(join(root,"avatar.vrm"),glb(json,original.subarray(28+size)));
+ expect(()=>collectVrmFileAssets("./avatar.vrm",root)).toThrow("rootBone");
 });
 
 it("preserves zero wrist lift independently of the upper-arm adjustment",()=>{

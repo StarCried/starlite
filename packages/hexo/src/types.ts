@@ -106,7 +106,7 @@ export interface RuntimeAssetBundle {
 
 export interface ModelAssetBundle {
   backend?: "inochi2d" | "vrm";
-  vrm?: {animations: VrmAnimationSource[]; embeddedAnimations?: string[]; neutralAnimation?: string; profile?: string};
+  vrm?: {animations: VrmAnimationSource[]; embeddedAnimations?: string[]; neutralAnimation?: string; profile?: string; adjustments?: VrmWidgetConfig["adjustments"]};
   hash: string;
   routePrefix: string;
   modelFile: string;

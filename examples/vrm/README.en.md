@@ -14,6 +14,8 @@ The adjustment page changes built-in Idle arm lift, palm direction, wrist lift, 
 
 If the VRM contains valid defaults in `extras.starlite.adjustments`, the preview starts with those values and restores them on refresh. Otherwise it uses the general defaults. With a Hexo example preset, an explicit `adjustments` object fully replaces its pose and following calibration; `adjustments: {}` clears it.
 
+For models with tails, expand **Tail sway**, enter the exact unique root bone name from the VRM, and adjust angle and period. A blank root disables it. Physics remains model-owned. See [tail configuration](../../docs/configuration.en.md#tail-sway).
+
 For a prepared private companion output directory containing `desktop/manifest.json` and `blog/manifest.json`, developer motion review uses:
 
 ```sh

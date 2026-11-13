@@ -41,6 +41,8 @@ Middle-drag the body to inspect it, release to keep the view, and middle-click t
 
 ## Live adjustments and diagnostics
 
+Optional `adjustments.tailSway: {rootBone: "Tail", amplitudeDegrees: 35, periodSeconds: 10}` adds idle sway to a model with a tail. Only the unique root node name is required. `setModelAdjustments` changes angle and period live; the VRM retains ownership of all physics and collisions. See [tail configuration](../../docs/configuration.en.md#tail-sway).
+
 ```js
 controller.setModelAdjustments({
   idle: { armLiftDegrees: 10, palmTwistDegrees: 5, wristLiftDegrees: 8, handCurl: 0.2, elbowBendDegrees: 8 },

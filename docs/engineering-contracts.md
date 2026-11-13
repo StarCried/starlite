@@ -57,11 +57,20 @@
   orientation in the actual runtime (which rotates VRM0), not only Blender.
 - A Hexo preset's explicit `adjustments` override replaces the entire calibration;
   do not deep-merge it, because the adjustment preview exports `{}` to clear
-  corrections. The preview reads validated `extras.starlite.adjustments` defaults;
-  the runtime still takes its calibration from host config, without a fallback
+  corrections. The preview reads validated `extras.starlite.adjustments` defaults.
+  Hexo also reads these defaults from inspected local assets when no configuration
+  override exists. An explicit `{}` clears them; never merge them back afterward.
+  The runtime still takes its calibration from host config, without a fallback
   that would silently restore model defaults after a user clears them.
 
 ## Compatibility contract
+
+- Optional VRM `adjustments.tailSway` identifies the exact original glTF root
+  name, with amplitude and period. Use a reversible parent pivot about model up;
+  preserve bone transforms, motion samples, spring roots and collider settings.
+  Reparenting invalidates the spring manager's cached ancestor order. Drive only
+  the baseline loop, fade during foreground actions, and advance only simulated
+  time. Character-specific collision corrections belong in private model assets.
 
 - Supported browsers are desktop Chrome and Edge with WebGL2.
 - Mobile defaults to hidden and must return before runtime import or model/WASM

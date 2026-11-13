@@ -58,6 +58,7 @@ export function readEnabledConfig(
     // A fetched profile owns its baseline once loaded. Do not silently replace
     // that unknown choice with the discovered Idle; explicit user settings win.
     const neutralAnimation = input.neutralAnimation ?? profileNeutralAnimation ?? (profile === undefined && animationNames.includes("Idle") ? "Idle" : undefined);
+    const adjustments = input.adjustments !== undefined ? input.adjustments : modelBundle?.vrm?.adjustments;
     if (neutralAnimation !== undefined && !isBuiltinAnimation(neutralAnimation) && !animationNames.includes(neutralAnimation)) {
       throw new Error(`starlite.neutralAnimation references unavailable animation ${JSON.stringify(neutralAnimation)}; choose an embedded/configured VRMA animation or StarLiteIdle`);
     }
@@ -67,7 +68,7 @@ export function readEnabledConfig(
       ...(embeddedAnimations ? {embeddedAnimations} : {}), ...(neutralAnimation ? {neutralAnimation} : {}),
       ...(input.display ? {display:input.display} : {}), ...(input.mobile ? {mobile:input.mobile} : {}),
       ...(input.gaze ? {gaze:input.gaze} : {}),
-      ...(input.adjustments !== undefined ? {adjustments:input.adjustments} : {}),
+      ...(adjustments !== undefined ? {adjustments} : {}),
       ...(input.camera ? {camera:input.camera} : {}),
       ...(environmentLighting ? {environmentLighting:{color:environmentLighting.color,...(environmentLighting.strength !== undefined ? {strength:environmentLighting.strength} : {}),...(environmentLighting.brightness !== undefined ? {brightness:environmentLighting.brightness} : {})}} : {}),
       ...(input.performance !== undefined ? {performance:input.performance} : {}),

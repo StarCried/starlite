@@ -2,6 +2,14 @@ import type { EnvironmentLighting, StarLiteLocale, DialogueSceneConfig, ModelCon
 export type { ModelController, AnimationPlaybackResult, AnimationPlaybackOptions } from "@starcried/starlite-core";
 export interface VrmAnimationSource { name: string; url: string; durationMs?: number }
 export interface BonePose { rotation: [number, number, number, number]; position?: [number, number, number] }
+export interface TailSwaySettings {
+  /** Exact, unique glTF node name; no humanoid tail convention is required. */
+  rootBone: string;
+  /** Maximum rotation to either side, 0–50 degrees. Default 10. */
+  amplitudeDegrees?: number;
+  /** Seconds per complete left/right cycle, 3–30. Default 10. */
+  periodSeconds?: number;
+}
 /** Per-model calibration. Omitted values preserve the original pose and gaze. */
 export interface ModelAdjustments {
   idle?: {
@@ -13,6 +21,7 @@ export interface ModelAdjustments {
     elbowBendDegrees?: number;
   };
   gaze?: { headStrength?: number; eyeStrength?: number; smoothingMs?: number };
+  tailSway?: TailSwaySettings;
 }
 /** Data only: imported profiles cannot execute scripts. All rotations use glTF coordinates. */
 export interface CharacterProfile {

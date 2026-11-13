@@ -157,7 +157,7 @@ starlite:
       smoothingMs: 150
 ```
 
-所有字段均可省略；删除某项即恢复该项原表现，删除 `adjustments` 或设置 `adjustments: {}` 恢复全部原表现。无需重新制作、转换或覆盖 VRM。姿态参数校准程序内置的 `StarLiteIdle`，保留原有呼吸。三个程序通用动作 `StarLiteCuriousPeek`、`StarLiteHappyWave`、`StarLiteSleepyStartle` 从当前选用的基础 Idle 姿态起止；使用调后的 `StarLiteIdle` 时，也会衔接到调后的站姿。模型自带或外部导入的 Idle、挥手、坐下等动作保持原样。需要明确选用程序 Idle 时，可设置 `neutralAnimation: StarLiteIdle` 和 `ambient: {animations: [StarLiteIdle]}`。
+所有字段均可省略；显式 `adjustments: {}` 清除全部调整。省略整个 `adjustments` 时采用本地 VRM 提供的默认值，没有默认值则保持原表现。无需重新制作、转换或覆盖 VRM。姿态参数校准程序内置的 `StarLiteIdle`，保留原有呼吸。三个程序通用动作 `StarLiteCuriousPeek`、`StarLiteHappyWave`、`StarLiteSleepyStartle` 从当前选用的基础 Idle 姿态起止；使用调后的 `StarLiteIdle` 时，也会衔接到调后的站姿。模型自带或外部导入的 Idle、挥手、坐下等动作保持原样。需要明确选用程序 Idle 时，可设置 `neutralAnimation: StarLiteIdle` 和 `ambient: {animations: [StarLiteIdle]}`。
 
 | 字段（位于 `adjustments` 下） | 含义与范围 |
 | --- | --- |
@@ -171,6 +171,25 @@ starlite:
 | `gaze.smoothingMs` | 跟随平滑时间，20–1000 ms；越小越快。省略时沿用 `starlite.gaze.smoothingMs`，其默认值为 100 ms。 |
 
 灵敏度影响转动幅度，平滑时间影响跟随速度；现有水平／垂直限角仍生效。前景动作接管头眼时暂停光标覆盖。没有有效眼骨或视线表情的模型只能转头，调高强度不会增加眼球能力。滑条也无法修复错误蒙皮或不规范绑定；一期不提供腿间距或任意骨骼编辑。
+
+### 主动摆尾
+
+有尾骨的 VRM 0/1 可在 `adjustments` 中启用摆尾，只需指定 VRM 中唯一的尾根节点原名（区分大小写）：
+
+```yaml
+starlite:
+  adjustments:
+    tailSway:
+      rootBone: Tail
+      amplitudeDegrees: 35
+      periodSeconds: 10
+```
+
+`rootBone` 必填；`amplitudeDegrees` 是向每侧摆动的最大角度，0–50°，省略为 10°；`periodSeconds` 是完整左右来回一次的秒数，3–30，省略为 10 秒。0° 停止主动摆尾，删除 `tailSway` 则移除此行为。可在[模型调校预览](../examples/vrm/README.md)输入尾根并拖动滑条，随后复制配置。
+
+本地 VRM 文件也可通过 `extras.starlite.adjustments` 提供默认值。Hexo 在未配置 `adjustments` 时采用这些值；显式的 `adjustments` 完整替换模型默认值，`adjustments: {}` 清除全部调整。直接使用浏览器运行时的集成仍须通过挂载配置传入调整。
+
+运行时以模型的竖直方向确定左右旋转，不要求尾根本地轴一致。只在所选基础 Idle 循环中主动摆动，前景动作期间平滑收起，返回 Idle 后恢复；暂停、隐藏时停止更新。身体呼吸和原动作的时长不变。尾根只负责主动驱动，弹簧、重力、碰撞体与模拟起点全部沿用 VRM；需要调整物理表现时在模型工程中处理。标准人形没有尾骨映射，程序不会凭名称猜测尾根，也不会修改模型文件。
 
 ## 动作和气泡
 

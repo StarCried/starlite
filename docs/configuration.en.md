@@ -194,6 +194,25 @@ starlite:
 
 Omit a field to preserve its original behavior. `{}` resets adjustments. Missing eye/finger bindings are not invented. The preview selects `StarLiteIdle` when exporting pose changes; gaze-only changes preserve the model's baseline.
 
+### Tail sway
+
+For a VRM 0/1 with a tail, specify its exact, unique glTF root node name:
+
+```yaml
+starlite:
+  adjustments:
+    tailSway:
+      rootBone: Tail
+      amplitudeDegrees: 35
+      periodSeconds: 10
+```
+
+Only `rootBone` is required. Amplitude is the maximum angle to either side (0–50°, default 10°); period is seconds per full left/right cycle (3–30, default 10). Zero amplitude stops active sway; removing `tailSway` removes the behavior. The model adjustment preview offers the root field and live sliders.
+
+Inspected local VRMs can supply defaults through `extras.starlite.adjustments`. Hexo uses them when `adjustments` is omitted; an explicit object replaces all model defaults, and `adjustments: {}` clears them. Direct browser integrations pass adjustments through mount configuration.
+
+Sway follows the model's up direction regardless of the exported bone axes. It runs during the selected baseline Idle loop, fades out for foreground actions and returns afterward. Pause and hiding stop its clock. Existing motion and breathing durations remain unchanged. The VRM owns springs, gravity, colliders and simulation roots; edit those in the model project if needed. Humanoid VRM has no standard tail binding, so StarLite never guesses the root or rewrites the model.
+
 ## Failure handling and visitor settings
 
 Loading or failure hides the character and preserves blog interaction. Browser retries are bounded to 2/5/15 seconds; successful loading restores it. Mobile, offline, and visibility guards remain active. See [network and recovery details](release-guide.en.md#downloads-cache-and-recovery).
