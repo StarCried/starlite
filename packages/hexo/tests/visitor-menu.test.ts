@@ -15,7 +15,7 @@ function harness(config: any = {}, storage?: string, controls=false) {
     status: "running",
     setDisplaySize: vi.fn((w:number,h:number) => {host.style.width=`${w}px`;host.style.height=`${h}px`;}), setFrameRate: vi.fn(), setPointerEnabled: vi.fn(),
     setBubblesVisible: vi.fn(), setPerformanceVisible: vi.fn(), pause: vi.fn(), resume: vi.fn(),
-    refreshInteractionMask: vi.fn(),
+    refreshInteractionMask: vi.fn(), resetCamera: vi.fn(),
     observeInteractionMask: vi.fn((listener?: (value: any) => void) => { maskListener = listener; }),
   };
   class Menu {
@@ -61,6 +61,7 @@ it("shares hover-toolbar controls with the detailed menu without moving its anch
   expect(h.controller.setBubblesVisible).toHaveBeenLastCalledWith(false);expect(h.controller.pause).not.toHaveBeenCalled();
   h.item("bubbles").onChange(true);expect(button("bubbles").getAttribute("aria-pressed")).toBe("true");
   button("hide").click();expect(toolbar.element.hidden).toBe(true);expect(h.state.quickSettings.recovery.hidden).toBe(false);
+  expect(h.controller.resetCamera).toHaveBeenCalledOnce();
   h.state.quickSettings.recovery.click();expect(toolbar.element.hidden).toBe(false);expect(h.controller.resume).toHaveBeenCalledOnce();
   h.state.quickSettings.destroy();await h.win.happyDOM.close();
 });

@@ -71,6 +71,8 @@ export interface VrmDiagnostics {
   springPose?: readonly { name: string; rotation: [number, number, number, number] }[];
 }
 export interface VrmController extends ModelController {
+ readonly inspecting: boolean;
+ rotateInspection(dx: number, dy: number): void;
  setModelAdjustments(adjustments: ModelAdjustments): void;
  diagnostics(): VrmDiagnostics;
  captureFrame(): string;

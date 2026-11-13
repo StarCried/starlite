@@ -30,6 +30,8 @@ By default, transparent areas and ordinary short clicks let the underlying page 
 
 StarLite supports English menus and example dialogue: it follows Hexo's `language`, or an explicit `starlite.locale: en`. Custom sentences are kept exactly as written.
 
+Middle-drag the character's body to orbit the camera; release to keep the view and middle-click to return. The entry hint disappears after three seconds. Pointer gaze pauses during inspection; motions and bubbles continue. Returning restores the current tracking preference. Inspection angles are not saved.
+
 ## Let an Agent install it
 
 Open a local coding Agent in your blog directory and paste:

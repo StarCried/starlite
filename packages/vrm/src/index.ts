@@ -1,6 +1,6 @@
 export { resolveLocale, type StarLiteLocale } from "@starcried/starlite-core";
 import * as THREE from "three";
-import { type EnvironmentLighting, PerformanceOverlay, FrameSamples, isModelDrag } from "@starcried/starlite-core";
+import { type EnvironmentLighting, PerformanceOverlay, FrameSamples, isModelDrag, installModelInspection } from "@starcried/starlite-core";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMPose } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip, type VRMAnimation } from "@pixiv/three-vrm-animation";
@@ -12,6 +12,7 @@ import { visibleModelBounds, framePortrait, ExpandedViewport, projectBubbleAncho
 import { PoseBounds } from "./pose-bounds.js";
 import { HostMotion } from "./host-motion.js";
 import { PointerGaze } from "./gaze.js";
+import { InspectionCamera } from "./inspection-camera.js";
 import { CharacterBehavior } from "./character.js";
 import { prepareEmbeddedAnimations } from "./embedded.js";
 import { builtinMotionBytes } from "./builtin-motions.js";
@@ -47,6 +48,10 @@ class Controller implements VrmController {
   readonly #environmentLight = new EnvironmentLight();
   readonly #camera = new THREE.PerspectiveCamera(30, 1, .01, 100);
   readonly #baseCamera = new THREE.PerspectiveCamera(30, 1, .01, 100);
+  readonly #viewCamera = new THREE.PerspectiveCamera(30, 1, .01, 100);
+  readonly #inspection = new InspectionCamera();
+  #inspectionInput: ReturnType<typeof installModelInspection> | undefined;
+  #inspectionFrame: number | undefined;
   readonly #gaze: PointerGaze;
   readonly #canvas = document.createElement("canvas");
   readonly #hitMask = new RenderedHitMask();
@@ -276,10 +281,45 @@ class Controller implements VrmController {
   stopAnimation(): void { this.#playStartedAt = undefined; this.#gaze.restoreHead(); this.#ambientSuppressed = true; this.#player?.stop(); }
   pause(): void { this.#paused = true; this.#bubble.hide(); this.#sync(); }
   resume(): void { this.#paused = false; this.#dialogue.deferIdle(this.#elapsed * 1000); this.#sync(); }
-  resetCamera(): void { this.#resize(); if (this.#status === "paused") this.#tick(0); }
+  get inspecting(): boolean { return this.#inspection.inspecting; }
+  rotateInspection(dx: number, dy: number): void {
+    if (!this.#portraitBounds || (this.#status !== "running" && this.#status !== "paused")) return;
+    this.#inspection.rotate(dx, dy, this.#baseCamera); this.#gaze.reset();
+    this.#renderInspection();
+  }
+  resetCamera(): void {
+    this.#inspectionInput?.clearHint(); this.#inspection.reset(); this.#resize(); this.#renderInspection();
+  }
+  #updateView(): void {
+    if (!this.#portraitBounds) return;
+    this.#inspection.apply(this.#baseCamera, this.#viewCamera, this.#portraitBounds, this.#config.render?.fitPadding);
+    this.#camera.copy(this.#viewCamera); this.#viewport.apply(this.#camera);
+    this.#bubble.position();
+    this.#host.dataset.modelInspecting = String(this.inspecting);
+    this.#host.dispatchEvent(new CustomEvent("model-camera-change", {bubbles: true}));
+  }
+  #renderInspection(): void {
+    if (!this.#renderer || !this.#vrm) return;
+    this.#updateView();
+    // A paused avatar can still be inspected without advancing its pose/physics.
+    if (this.#status === "paused") {
+      this.#renderer.render(this.#scene, this.#camera); this.#hitMask.capture(this.#canvas, performance.now(), true);
+      if (this.#inspection.transitioning && this.#inspectionFrame === undefined) {
+        let last = performance.now();
+        const step = (now: number) => {
+          this.#inspectionFrame = undefined;
+          if (this.#status !== "paused") return;
+          this.#inspection.update(Math.min(.1, (now - last) / 1000)); last = now;
+          this.#renderInspection();
+        };
+        this.#inspectionFrame = requestAnimationFrame(step);
+      }
+    }
+  }
   getBubbleAnchor(): import("@starcried/starlite-core").ModelBubbleAnchor | undefined {
     if (!this.#portraitBounds || !this.#renderer || this.#status === "destroyed" || this.#status === "fallback") return undefined;
     const { baseWidth, baseHeight } = this.#viewport.rect;
+    if (this.#inspection.engaged) return projectBubbleAnchor(this.#portraitBounds, this.#viewCamera, baseWidth, baseHeight);
     if (this.#bubbleAnchor) {
       const point = this.#bubbleAnchor.clone().project(this.#baseCamera);
       return { x: (point.x + 1) * baseWidth / 2, y: (1 - point.y) * baseHeight / 2 };
@@ -301,7 +341,7 @@ class Controller implements VrmController {
     this.#hitMask.capture(this.#canvas, performance.now(), true);
   }
   setPointerPosition(clientX: number, clientY: number): void {
-    if (!this.#pointerEnabled || this.#status !== "running") return;
+    if (!this.#pointerEnabled || this.#inspection.engaged || this.#status !== "running") return;
     this.#gaze.move(clientX, clientY, this.#host.getBoundingClientRect(), { width: innerWidth, height: innerHeight });
   }
   setHostPosition(x: number, y: number, options?: { resetMotion?: boolean }): void {
@@ -321,7 +361,7 @@ class Controller implements VrmController {
     if (this.#status === "destroyed" || this.#status === "disabled") return;
     if (this.#host.style.width === `${width}px` && this.#host.style.height === `${height}px`) return;
     this.#host.style.width = `${width}px`; this.#host.style.height = `${height}px`;
-    this.resetCamera();
+    this.#resize(); if (this.#status === "paused") this.#renderInspection();
   }
   setFrameRate(fps: number | "display"): void {
     if (fps !== 30 && fps !== 60 && fps !== "display") throw new Error("frame rate must be 30, 60 or display");
@@ -429,7 +469,8 @@ class Controller implements VrmController {
   }
   #sync(): void {
     if (this.#status === "destroyed" || this.#status === "fallback" || this.#status === "disabled" || !this.#renderer) return;
-    if (this.#paused || document.visibilityState !== "visible") { this.#bubble.hide(); this.#gaze.reset(); this.#hostMotion?.suspend(); }
+    if (this.#paused || document.visibilityState !== "visible") { this.#bubble.hide(); this.#gaze.reset(); this.#hostMotion?.suspend(); this.#inspectionInput?.cancel(); }
+    if (document.visibilityState !== "visible") { this.#inspection.reset(true); this.#inspectionInput?.clearHint(); this.#updateView(); }
     const paused = this.#paused || document.visibilityState !== "visible" || this.#reduced.matches;
     this.#stopFrame(); this.#setStatus(paused ? "paused" : "running");
     if (!paused) this.#schedule();
@@ -456,6 +497,7 @@ class Controller implements VrmController {
     const vrm = this.#vrm, renderer = this.#renderer;
     if (!vrm || !renderer) return;
     const started = performance.now(); this.#elapsed += delta;
+    if (this.#inspection.update(delta)) this.#updateView();
     this.#environmentLight.update(delta);
     this.#gaze.restoreHead();
     // The preceding frame can predate the trigger, especially after shader
@@ -469,6 +511,7 @@ class Controller implements VrmController {
     // Only the base Idle pose follows the pointer. Foreground gestures retain
     // their authored head/eye direction, including constant look-at tracks.
     const authoredGaze = this.#foregroundActive();
+    if (this.#inspection.engaged) this.#gaze.reset();
     this.#gaze.updateHead(vrm.humanoid.getNormalizedBoneNode("head"), this.#baseCamera, delta, authoredGaze);
     vrm.humanoid.update();
     if (vrm.lookAt && !this.#embeddedEyeClips.has(this.#player?.activeName ?? "")) {
@@ -485,7 +528,7 @@ class Controller implements VrmController {
     });
     for (const material of vrm.materials ?? []) (material as THREE.Material & { update?: (delta: number) => void }).update?.(delta);
     const bounds = this.#poseBounds?.measure(vrm.scene, this.#motionBounds) ?? this.#portraitBounds;
-    if (bounds && this.#config.render?.autoFit !== false && this.#viewport.expand(this.#baseCamera, bounds)) this.#applyViewport();
+    if (bounds && this.#config.render?.autoFit !== false && this.#viewport.expand(this.#viewCamera, bounds)) this.#applyViewport();
     renderer.render(this.#scene, this.#camera);
     this.#hitMask.capture(this.#canvas, performance.now());
     this.#stats.renderedFrames++;
@@ -504,8 +547,8 @@ class Controller implements VrmController {
     const changed = this.#viewport.resize(width, height);
     if (!changed && pixelRatio === this.#pixelRatio) return;
     this.#pixelRatio = pixelRatio; this.#renderer.setPixelRatio(pixelRatio);
-    if (changed && this.#portraitBounds) framePortrait(this.#baseCamera, this.#portraitBounds, width / height, this.#config.render, this.#config.camera);
-    this.#camera.copy(this.#baseCamera);
+    if (changed && this.#portraitBounds) this.#inspection.target.copy(framePortrait(this.#baseCamera, this.#portraitBounds, width / height, this.#config.render, this.#config.camera));
+    this.#updateView();
     this.#applyViewport();
   }
   #applyViewport(): void {
@@ -519,6 +562,18 @@ class Controller implements VrmController {
   }
   #bind(): void {
     const on = (target: EventTarget, event: string, handler: EventListener, capture = false) => { target.addEventListener(event, handler, capture); this.#listeners.push(() => target.removeEventListener(event, handler, capture)); };
+    this.#inspectionInput = installModelInspection(this.#host, {controller: this, locale: this.#config.locale ?? "zh-CN",
+      enabled: () => (this.#status === "running" || this.#status === "paused") && document.visibilityState === "visible" && this.#host.isConnected && getComputedStyle(this.#host).visibility !== "hidden",
+      hit: (x, y) => {
+        const rect = this.#canvas.getBoundingClientRect();
+        if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) return false;
+        this.#renderer?.render(this.#scene, this.#camera);
+        return this.#hitMask.hitTest(this.#canvas, x, y);
+      },
+    });
+    this.#listeners.push(() => { this.#inspectionInput?.destroy(); this.#inspectionInput = undefined;
+      if (this.#inspectionFrame !== undefined) cancelAnimationFrame(this.#inspectionFrame); this.#inspectionFrame = undefined;
+      this.#inspection.reset(true); });
     on(document, "visibilitychange", () => this.#sync()); on(this.#reduced, "change", () => { this.#sync(); if (this.#reduced.matches) this.#tick(0); });
     on(this.#canvas, "webglcontextlost", (event) => { event.preventDefault(); if (this.#status === "destroyed" || this.#status === "fallback") return; this.#setStatus("fallback"); this.#dispose(); this.#canvas.hidden = true; this.#fallback.hidden = false; this.#setStatus("fallback"); });
     on(window, "pointermove", (event) => {
@@ -550,7 +605,7 @@ class Controller implements VrmController {
       if (clicked && !this.#config.interactions?.passThrough) this.#triggerClick();
     });
     on(window, "pointercancel", () => { down = undefined; });
-    this.#resizeObserver = new ResizeObserver(() => this.resetCamera()); this.#resizeObserver.observe(this.#host);
+    this.#resizeObserver = new ResizeObserver(() => { this.#resize(); if (this.#status === "paused") this.#renderInspection(); }); this.#resizeObserver.observe(this.#host);
   }
   #triggerClick(): void {
     if (!this.#dialogue.hasClick && !this.#config.interactions?.click) return;

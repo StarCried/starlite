@@ -119,6 +119,7 @@ export function installVisitorMenu(runtime: any, state: any, options: {
     recovery.hidden = !hidden;
     recovery.style.display = hidden ? "inline-flex" : "none";
     if (hidden) {
+      controller.resetCamera();
       host.style.setProperty("visibility", "hidden", "important");
       host.style.setProperty("pointer-events", "none", "important");
       controller.pause(); menu.close();

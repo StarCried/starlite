@@ -91,6 +91,15 @@
   Rebase host motion with `setHostPosition(..., {resetMotion:true})` after layout
   changes and before dragging; resize/reset offsets must not become spring impulses.
   DSH shares the controls/classifier but retains its native window-drag adapter.
+- Core owns middle-button inspection gestures and the three-second entry hint;
+  VRM owns orbit math. Only an alpha-hit middle press is claimed; left-click
+  passthrough and existing drag priorities remain unchanged. Separate default,
+  inspection and padded render cameras so resize cannot reset the orbit. Use
+  neutral bounds for the target/framing, never animated bounds. Suppress pointer
+  gaze without changing its requested setting or authored eye/head tracks.
+  Inspection must not acquire/release presentation ownership or interrupt clips.
+  Paused inspection redraws only the camera; dispose releases capture, iframe
+  overrides, hint timers and any camera-only animation frame.
 - Model-authored, non-additive `Forced` animation lanes may be normalized by the
   pipeline and played by exact name. Creator `leadIn`/`leadOut` regions may be
   used for explicitly configured ambient loops. MeshGroup, Camera,

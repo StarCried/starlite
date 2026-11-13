@@ -1,4 +1,5 @@
 export { resolveLocale, validateLocale, type StarLiteLocale } from "./locale.js";
+export { installModelInspection, type InspectionController } from "./inspection.js";
 
 export type ModelBackend = "inochi2d" | "vrm";
 export type WidgetStatus = "disabled" | "loading" | "running" | "paused" | "fallback" | "destroyed";
@@ -19,6 +20,9 @@ export interface ModelController {
   playAnimation(name: string, options?: AnimationPlaybackOptions): Promise<AnimationPlaybackResult>;
   stopAnimation(): void;
   resetCamera(): void;
+  /** Optional VRM inspection. Temporary camera state, independent of playback. */
+  readonly inspecting?: boolean;
+  rotateInspection?(dx: number, dy: number): void;
   /** Stable reference-pose top, in host-local CSS pixels; no canvas padding/DPR. */
   getBubbleAnchor?(): ModelBubbleAnchor | undefined;
   observeInteractionMask(listener?: ModelHitMaskListener): void;

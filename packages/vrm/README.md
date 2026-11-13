@@ -39,6 +39,8 @@ const controller = await mountModelWidget(host, {
 
 气泡可以独立使用，例如 `dialogue: {click: {lines: ["你好。"]}}`；需要动作时再添加 `animation` 或 `animations`。`linesByAnimation` 仍须完整对应动作池。
 
+中键拖动角色身体可环绕检视；松开保留角度，短按中键平滑恢复默认镜头。水平可旋转 360°，俯仰限制在 ±80°；进入提示 3 秒后收起。检视暂时关闭头眼光标跟随，保留动画原有表情与视线，不改变播放、气泡和跟随偏好。`inspecting` 返回状态，`rotateInspection(dx, dy)` 接受 CSS 像素增量，`resetCamera()` 退出并恢复当前尺寸下的默认镜头。`setDisplaySize()` 保留检视角度。暂停模型时仍可旋转，但不推进动画与物理；页面隐藏或卸载时清理检视状态。宿主可监听 `model-camera-change` 重新读取气泡锚点，不需要改变窗口大小。
+
 ## 进阶
 
 `adjustments` 为当前模型提供可选的姿态与跟随校准，例如：

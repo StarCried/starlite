@@ -81,6 +81,19 @@ async function mount(backend:string,signal?:AbortSignal,dialogue?:any){
  resources.push(c);return c;
 }
 
+it("inspection preserves host playback, resizing and paused poses without remounting", async () => {
+ const c=await mount("vrm"),canvas=document.querySelector("canvas"),result=c.playAnimation("Action");
+ advance(200);c.rotateInspection!(120,40);advance(300);
+ expect(c.inspecting).toBe(true);expect(c.status).toBe("running");
+ c.setDisplaySize!(280,420);expect(c.inspecting).toBe(true);
+ advance(800);await expect(result).resolves.toBe("completed");
+ c.pause();const count=materialDeltas.length;
+ c.rotateInspection!(100,30);advance(300);expect(materialDeltas).toHaveLength(count);
+ c.resetCamera();advance(500);expect(c.inspecting).toBe(false);expect(materialDeltas).toHaveLength(count);
+ expect(document.querySelector("canvas")).toBe(canvas);expect(c.status).toBe("paused");
+ c.resume();advance(100);expect(c.status).toBe("running");
+});
+
 describe.each(["vrm","inochi2d"])("%s host dialogue contexts",backend=>{
  const context=(id="a"):DialogueContext=>({id,lines:[`${id}-first`,`${id}-second`],animation:"Action",triggers:["click","idle"],mode:"replace",order:"sequential"});
  const click=()=>{

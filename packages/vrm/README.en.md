@@ -37,6 +37,8 @@ Use `animations: [{name: "Wave", url: "/Wave.vrma"}]` for your own VRMA. `ambien
 
 Call `destroy()` when unmounting. Hidden models stop animation and physics; resume does not catch up hidden time. A bubble scene may omit animation entirely. `linesByAnimation` must match its selected pool.
 
+Middle-drag the body to inspect it, release to keep the view, and middle-click to return smoothly. Horizontal orbit is unrestricted; pitch is limited to ±80°. The entry hint hides after three seconds. Inspection temporarily suppresses pointer gaze while preserving authored gaze, playback, dialogue and preferences. `inspecting` exposes the state; `rotateInspection(dx, dy)` accepts CSS-pixel deltas. `resetCamera()` returns to the default portrait at the current size; `setDisplaySize()` preserves inspection angles. Paused models can be inspected without advancing animation or physics. Document hiding/unmounting clears inspection. Hosts can listen for `model-camera-change` to re-read the bubble anchor without resizing their window.
+
 ## Live adjustments and diagnostics
 
 ```js
