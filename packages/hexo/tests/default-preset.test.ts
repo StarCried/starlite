@@ -76,12 +76,12 @@ it("selects Weiguang only when there is no explicit model, bundle, disabled sett
 });
 
 it("pins public assets by immutable release URL, exact byte length and digest", () => {
-  expect(WEIGUANG_VERSION).toBe("weiguang-v3.0.0-starlite.1");
+  expect(WEIGUANG_VERSION).toBe("weiguang-v3.0.0-starlite.2");
   expect(WEIGUANG_CACHE_DIRECTORY).toBe(`node_modules/.cache/hexo-starlite/${WEIGUANG_VERSION}`);
   expect(WEIGUANG_ASSETS.map(asset=>asset.file)).toEqual([
     "Weiguang-StarLite-Blog.vrm", "LICENSE-Weiguang.md", "ASSET-SOURCES.md",
   ]);
-  expect(WEIGUANG_ASSETS.map(asset=>asset.bytes)).toEqual([9116328,4399,2595]);
+  expect(WEIGUANG_ASSETS.map(asset=>asset.bytes)).toEqual([9114200,4399,2512]);
   for (const asset of WEIGUANG_ASSETS) {
     expect(asset.url).toBe(`https://github.com/StarCried/starlite/releases/download/${WEIGUANG_VERSION}/${asset.file}`);
     expect(asset.sha256).toMatch(/^[0-9a-f]{64}$/u);

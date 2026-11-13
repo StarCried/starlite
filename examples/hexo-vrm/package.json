@@ -1,6 +1,6 @@
 {
   "name": "@starcried/starlite-hexo-vrm-example",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "hexo": "7.3.0",
-    "hexo-starlite": "0.1.3"
+    "hexo-starlite": "0.2.0"
   }
 }

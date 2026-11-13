@@ -1,5 +1,11 @@
 # @starcried/starlite-core
 
+## 0.2.0
+
+### Minor Changes
+
+- 50a84d9: Middle-drag a VRM character to inspect it from different angles, then middle-click to return. Temporarily suspend pointer gaze while preserving animations, dialogue, size changes and host presentation control. Show the entry hint briefly rather than persistently.
+
 ## 0.1.3
 
 ### Patch Changes

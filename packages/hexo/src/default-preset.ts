@@ -4,14 +4,14 @@ import { BLUEFISH_ASSETS, BLUEFISH_PRESET, BLUEFISH_VERSION } from "./bluefish-p
 import type { DefaultAsset } from "./default-assets";
 import { EXAMPLE_LICENSES } from "./example-licenses";
 
-export const WEIGUANG_VERSION = "weiguang-v3.0.0-starlite.1";
+export const WEIGUANG_VERSION = "weiguang-v3.0.0-starlite.2";
 export const WEIGUANG_CACHE_DIRECTORY = `node_modules/.cache/hexo-starlite/${WEIGUANG_VERSION}`;
 export const WEIGUANG_POSITION = { right: 112, bottom: 160 } as const;
 const release = `https://github.com/StarCried/starlite/releases/download/${WEIGUANG_VERSION}`;
 export const WEIGUANG_ASSETS = [
-  { file: "Weiguang-StarLite-Blog.vrm", url: `${release}/Weiguang-StarLite-Blog.vrm`, bytes: 9116328, sha256: "d98a431d84c015787a3239eaf709a7b3b075b4353c10ac59a3023f5ca4c05b8b" },
+  { file: "Weiguang-StarLite-Blog.vrm", url: `${release}/Weiguang-StarLite-Blog.vrm`, bytes: 9114200, sha256: "98272369c619ed7493bb5b3ff9bf4a36350af0ee3377fb1c28407de8f1dc4a8f" },
   { file: "LICENSE-Weiguang.md", url: `${release}/LICENSE-Weiguang.md`, bytes: 4399, sha256: "c36c593d2932e4cfb0d451a8acf69c8444abbbab1a255300abc42efe4d36a211" },
-  { file: "ASSET-SOURCES.md", url: `${release}/ASSET-SOURCES.md`, bytes: 2595, sha256: "2b1616fcd4d6009e5810953e703e2bcb9a907c7a29906735ad1c6f92cd24e066" },
+  { file: "ASSET-SOURCES.md", url: `${release}/ASSET-SOURCES.md`, bytes: 2512, sha256: "b2aa91a027b33740f5c11826f6a3266a5d0f2addb69853e8acb740f1126aedf5" },
 ] as const;
 
 export interface DefaultExample {

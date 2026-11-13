@@ -61,7 +61,7 @@ starlite:
 
 ### 默认资源获取、缓存与许可
 
-资源在首次 `hexo generate` 或 `hexo server` 的生成阶段获取；npm 安装时不下载模型，博客访客也不会直接向 GitHub 取模型。固定版本为 `weiguang-v3.0.0-starlite.1`，缓存位于博客根目录的 `node_modules/.cache/hexo-starlite/weiguang-v3.0.0-starlite.1/`。模型为 9,116,328 字节，SHA-256 为 `d98a431d84c015787a3239eaf709a7b3b075b4353c10ac59a3023f5ca4c05b8b`；模型、许可和来源文件均按固定长度与 SHA-256 校验，拒绝不安全缓存路径，不使用不匹配文件。
+资源在首次 `hexo generate` 或 `hexo server` 的生成阶段获取；npm 安装时不下载模型，博客访客也不会直接向 GitHub 取模型。固定版本、文件长度与 SHA-256 由[默认模型目录](../packages/hexo/src/default-preset.ts)维护，缓存位于博客根目录的 `node_modules/.cache/hexo-starlite/<模型版本>/`。模型、许可和来源文件均按该目录校验，拒绝不安全缓存路径，不使用不匹配文件。
 
 下载遵循生成进程的标准 `HTTP_PROXY`、`HTTPS_PROXY`、`NO_PROXY` 环境变量，无需在 `_config.yml` 填写代理或凭据。请勿将凭据写入博客配置、提交记录或反馈日志。
 

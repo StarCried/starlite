@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ensureDefaultAssets, type DefaultAsset } from "../src/default-assets";
 
-const ROOT_URL = "https://github.com/StarCried/starlite/releases/download/weiguang-v3.0.0-starlite.1/";
+const ROOT_URL = "https://github.com/StarCried/starlite/releases/download/weiguang-v3.0.0-starlite.2/";
 const contents = Buffer.from("synthetic default model");
 const asset: DefaultAsset = {
   url: `${ROOT_URL}example.vrm`,

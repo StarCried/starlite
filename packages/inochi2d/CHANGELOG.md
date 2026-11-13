@@ -1,5 +1,12 @@
 # @starcried/starlite-inochi2d
 
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies [50a84d9]
+  - @starcried/starlite-core@0.2.0
+
 ## 0.1.3
 
 ### Patch Changes

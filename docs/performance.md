@@ -56,7 +56,7 @@ keeps its previous 1.5 MiB raw ceiling; its new encoded ceilings are approximate
 limit needs a measured reason and review, rather than adjusting it to silence a
 failure.
 
-The default Weiguang blog model is **9,116,328 B** separately from this runtime;
+The default Weiguang blog model is approximately **8.7 MiB** separately from this runtime;
 it includes 13 authored actions. Its textures, morphs and animations belong to
 the model budget. Program-package checks continue to reject model and source-art
 files in npm tarballs. Hexo's public single-model ceiling is 10 MiB; that ceiling

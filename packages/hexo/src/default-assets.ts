@@ -13,7 +13,7 @@ export interface DefaultAsset {
 }
 
 const RELEASE_PREFIXES = [
-  "https://github.com/StarCried/starlite/releases/download/weiguang-v3.0.0-starlite.1/",
+  "https://github.com/StarCried/starlite/releases/download/weiguang-v3.0.0-starlite.2/",
   "https://github.com/StarCried/starlite/releases/download/bluefish-v1.0.0-starlite.1/",
 ];
 const DOWNLOAD_HOSTS = new Set([
